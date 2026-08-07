@@ -1,0 +1,164 @@
+﻿@page "/producto/{slug}"
+
+@using MarketCatalogo.Catalogo.Contratos
+
+@inject ICatalogoConsulta CatalogoConsulta
+@inject NavigationManager Nav
+
+@* Ficha del producto. Es LA página que Google indexa y la que se comparte por WhatsApp, así que los
+   meta de Open Graph van completos. Cero consultas SQL: sale del caché en memoria. *@
+
+@if (_art is null)
+{
+    <PageTitle>Artículo no encontrado — MARKET.arg</PageTitle>
+    <section class="mk-vacio mk-producto-vacio">
+        <h1>No encontramos ese artículo</h1>
+        <p>Puede que ya no esté disponible.</p>
+        <p><a href="/catalogo">Ver el catálogo</a></p>
+    </section>
+}
+else
+{
+    <PageTitle>@_art.Titulo — MARKET.arg</PageTitle>
+    <HeadContent>
+        <meta name="description" content="@MetaDescripcion" />
+        <link rel="canonical" href="@($"/producto/{_art.Slug}")" />
+        <meta property="og:type" content="product" />
+        <meta property="og:title" content="@_art.Titulo" />
+        <meta property="og:description" content="@MetaDescripcion" />
+        @if (_art.TieneFoto)
+        {
+            <meta property="og:image" content="@($"{Origen}/fotos/{_art.ArtCod}_1200.webp")" />
+        }
+    </HeadContent>
+
+    <article class="mk-producto">
+
+        <div class="mk-producto-foto">
+            @if (_art.TieneFoto)
+            {
+                <img class="mk-foto"
+                     src="/fotos/@(_art.ArtCod)_1200.webp"
+                     width="1200" height="1500"
+                     alt="@_art.Titulo" />
+            }
+            else
+            {
+                <div class="mk-card-sinfoto" aria-label="Sin foto todavía"></div>
+            }
+        </div>
+
+        <div class="mk-producto-datos">
+            <nav class="mk-migas mk-rotulo" aria-label="Ubicación">
+                <a href="/catalogo/@_art.RubroSlug">@_art.Rubro</a>
+                <span aria-hidden="true">›</span>
+                <a href="/catalogo/@_art.RubroSlug/@_art.GeneroSlug">@_art.Genero</a>
+            </nav>
+
+            <h1>@_art.Titulo</h1>
+
+            @if (_art.Familia is not null)
+            {
+                <p class="mk-rotulo">@_art.Familia</p>
+            }
+
+            @* El combo es el titular: es la oferta real que está en la etiqueta del local.
+               El precio suelto va debajo porque es lo que cuesta llevar uno solo. *@
+            @if (_art.ComboTexto is not null)
+            {
+                <p class="mk-producto-combo">@_art.ComboTexto</p>
+            }
+            @if (_art.PrecioSueltaTexto is not null)
+            {
+                <p class="mk-producto-unidad">@_art.PrecioSueltaTexto la unidad</p>
+            }
+
+            @if (_art.Marketing is not null)
+            {
+                <p class="mk-producto-texto">@_art.Marketing</p>
+            }
+
+            @if (_art.Talles.Count > 0)
+            {
+                <div class="mk-producto-bloque">
+                    <h2 class="mk-rotulo">Talles</h2>
+                    <ul class="mk-pastillas">
+                        @foreach (var t in _art.Talles)
+                        {
+                            <li class="mk-pastilla">@t</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (_art.Colores.Count > 0)
+            {
+                <div class="mk-producto-bloque">
+                    <h2 class="mk-rotulo">Colores</h2>
+                    <ul class="mk-pastillas">
+                        @foreach (var c in _art.Colores)
+                        {
+                            <li class="mk-pastilla">@c</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (_art.Locales.Count > 0)
+            {
+                <div class="mk-producto-bloque">
+                    <h2 class="mk-rotulo">Disponible en</h2>
+                    <ul class="mk-pastillas">
+                        @foreach (var l in _art.Locales)
+                        {
+                            <li class="mk-pastilla">@l</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </article>
+}
+
+@code {
+    [Parameter] public string? Slug { get; set; }
+
+    private ArticuloDto? _art;
+
+    private string Origen => new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority) is var a && a.Length > 0
+        ? new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority) : "";
+
+    private string MetaDescripcion
+    {
+        get
+        {
+            if (_art is null) return "";
+            var partes = new List<string> { _art.Titulo };
+            if (_art.ComboTexto is not null) partes.Add(_art.ComboTexto);
+            if (_art.Talles.Count > 0) partes.Add("Talles " + string.Join(", ", _art.Talles));
+            if (_art.Locales.Count > 0) partes.Add("Disponible en " + string.Join(" y ", _art.Locales));
+            return string.Join(". ", partes) + ".";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            _art = await CatalogoConsulta.PorSlugAsync(Slug);
+        }
+        catch (Exception)
+        {
+            // Sólo puede pasar en un arranque en frío sin datos todavía. Ya queda logueado adentro
+            // del caché; acá se evita el 500 y se muestra "no encontrado" en vez de un error.
+            _art = null;
+            return;
+        }
+
+        // El título cambió (alguien cargó un nombre comercial) pero el link viejo sigue circulando:
+        // se resolvió por el código y se redirige al slug canónico para no tener dos URLs del mismo
+        // producto compitiendo en Google.
+        if (_art is not null && !string.Equals(_art.Slug, Slug, StringComparison.OrdinalIgnoreCase))
+            Nav.NavigateTo($"/producto/{_art.Slug}", replace: true);
+    }
+}

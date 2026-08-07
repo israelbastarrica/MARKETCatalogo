@@ -1,0 +1,32 @@
+﻿@using MarketCatalogo.Catalogo.Contratos
+@using MarketCatalogo.Catalogo.Ui
+
+@* Una faceta del panel. Si tiene menos de dos opciones no se muestra: ofrecer un filtro con una sola
+   opción no filtra nada y sólo ocupa lugar. *@
+
+@if (Opciones.Count > 1)
+{
+    <div class="mk-faceta mk-faceta-@Clave">
+        <h4 class="mk-rotulo mk-faceta-titulo">@Titulo</h4>
+        <ul class="mk-faceta-lista">
+            @foreach (var o in Opciones)
+            {
+                <li>
+                    <a class="mk-faceta-opcion @(o.Activa ? "activa" : "")"
+                       href="@UrlCatalogo.Alternar(Filtros, Clave, o.Valor, o.Activa)">
+                        <span class="mk-faceta-marca" aria-hidden="true"></span>
+                        <span class="mk-faceta-nombre">@o.Etiqueta</span>
+                        <span class="mk-faceta-cantidad">@o.Cantidad</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public required string Titulo { get; set; }
+    [Parameter, EditorRequired] public required string Clave { get; set; }
+    [Parameter, EditorRequired] public required IReadOnlyList<OpcionFaceta> Opciones { get; set; }
+    [Parameter, EditorRequired] public required FiltrosCatalogo Filtros { get; set; }
+}

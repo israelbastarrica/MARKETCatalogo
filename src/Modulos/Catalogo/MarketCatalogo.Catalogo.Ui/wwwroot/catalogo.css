@@ -1,0 +1,584 @@
+/* ============================================================================
+   MÓDULO CATÁLOGO — estilos de presentación
+   Layout de la grilla, las cards, el panel de filtros y la ficha de producto.
+   Vive DENTRO del módulo (se sirve como _content/MarketCatalogo.Catalogo.Ui/
+   catalogo.css): el host no conoce estos internos, igual que no conoce su SQL.
+
+   Depende de los tokens y átomos del sistema de diseño (wwwroot/app.css del
+   host): --mk-*, .mk-rotulo, .mk-foto, .mk-migas, .mk-vacio, .mk-pastilla.
+   Paleta y normas: monocromático, la foto es el único color (ver DISENO.md).
+   ============================================================================ */
+
+/* Contenedor de las páginas del módulo: ancho completo de la pantalla, con aire
+   a los lados (el header/footer son full-bleed y ponen su propio padding). */
+.mk-catalogo,
+.mk-producto {
+    width: 100%;
+    margin-inline: auto;
+    padding: 2.5rem 2rem 0;
+}
+
+/* --- Catálogo: cabecera -------------------------------------------------- */
+
+.mk-catalogo-cabecera { margin-bottom: 2rem; }
+
+.mk-catalogo-cabecera h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin: 0;
+    line-height: 1.05;
+}
+
+.mk-catalogo-total {
+    margin: .5rem 0 0;
+    color: var(--mk-tinta-70);
+}
+
+/* --- Catálogo: cuerpo (filtros | resultados) ----------------------------- */
+
+.mk-catalogo-cuerpo {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 3rem;
+    align-items: start;
+}
+
+/* El panel de filtros queda pegado al hacer scroll: la grilla es larga. */
+.mk-filtros {
+    position: sticky;
+    top: 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* --- Facetas ------------------------------------------------------------- */
+
+.mk-faceta-titulo {
+    margin: 0 0 .75rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+.mk-faceta-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .1rem;
+    /* Las facetas largas (color) no empujan la página entera: scrollean solas. */
+    max-height: 15rem;
+    overflow-y: auto;
+}
+
+.mk-faceta-opcion {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .35rem .25rem;
+    text-decoration: none;
+    color: var(--mk-tinta-100);
+    font-size: .95rem;
+}
+
+.mk-faceta-opcion:hover { color: var(--mk-tinta-100); }
+.mk-faceta-opcion:hover .mk-faceta-nombre { text-decoration: underline; }
+
+/* La "marca" es un cuadradito estilo checkbox, en la paleta (sin color). */
+.mk-faceta-marca {
+    flex: 0 0 auto;
+    width: .85rem;
+    height: .85rem;
+    border: 1px solid var(--mk-tinta-40);
+    background: var(--mk-blanco);
+}
+
+.mk-faceta-opcion.activa .mk-faceta-marca { background: var(--mk-negro); border-color: var(--mk-negro); }
+.mk-faceta-opcion.activa .mk-faceta-nombre { font-weight: 600; }
+
+.mk-faceta-nombre { flex: 1; }
+.mk-faceta-cantidad { color: var(--mk-tinta-40); font-size: .8rem; }
+
+/* Los colores vienen en mayúscula de Dragon (NEGRO, ARENA…); se muestran en minúscula. */
+.mk-faceta-color .mk-faceta-nombre { text-transform: lowercase; }
+
+/* --- Chips de filtros activos -------------------------------------------- */
+
+.mk-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: 1.5rem;
+}
+
+.mk-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .3rem .7rem;
+    border: 1px solid var(--mk-negro);
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: .85rem;
+    color: var(--mk-tinta-100);
+}
+
+.mk-chip:hover { background: var(--mk-negro); color: var(--mk-blanco); }
+.mk-chip-limpiar { text-decoration: underline; color: var(--mk-tinta-70); }
+
+/* --- Barra de orden ------------------------------------------------------ */
+
+.mk-orden {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.mk-orden-opcion {
+    text-decoration: none;
+    color: var(--mk-tinta-40);
+    font-size: .9rem;
+}
+
+.mk-orden-opcion:hover { color: var(--mk-tinta-70); }
+.mk-orden-opcion.activa { color: var(--mk-tinta-100); font-weight: 600; }
+
+/* --- Barra superior: sucursales (izq) + orden (der) ---------------------- */
+
+.mk-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+/* La barra ya trae su propio margen; el .mk-orden de adentro no dobla. */
+.mk-toolbar .mk-orden { margin-bottom: 0; }
+
+.mk-sucursales {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem 1.25rem;
+}
+
+/* Sucursal como tick: un cuadradito que se llena al activarse (multi-selección). */
+.mk-suc {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    text-decoration: none;
+    color: var(--mk-tinta-70);
+    font-size: .9rem;
+}
+
+.mk-suc:hover { color: var(--mk-tinta-100); }
+
+.mk-suc-tick {
+    flex: 0 0 auto;
+    width: 1.05rem;
+    height: 1.05rem;
+    border: 1px solid var(--mk-tinta-40);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mk-suc.activa { color: var(--mk-tinta-100); font-weight: 600; }
+.mk-suc.activa .mk-suc-tick { background: var(--mk-negro); border-color: var(--mk-negro); }
+
+/* El "check" del tick, dibujado en CSS (sin icono externo). */
+.mk-suc.activa .mk-suc-tick::after {
+    content: "";
+    width: .3rem;
+    height: .55rem;
+    margin-top: -2px;
+    border: solid var(--mk-blanco);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* --- Grilla + card ------------------------------------------------------- */
+
+.mk-grilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 2.5rem 1.75rem;
+}
+
+.mk-card {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: var(--mk-tinta-100);
+}
+
+.mk-card-foto {
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: rgba(0, 0, 0, .04);
+}
+
+.mk-card-foto .mk-foto {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity .2s ease;
+}
+
+.mk-card:hover .mk-foto { opacity: .85; }
+
+/* Sin foto: rectángulo liso, misma proporción. Se lee como "todavía sin foto"
+   sin parecer una imagen rota. */
+.mk-card-sinfoto {
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(0, 0, 0, .03) 0, rgba(0, 0, 0, .03) 10px,
+        rgba(0, 0, 0, .05) 10px, rgba(0, 0, 0, .05) 20px);
+}
+
+.mk-card-datos { padding-top: .75rem; display: flex; flex-direction: column; gap: .2rem; }
+
+.mk-card-titulo {
+    font-family: var(--mk-font-texto);
+    font-size: .95rem;
+    font-weight: 400;
+    line-height: 1.35;
+    margin: 0;
+    /* Título a dos líneas máximo para que la grilla quede pareja. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mk-card-combo { font-weight: 600; margin: .25rem 0 0; }
+.mk-card-unidad { color: var(--mk-tinta-70); font-size: .85rem; margin: 0; }
+.mk-card-locales { margin: .35rem 0 0; font-size: .7rem; }
+
+/* --- Paginación + sello de frescura -------------------------------------- */
+
+.mk-paginacion {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 3rem;
+}
+
+.mk-actualizado { margin-top: 2rem; text-align: right; color: var(--mk-tinta-40); }
+
+/* --- Ficha de producto --------------------------------------------------- */
+
+.mk-producto {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3.5rem;
+    padding-top: 2rem;
+}
+
+.mk-producto-foto {
+    aspect-ratio: 4 / 5;
+    background: rgba(0, 0, 0, .04);
+    overflow: hidden;
+}
+
+.mk-producto-foto .mk-foto { width: 100%; height: 100%; object-fit: cover; }
+.mk-producto-foto .mk-card-sinfoto { min-height: 100%; }
+
+.mk-producto-datos { display: flex; flex-direction: column; gap: .35rem; }
+.mk-producto-datos > .mk-migas { margin-bottom: .5rem; }
+
+.mk-producto-datos h1 {
+    font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+    margin: 0 0 .5rem;
+    line-height: 1.1;
+}
+
+.mk-producto-combo { font-size: 1.5rem; font-weight: 600; margin: .5rem 0 0; }
+.mk-producto-unidad { color: var(--mk-tinta-70); margin: 0 0 1rem; }
+.mk-producto-texto { line-height: 1.6; color: var(--mk-tinta-70); margin: .5rem 0; }
+
+.mk-producto-bloque { margin-top: 1.5rem; }
+.mk-producto-bloque h2 { margin: 0 0 .6rem; }
+
+.mk-producto-codigo { margin-top: 2rem; color: var(--mk-tinta-40); }
+
+.mk-producto-vacio { text-align: center; padding: 5rem 1rem; }
+
+/* --- Drawer de filtros (controles) --------------------------------------
+   El botón "Filtros", el fondo y la cabecera con la × sólo existen para la
+   vista de celular. En desktop el panel es una sidebar fija y se ocultan. */
+.mk-filtros-abrir,
+.mk-filtros-backdrop,
+.mk-filtros-cabecera { display: none; }
+
+/* Flecha "volver arriba": círculo fijo abajo a la derecha, SIEMPRE visible (desktop y celular).
+   Sube al tope de la página del catálogo. z-index 50 < 55 del backdrop, así en celular el fondo
+   oscuro del drawer la tapa cuando está abierto. */
+.mk-subir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 50;
+    width: 2.75rem;
+    height: 2.75rem;
+    background: var(--mk-negro);
+    color: var(--mk-blanco);
+    border-radius: 50%;
+    text-decoration: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+}
+
+.mk-subir:hover { color: var(--mk-blanco); }
+
+/* El checkbox que guarda el estado abierto/cerrado del drawer se oculta a la
+   vista pero SIGUE siendo interactivo (no se usa `hidden` ni display:none: un
+   control oculto no se puede activar desde su <label>, que es justo lo que hace
+   de botón). Patrón sr-only estándar: además queda accesible por teclado. */
+.mk-filtros-check {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* --- Navegación por sección en el drawer (drill-down, sólo celular) -------
+   En desktop la navegación por género está en el mega-menú del header, así que
+   acá no se muestra. En celular aparece arriba de las facetas, dentro del drawer. */
+.mk-secciones { display: none; }
+
+/* Los radios que guardan el nivel del drill-down: ocultos a la vista pero
+   interactivos (patrón sr-only, igual que el checkbox del drawer). */
+.mk-sec-radio,
+.mk-sec-radio-none {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* Ícono "sliders" del botón que abre el drawer. */
+.mk-filtros-icono { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }
+.mk-filtros-icono line { stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.mk-filtros-icono circle { fill: currentColor; }
+
+/* --- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 900px) {
+    .mk-catalogo-cuerpo { grid-template-columns: 1fr; gap: 1.5rem; }
+
+    /* Botón blanco de Filtros: FIJO abajo a la izquierda, siempre a mano mientras se scrollea.
+       (El de "volver arriba" va abajo a la derecha.) */
+    .mk-filtros-abrir {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        position: fixed;
+        left: 1rem;
+        bottom: 1rem;
+        z-index: 50;
+        padding: .7rem 1.15rem;
+        background: var(--mk-blanco);
+        border: 1px solid var(--mk-negro);
+        border-radius: 999px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .mk-filtros-abrir-contador {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.3rem;
+        height: 1.3rem;
+        padding: 0 .35rem;
+        background: var(--mk-negro);
+        color: var(--mk-blanco);
+        border-radius: 999px;
+        font-size: .75rem;
+    }
+
+    /* El panel deja de ser sidebar: pasa a un drawer fijo fuera de pantalla que
+       entra deslizándose desde la izquierda. */
+    .mk-filtros {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 60;
+        width: min(85vw, 320px);
+        height: 100dvh;
+        margin: 0;
+        padding: 1.25rem 1.25rem 2rem;
+        background: var(--mk-blanco);
+        border-right: 1px solid var(--mk-tinta-20);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+    }
+
+    /* En el drawer el scroll es UNO SOLO: el del panel entero. Cada faceta pierde
+       su scroll interno (el max-height de 15rem del desktop), que si no atrapa el
+       gesto del dedo y da la sensación de que la lista queda "cortada" en Prenda y
+       Talle sin poder bajar a Color y Combo. */
+    .mk-filtros .mk-faceta-lista {
+        max-height: none;
+        overflow-y: visible;
+    }
+
+    .mk-filtros-cabecera {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: .5rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid var(--mk-tinta-20);
+    }
+
+    .mk-filtros-cerrar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        font-size: 1.7rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    /* Fondo oscuro detrás del drawer; oculto hasta que se abre. */
+    .mk-filtros-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 55;
+        background: rgba(0, 0, 0, .5);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .25s ease, visibility .25s ease;
+    }
+
+    /* Estado ABIERTO: el checkbox oculto (hermano de .mk-catalogo-cuerpo) marcado
+       desliza el panel a la vista y muestra el fondo. */
+    .mk-filtros-check:checked ~ .mk-catalogo-cuerpo .mk-filtros { transform: translateX(0); }
+
+    .mk-filtros-check:checked ~ .mk-catalogo-cuerpo .mk-filtros-backdrop {
+        display: block;
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Aire al pie para que los botones flotantes no tapen la última fila ni el sello de precios. */
+    .mk-catalogo-resultados { padding-bottom: 4.5rem; }
+
+    /* Ficha en celular: una sola columna, foto ARRIBA y toda la info (precio, talles, colores,
+       descripción) DEBAJO. La foto se acota en alto para que no ocupe toda la pantalla y la info
+       quede visible sin tener que scrollear una pantalla entera. */
+    .mk-producto { grid-template-columns: 1fr; gap: 1.5rem; }
+
+    .mk-producto-foto {
+        aspect-ratio: auto;
+        max-height: 55vh;
+    }
+
+    .mk-producto-foto .mk-foto {
+        height: auto;
+        max-height: 55vh;
+        object-fit: contain;   /* la prenda entera, sin recortar */
+    }
+}
+
+@media (max-width: 640px) {
+    .mk-catalogo, .mk-producto { padding-inline: 1.25rem; }
+    .mk-grilla { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.75rem 1rem; }
+
+    /* --- Drill-down de secciones dentro del drawer -----------------------
+       Nivel 1: lista de géneros. Al tocar uno, :has() oculta los demás y su
+       radio muestra los tipos. "Volver" (radio "ninguna") vuelve al nivel 1.
+       Todo sin una línea de JavaScript. */
+    .mk-secciones {
+        display: block;
+        margin-bottom: 1.75rem;
+        padding-bottom: 1.25rem;
+        border-bottom: 1px solid var(--mk-tinta-20);
+    }
+
+    .mk-secciones-titulo { display: block; margin-bottom: .75rem; }
+
+    .mk-sec-lista { list-style: none; margin: 0; padding: 0; }
+
+    .mk-sec-gen {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: .75rem .25rem;
+        cursor: pointer;
+        color: var(--mk-tinta-100);
+        font-size: 1rem;
+        border-bottom: 1px solid var(--mk-tinta-20);
+    }
+
+    .mk-sec-flecha { color: var(--mk-tinta-40); font-size: 1.2rem; }
+
+    .mk-sec-tipos { display: none; }
+
+    .mk-sec-volver {
+        display: inline-block;
+        cursor: pointer;
+        color: var(--mk-tinta-70);
+        font-size: .75rem;
+        letter-spacing: var(--mk-tracking-rotulo);
+        text-transform: uppercase;
+        padding: .35rem 0 1rem;
+    }
+
+    .mk-sec-tipos-titulo { display: block; margin: 0 0 .75rem; }
+
+    .mk-sec-tipo {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .65rem .25rem;
+        text-decoration: none;
+        color: var(--mk-tinta-100);
+        font-size: 1rem;
+    }
+
+    .mk-sec-tipo:hover > span:first-child { text-decoration: underline; }
+    .mk-sec-cant { color: var(--mk-tinta-40); font-size: .8rem; }
+
+    /* Reglas del drill-down (dependen de :has(), soportado por todos los
+       navegadores móviles actuales). */
+    .mk-sec-radio:checked ~ .mk-sec-tipos { display: block; }
+    .mk-sec-item:has(.mk-sec-radio:checked) .mk-sec-gen { display: none; }
+    .mk-secciones:has(.mk-sec-radio:checked) .mk-sec-item:not(:has(.mk-sec-radio:checked)) { display: none; }
+    .mk-secciones:has(.mk-sec-radio:checked) .mk-secciones-titulo { display: none; }
+}

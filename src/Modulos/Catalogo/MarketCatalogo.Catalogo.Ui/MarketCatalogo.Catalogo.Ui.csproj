@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- CAPA DE PRESENTACIÓN del módulo Catálogo: sus páginas y componentes Razor, como Razor Class
+       Library. El host las descubre por AdditionalAssemblies en Routes.razor.
+       Referencia SOLO los Contratos: la UI no sabe de SQL ni de dónde salen los datos. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>false</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarketCatalogo.Catalogo.Contratos\MarketCatalogo.Catalogo.Contratos.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.15" />
+  </ItemGroup>
+
+</Project>

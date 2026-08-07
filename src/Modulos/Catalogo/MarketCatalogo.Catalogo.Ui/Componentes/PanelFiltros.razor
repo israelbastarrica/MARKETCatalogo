@@ -1,0 +1,72 @@
+@using MarketCatalogo.Catalogo.Contratos
+@using MarketCatalogo.Catalogo.Ui
+
+@* Panel de filtros. Cada opción es un <a href> con el query string ya recalculado en el servidor:
+   funciona sin JavaScript, el "atrás" hace lo esperado y el link se puede compartir.
+
+   Los CONTADORES son lo que evita que alguien haga tres clicks para llegar a un resultado vacío.
+   Y las opciones en cero no se muestran, porque el servicio ya no las devuelve. *@
+
+<aside class="mk-filtros">
+
+    @* Cabecera del panel: sólo se ve cuando el panel es un drawer (celular). El botón × cierra el
+       drawer apuntando al mismo checkbox que lo abre (id en CatalogoGrilla). *@
+    <div class="mk-filtros-cabecera">
+        <span class="mk-rotulo">Filtros</span>
+        <label for="mk-toggle-filtros" class="mk-filtros-cerrar" aria-label="Cerrar filtros">×</label>
+    </div>
+
+    @* NAVEGACIÓN POR SECCIÓN — sólo celular (en desktop está el mega-menú del header).
+       Drill-down sin JS: al elegir un género se ocultan los demás y aparecen sus tipos; "Volver"
+       vuelve al nivel 1. El estado lo guarda un grupo de radios; el reemplazo lo hace :has(). *@
+    @if (Secciones.Count > 0)
+    {
+        <nav class="mk-secciones" aria-label="Secciones">
+            @* Radio "ninguna sección": marcado por defecto = se ve la lista de géneros (nivel 1). *@
+            <input type="radio" name="mk-seccion" id="mk-sec-none" class="mk-sec-radio-none" checked />
+
+            <span class="mk-rotulo mk-secciones-titulo">Secciones</span>
+
+            <ul class="mk-sec-lista">
+                @foreach (var s in Secciones)
+                {
+                    <li class="mk-sec-item">
+                        <input type="radio" name="mk-seccion" id="mk-sec-@s.Slug" class="mk-sec-radio" />
+                        <label for="mk-sec-@s.Slug" class="mk-sec-gen">
+                            <span>@s.Nombre</span>
+                            <span class="mk-sec-flecha" aria-hidden="true">›</span>
+                        </label>
+
+                        <div class="mk-sec-tipos">
+                            <label for="mk-sec-none" class="mk-sec-volver">‹ Volver</label>
+                            <span class="mk-rotulo mk-sec-tipos-titulo">@s.Nombre</span>
+                            @foreach (var t in s.Tipos)
+                            {
+                                <a class="mk-sec-tipo" href="@t.Href">
+                                    <span>@t.Nombre</span>
+                                    <span class="mk-sec-cant">@t.Cantidad</span>
+                                </a>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+
+    @* El "Tipo" (rubro) no va como faceta: se elige por sección (mega-menú/drawer). Acá queda el
+       refinamiento fino dentro de la sección elegida. *@
+    <Faceta Titulo="Prenda"  Clave="familia" Opciones="Pagina.Familias" Filtros="Filtros" />
+    <Faceta Titulo="Talle"   Clave="talle"   Opciones="Pagina.Talles"   Filtros="Filtros" />
+    <Faceta Titulo="Color"   Clave="color"   Opciones="Pagina.Colores"  Filtros="Filtros" />
+    <Faceta Titulo="Combo"   Clave="combo"   Opciones="Pagina.Combos"   Filtros="Filtros" />
+
+</aside>
+
+@code {
+    [Parameter, EditorRequired] public required PaginaCatalogoDto Pagina { get; set; }
+    [Parameter, EditorRequired] public required FiltrosCatalogo Filtros { get; set; }
+
+    /// <summary>Navegación por sección (Género → Tipos) para el drawer de celular. Vacío = no se muestra.</summary>
+    [Parameter] public IReadOnlyList<SeccionNav> Secciones { get; set; } = [];
+}

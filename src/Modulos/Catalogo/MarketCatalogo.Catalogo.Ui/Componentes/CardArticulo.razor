@@ -1,0 +1,50 @@
+﻿@using MarketCatalogo.Catalogo.Contratos
+
+@* Card de la grilla. Trae lo mínimo: foto, título, precio y disponibilidad.
+   Talles y colores NO van acá — serían ~14 filas de variantes por artículo para no mostrar nada
+   útil en la grilla. Van en la ficha. *@
+
+<a class="mk-card" href="/producto/@Articulo.Slug">
+    <div class="mk-card-foto">
+        @if (Articulo.TieneFoto)
+        {
+            @* width/height fijos para que la grilla no salte mientras cargan (layout shift).
+               srcset deja que un celular retina baje la de 1200 para el mismo hueco. *@
+            <img class="mk-foto"
+                 src="/fotos/@(Articulo.ArtCod)_400.webp"
+                 srcset="/fotos/@(Articulo.ArtCod)_400.webp 400w, /fotos/@(Articulo.ArtCod)_1200.webp 1200w"
+                 sizes="(max-width: 640px) 50vw, 300px"
+                 width="400" height="500"
+                 loading="lazy" decoding="async"
+                 alt="@Articulo.Titulo" />
+        }
+        else
+        {
+            @* Placeholder de los ~303 sin foto. Rectángulo liso: en un diseño monocromático se lee
+               como "todavía no hay foto" sin parecer un error. Nada de iconos de imagen rota. *@
+            <div class="mk-card-sinfoto" aria-label="Sin foto todavía"></div>
+        }
+    </div>
+
+    <div class="mk-card-datos">
+        <h3 class="mk-card-titulo">@Articulo.Titulo</h3>
+
+        @if (Articulo.ComboTexto is not null)
+        {
+            <p class="mk-card-combo">@Articulo.ComboTexto</p>
+        }
+        @if (Articulo.PrecioSueltaTexto is not null)
+        {
+            <p class="mk-card-unidad">@Articulo.PrecioSueltaTexto la unidad</p>
+        }
+
+        @if (Articulo.Locales.Count > 0)
+        {
+            <p class="mk-rotulo mk-card-locales">@string.Join(" · ", Articulo.Locales)</p>
+        }
+    </div>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public required ArticuloDto Articulo { get; set; }
+}

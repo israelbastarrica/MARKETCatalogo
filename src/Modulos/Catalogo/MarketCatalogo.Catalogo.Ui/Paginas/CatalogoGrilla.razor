@@ -1,0 +1,288 @@
+﻿@page "/catalogo"
+@page "/catalogo/{rubro}"
+@page "/catalogo/{rubro}/{genero}"
+
+@using MarketCatalogo.Catalogo.Contratos
+@using MarketCatalogo.Catalogo.Ui
+@using MarketCatalogo.Catalogo.Ui.Componentes
+
+@* Depende SÓLO del contrato (Catalogo.Contratos): la UI no sabe que atrás hay un caché en memoria,
+   ni de dónde salen los datos. Esa es la frontera del monolito modular. *@
+@inject ICatalogoConsulta CatalogoConsulta
+
+@* Grilla del catálogo, SSR puro. Todo el estado viene de la ruta y del query string. *@
+
+<PageTitle>@TituloPagina — MARKET.arg</PageTitle>
+<HeadContent>
+    <meta name="description" content="@Descripcion" />
+    @* Las combinaciones de filtros son miles de URLs con contenido casi duplicado: si Google las
+       indexa se come el presupuesto de crawleo y el sitio compite consigo mismo. *@
+    @if (UrlCatalogo.TieneRefinamientos(_filtros))
+    {
+        <meta name="robots" content="noindex,follow" />
+    }
+    <link rel="canonical" href="@UrlCatalogo.Canonica(_filtros)" />
+</HeadContent>
+
+<div class="mk-catalogo" id="mk-top">
+
+    <header class="mk-catalogo-cabecera">
+        <nav class="mk-migas mk-rotulo" aria-label="Ubicación">
+            <a href="/catalogo">Catálogo</a>
+            @if (_pagina is not null && Rubro is not null)
+            {
+                <span aria-hidden="true">›</span>
+                <a href="/catalogo/@Rubro">@NombreRubro</a>
+                @if (Genero is not null)
+                {
+                    <span aria-hidden="true">›</span>
+                    <span>@NombreGenero</span>
+                }
+            }
+        </nav>
+
+        <h1>@TituloPagina</h1>
+
+        @if (_pagina is not null)
+        {
+            <p class="mk-catalogo-total">
+                @_pagina.Total @(_pagina.Total == 1 ? "artículo" : "artículos")
+            </p>
+        }
+    </header>
+
+    @if (_pagina is null)
+    {
+        <p class="mk-vacio">No se pudo cargar el catálogo. Reintentá en unos minutos.</p>
+    }
+    else
+    {
+        @* Chips de filtros activos, cada × con la URL que lo quita. *@
+        @if (_chips.Count > 0)
+        {
+            <div class="mk-chips">
+                @foreach (var c in _chips)
+                {
+                    <a class="mk-chip" href="@c.UrlQuitar">@c.Etiqueta <span aria-hidden="true">×</span></a>
+                }
+                <a class="mk-chip-limpiar mk-rotulo" href="@UrlCatalogo.Canonica(_filtros)">Limpiar todo</a>
+            </div>
+        }
+
+        @* Drawer de filtros SIN JavaScript (el sitio es SSR puro): un checkbox oculto guarda el estado
+           abierto/cerrado y los <label for> hacen de botones. En desktop el checkbox no hace nada —el
+           CSS muestra los filtros como sidebar fija—; en celular el panel se desliza desde la izquierda. *@
+        <input type="checkbox" id="mk-toggle-filtros" class="mk-filtros-check" />
+
+        <div class="mk-catalogo-cuerpo">
+
+            <PanelFiltros Pagina="_pagina" Filtros="_filtros" Secciones="_secciones" />
+
+            @* Fondo oscuro que aparece con el drawer; tocarlo lo cierra. *@
+            <label for="mk-toggle-filtros" class="mk-filtros-backdrop" aria-hidden="true"></label>
+
+            <div class="mk-catalogo-resultados">
+
+                @* Botón que abre el drawer. Sólo visible en celular (CSS). Muestra cuántos filtros hay
+                   activos para que se note que hay refinamientos aplicados aunque el panel esté cerrado. *@
+                <label for="mk-toggle-filtros" class="mk-filtros-abrir" aria-label="Abrir filtros y secciones">
+                    @* Ícono de "filtros" (sliders), dibujado como SVG inline — sin librería de iconos. *@
+                    <svg class="mk-filtros-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <line x1="3" y1="7" x2="21" y2="7" />
+                        <circle cx="9" cy="7" r="2.4" />
+                        <line x1="3" y1="17" x2="21" y2="17" />
+                        <circle cx="15" cy="17" r="2.4" />
+                    </svg>
+                    <span class="mk-rotulo">Filtros</span>
+                    @if (_chips.Count > 0)
+                    {
+                        <span class="mk-filtros-abrir-contador">@_chips.Count</span>
+                    }
+                </label>
+
+                <div class="mk-toolbar">
+
+                    @* Sucursales como ticks, arriba de la grilla (no en el panel de filtros): es
+                       multi-selección — se puede ver LURO, PERALTA o ambas. Ninguna marcada = todas. *@
+                    @if (_pagina.Locales.Count > 0)
+                    {
+                        <div class="mk-sucursales">
+                            <span class="mk-rotulo">Sucursal</span>
+                            @foreach (var l in _pagina.Locales)
+                            {
+                                <a class="mk-suc @(l.Activa ? "activa" : "")"
+                                   href="@UrlCatalogo.AlternarLocal(_filtros, l.Valor)">
+                                    <span class="mk-suc-tick" aria-hidden="true"></span>@l.Etiqueta
+                                </a>
+                            }
+                        </div>
+                    }
+
+                    <div class="mk-orden">
+                        <span class="mk-rotulo">Orden</span>
+                        @* Sólo por precio. El orden por defecto ("destacados") sigue existiendo en el
+                           servicio como fallback, pero no se ofrece como botón. *@
+                        @foreach (var (valor, etiqueta) in new[] { ("precio-asc", "Menor precio"), ("precio-desc", "Mayor precio") })
+                        {
+                            <a class="mk-orden-opcion @(_filtros.Orden == valor ? "activa" : "")"
+                               href="@UrlCatalogo.Construir(_filtros, "orden", valor)">@etiqueta</a>
+                        }
+                    </div>
+                </div>
+
+                @if (_pagina.Items.Count == 0)
+                {
+                    <div class="mk-vacio">
+                        <p>No hay artículos con esos filtros.</p>
+                        @if (_chips.Count > 0)
+                        {
+                            <p><a href="@_chips[^1].UrlQuitar">Quitar “@_chips[^1].Etiqueta”</a></p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="mk-grilla">
+                        @foreach (var a in _pagina.Items)
+                        {
+                            <CardArticulo Articulo="a" />
+                        }
+                    </div>
+
+                    @if (_pagina.Paginas > 1)
+                    {
+                        <nav class="mk-paginacion" aria-label="Páginas">
+                            @if (_pagina.Pagina > 1)
+                            {
+                                <a href="@UrlCatalogo.Construir(_filtros, "pag", (_pagina.Pagina - 1).ToString())">Anterior</a>
+                            }
+                            <span class="mk-rotulo">Página @_pagina.Pagina de @_pagina.Paginas</span>
+                            @if (_pagina.Pagina < _pagina.Paginas)
+                            {
+                                <a href="@UrlCatalogo.Construir(_filtros, "pag", (_pagina.Pagina + 1).ToString())">Siguiente</a>
+                            }
+                        </nav>
+                    }
+                }
+
+                @if (_snapshot is not null)
+                {
+                    @* Guardarraíl del caché: la antigüedad de los datos es visible, no un secreto.
+                       Importa porque acá se publican precios. *@
+                    <p class="mk-actualizado mk-rotulo">
+                        Precios actualizados hace @Antiguedad(_snapshot.Antiguedad)
+                    </p>
+                }
+            </div>
+        </div>
+
+        @* Flecha "volver arriba", fija abajo a la derecha (sólo celular). Sube al tope de ESTA página.
+           data-enhance-nav="false": sin esto, la navegación mejorada de Blazor resuelve el "#" contra el
+           <base href="/"> y te manda al home. El onclick hace el scroll suave sin tocar la URL; el href
+           #mk-top queda de respaldo si no hay JavaScript. *@
+        <a href="#mk-top" class="mk-subir" data-enhance-nav="false"
+           onclick="event.preventDefault();window.scrollTo({top:0,behavior:'smooth'});"
+           aria-label="Volver arriba">↑</a>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Rubro { get; set; }
+    [Parameter] public string? Genero { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tipo")] public string? Tipo { get; set; }
+    [SupplyParameterFromQuery(Name = "gen")] public string? Gen { get; set; }
+    [SupplyParameterFromQuery(Name = "familia")] public string? Familia { get; set; }
+    [SupplyParameterFromQuery(Name = "talle")] public string? Talle { get; set; }
+    [SupplyParameterFromQuery(Name = "color")] public string? Color { get; set; }
+    [SupplyParameterFromQuery(Name = "local")] public string? Local { get; set; }
+    [SupplyParameterFromQuery(Name = "combo")] public string? Combo { get; set; }
+    [SupplyParameterFromQuery(Name = "precioMin")] public decimal? PrecioMin { get; set; }
+    [SupplyParameterFromQuery(Name = "precioMax")] public decimal? PrecioMax { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Texto { get; set; }
+    [SupplyParameterFromQuery(Name = "orden")] public string? Orden { get; set; }
+    [SupplyParameterFromQuery(Name = "pag")] public int? Pag { get; set; }
+
+    private FiltrosCatalogo _filtros = new();
+    private PaginaCatalogoDto? _pagina;
+    private CatalogoSnapshot? _snapshot;
+    private IReadOnlyList<(string Etiqueta, string UrlQuitar)> _chips = [];
+    // Navegación por sección (Género → Tipos) para el drawer de celular. En desktop no se usa (está el
+    // mega-menú del header). Se arma del mismo menú del snapshot.
+    private IReadOnlyList<SeccionNav> _secciones = [];
+
+    private string NombreRubro => _pagina?.Items.FirstOrDefault()?.Rubro
+        ?? _snapshot?.Menu.FirstOrDefault(r => r.Slug == Rubro)?.Nombre
+        ?? Rubro ?? "";
+
+    private string NombreGenero => _pagina?.Items.FirstOrDefault()?.Genero
+        ?? _snapshot?.Menu.FirstOrDefault(r => r.Slug == Rubro)?.Generos
+              .FirstOrDefault(g => g.Slug == Genero)?.Nombre
+        ?? Genero ?? "";
+
+    private string TituloPagina => (Rubro, Genero) switch
+    {
+        (null, _) => "Catálogo",
+        (not null, null) => NombreRubro,
+        _ => $"{NombreRubro} de {NombreGenero}",
+    };
+
+    private string Descripcion =>
+        $"{TituloPagina} en MARKET arg. {(_pagina?.Total ?? 0)} artículos con precios y disponibilidad por sucursal.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _filtros = new FiltrosCatalogo
+        {
+            RubroSlug = Vacio(Rubro),
+            GeneroSlug = Vacio(Genero),
+            Rubros = ParsearCsv(Tipo),
+            Generos = ParsearCsv(Gen),
+            Familias = ParsearCsv(Familia),
+            Talles = ParsearCsv(Talle),
+            Colores = ParsearCsv(Color),
+            Locales = ParsearCsv(Local),
+            Combos = ParsearCsv(Combo).Select(s => int.TryParse(s, out var n) ? n : -1).Where(n => n > 0).Distinct().ToList(),
+            PrecioMin = PrecioMin,
+            PrecioMax = PrecioMax,
+            Texto = Vacio(Texto),
+            Orden = string.IsNullOrWhiteSpace(Orden) ? "destacados" : Orden!.Trim(),
+            Pagina = Pag is > 0 ? Pag.Value : 1,
+        };
+
+        try
+        {
+            _snapshot = await CatalogoConsulta.SnapshotAsync();
+            _pagina = await CatalogoConsulta.BuscarAsync(_filtros);
+            _chips = UrlCatalogo.ChipsActivos(_filtros).ToList();
+            _secciones = MenuSecciones.Construir(_snapshot.Menu);
+        }
+        catch (Exception)
+        {
+            // Sólo puede pasar en un arranque en frío sin datos todavía (la base no respondió la
+            // primera vez). Ya queda logueado adentro del caché; acá sólo se evita el 500 y se
+            // muestra el estado vacío de la página.
+            _pagina = null;
+        }
+    }
+
+    private static string? Vacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    // Cada filtro de faceta viaja como CSV ("campera,pantalon" / "s,m" / "luro,peralta"): se parte,
+    // se limpia y se deduplica. No se fuerza a minúscula: los valores se comparan case-insensitive y
+    // así los chips conservan la forma linda ("S/M", "NEGRO").
+    private static IReadOnlyList<string> ParsearCsv(string? csv) =>
+        string.IsNullOrWhiteSpace(csv)
+            ? []
+            : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                 .ToList();
+
+    private static string Antiguedad(TimeSpan t) => t switch
+    {
+        { TotalMinutes: < 1 } => "menos de un minuto",
+        { TotalMinutes: < 60 } => $"{(int)t.TotalMinutes} min",
+        { TotalHours: < 24 } => $"{(int)t.TotalHours} h",
+        _ => $"{(int)t.TotalDays} días",
+    };
+}

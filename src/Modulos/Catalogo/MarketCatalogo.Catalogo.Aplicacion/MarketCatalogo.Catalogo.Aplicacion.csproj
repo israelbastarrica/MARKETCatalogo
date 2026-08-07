@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- CAPA DE APLICACIÓN del módulo Catálogo: reglas propias (combo, talles, títulos) y los servicios
+       que implementan los contratos. Define las interfaces de acceso a datos que Catalogo.Datos
+       implementa (inversión de dependencias: Datos -> Aplicacion, nunca al revés). -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarketCatalogo.Catalogo.Contratos\MarketCatalogo.Catalogo.Contratos.csproj" />
+    <ProjectReference Include="..\..\..\Compartido\MarketCatalogo.Compartido\MarketCatalogo.Compartido.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.13" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.13" />
+    <!-- SkiaSharp (MIT) para redimensionar fotos. NO ImageSharp: la v4 exige licencia comercial de
+         Six Labors y falla en tiempo de compilación sin ella. -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Infraestructura transversal: conexiones a base y utilidades de texto.
+       NO tiene lógica de negocio ni conoce ningún módulo. Todos los módulos pueden referenciarla;
+       ella no referencia a nadie. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.13" />
+  </ItemGroup>
+
+</Project>

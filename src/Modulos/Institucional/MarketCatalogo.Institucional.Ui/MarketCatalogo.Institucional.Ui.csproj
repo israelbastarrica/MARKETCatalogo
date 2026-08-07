@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Módulo INSTITUCIONAL. Es el caso donde el monolito modular se paga solo: este módulo NO tiene
+       capa de datos ni de aplicación, porque su contenido está versionado en el repo (la copy aprobada
+       del Manual de Marca, ver docs/CONTENIDO.md). Tres capas es el máximo, no el mínimo: un módulo usa
+       las que necesita. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>false</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.15" />
+  </ItemGroup>
+
+</Project>

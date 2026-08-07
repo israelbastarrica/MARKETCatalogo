@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- CAPA DE DATOS del módulo Catálogo: implementa las interfaces de repositorio que declara
+       Catalogo.Aplicacion. Es la única capa que sabe SQL y la única que conoce el esquema de Dragon
+       y de los mapeos de MARKET.
+       También hospeda el registro de DI del módulo (ModuloCatalogo), porque es la capa que conoce a
+       todas las demás. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarketCatalogo.Catalogo.Aplicacion\MarketCatalogo.Catalogo.Aplicacion.csproj" />
+    <ProjectReference Include="..\..\..\Compartido\MarketCatalogo.Compartido\MarketCatalogo.Compartido.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.13" />
+  </ItemGroup>
+
+</Project>

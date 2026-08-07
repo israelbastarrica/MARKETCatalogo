@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- CONTRATOS del módulo Catálogo: interfaces y DTOs.
+       Es la ÚNICA superficie que otros módulos (y el host) pueden referenciar.
+       Regla del monolito modular: nadie referencia Catalogo.Aplicacion ni Catalogo.Datos, salvo el
+       host, y sólo para registrar la implementación en el arranque.
+       No referencia nada: así no arrastra dependencias a quien lo consuma. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

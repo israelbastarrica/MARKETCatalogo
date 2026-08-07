@@ -1,0 +1,48 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    @* Las tipografías van ANTES de app.css: los @font-face tienen que estar declarados
+       cuando el navegador resuelve las font-family de los tokens de marca. *@
+    <link rel="stylesheet" href="@Assets["css/fonts.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    @* Cada módulo trae su propia hoja de estilos, servida desde su RCL como
+       _content/<módulo>/… — el host sólo la enlaza, no conoce su contenido. *@
+    <link rel="stylesheet" href="@Assets["_content/MarketCatalogo.Catalogo.Ui/catalogo.css"]" />
+    <link rel="stylesheet" href="@Assets["_content/MarketCatalogo.Institucional.Ui/institucional.css"]" />
+    <link rel="stylesheet" href="@Assets["MarketCatalogo.Web.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <script src="_framework/blazor.web.js"></script>
+
+    @* Mejora progresiva (NO es estado de la app: los filtros son links y funcionan sin esto).
+       El drawer de filtros se abre/cierra con un checkbox del DOM. Cada filtro navega por SSR y la
+       navegación mejorada de Blazor reemplaza el DOM, reseteando ese checkbox → el drawer se cerraba
+       en cada clic. Acá recordamos si estaba abierto y lo reabrimos después de cada navegación, así se
+       pueden marcar varios filtros seguidos sin reabrirlo. *@
+    <script>
+        (function () {
+            var filtrosAbierto = false;
+            document.addEventListener('change', function (e) {
+                if (e.target && e.target.id === 'mk-toggle-filtros') filtrosAbierto = e.target.checked;
+            });
+            if (window.Blazor && Blazor.addEventListener) {
+                Blazor.addEventListener('enhancedload', function () {
+                    var cb = document.getElementById('mk-toggle-filtros');
+                    if (cb) cb.checked = filtrosAbierto;
+                });
+            }
+        })();
+    </script>
+</body>
+
+</html>

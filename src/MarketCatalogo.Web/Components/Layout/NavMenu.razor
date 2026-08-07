@@ -1,0 +1,62 @@
+@using MarketCatalogo.Catalogo.Contratos
+@using MarketCatalogo.Catalogo.Ui
+@inject ICatalogoConsulta CatalogoConsulta
+
+@* Nav del sitio público. SSR puro, cero JavaScript.
+
+   DESKTOP: mega-menú estilo tienda de indumentaria (referencia: Calvin Klein): arriba los GÉNEROS
+   (Mujer, Hombre, Niños…) y, al pasar el mouse, se despliega un panel con los TIPOS/rubros que linkean
+   al catálogo filtrado. Se muestra con :hover y :focus-within, sin JS.
+
+   CELULAR: estos géneros se OCULTAN acá (CSS) — la navegación por sección se mueve al drawer de filtros
+   del catálogo (NavMenu no puede tener el estado de los filtros; el drawer sí). Ver PanelFiltros.
+
+   El armado Género→Tipos (y la fusión Nene/Nena/Bebe→Niños) vive en MenuSecciones, compartido con el
+   drawer para no duplicarlo. *@
+
+<nav class="mk-nav">
+
+    <NavLink class="mk-nav-link" href="catalogo" Match="NavLinkMatch.All">Catálogo</NavLink>
+
+    @foreach (var s in _secciones)
+    {
+        <div class="mk-mega">
+            <button type="button" class="mk-nav-link mk-mega-sum" aria-haspopup="true">@s.Nombre</button>
+            <div class="mk-mega-panel">
+                <ul class="mk-mega-lista">
+                    @foreach (var t in s.Tipos)
+                    {
+                        <li>
+                            <a class="mk-mega-item" href="@t.Href">
+                                <span>@t.Nombre</span>
+                                <span class="mk-mega-cant">@t.Cantidad</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
+    <NavLink class="mk-nav-link" href="nosotros">Nosotros</NavLink>
+    <NavLink class="mk-nav-link" href="noticias">Noticias</NavLink>
+
+</nav>
+
+@code {
+    private IReadOnlyList<SeccionNav> _secciones = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var snap = await CatalogoConsulta.SnapshotAsync();
+            _secciones = MenuSecciones.Construir(snap.Menu);
+        }
+        catch
+        {
+            // Arranque en frío sin datos: la barra queda con los links planos, sin géneros.
+            _secciones = [];
+        }
+    }
+}

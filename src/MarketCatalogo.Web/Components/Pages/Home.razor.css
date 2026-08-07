@@ -1,0 +1,40 @@
+.mk-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    min-height: 60vh;
+    padding: 4rem 2rem;
+    text-align: center;
+}
+
+.mk-hero-logo {
+    /* clamp() para que nunca baje de la reducción mínima del manual (183 px). */
+    font-size: clamp(1.75rem, 6vw, 4rem);
+}
+
+.mk-intro {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 5rem 2rem 0;
+}
+
+.mk-intro h1 {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    margin-bottom: 1.5rem;
+}
+
+.mk-intro p {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--mk-tinta-70);
+}
+
+.mk-intro a {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid var(--mk-negro);
+    padding-bottom: .15rem;
+}

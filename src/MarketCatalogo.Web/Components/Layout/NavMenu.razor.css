@@ -1,0 +1,161 @@
+/* Nav del header. Rótulos en caps con tracking, como la señalética del manual.
+   El estado activo se marca con peso y un subrayado, no con color (la paleta
+   no tiene un color de acento — ver docs/DISENO.md). */
+
+.mk-nav {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+/* Estilo base del link de nav, compartido por los <NavLink> y por los <button>
+   disparadores del mega-menú (para que género y sección se vean igual). */
+.mk-nav ::deep .mk-nav-link,
+.mk-nav .mk-nav-link {
+    font-family: var(--mk-font-texto);
+    font-size: .8rem;
+    font-weight: 400;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--mk-tinta-70);
+    padding-bottom: .25rem;
+    border-bottom: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.mk-nav ::deep .mk-nav-link:hover,
+.mk-nav .mk-nav-link:hover {
+    color: var(--mk-tinta-100);
+}
+
+.mk-nav ::deep .mk-nav-link.active {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+    border-bottom-color: var(--mk-negro);
+}
+
+/* --- Mega-menú de géneros -------------------------------------------------
+   Dropdown CSS puro: se abre con :hover (desktop) y con :focus-within (celular:
+   al tocar el <button> toma foco y el panel aparece). Sin una línea de JS. */
+
+.mk-mega {
+    position: relative;
+}
+
+/* El disparador es un <button>: hay que resetearle los estilos nativos para que
+   se vea idéntico a un link de nav. */
+.mk-mega-sum {
+    background: none;
+    border: 0;
+    margin: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    border-bottom: 1px solid transparent;   /* mismo alto que un .mk-nav-link */
+}
+
+/* Flechita propia dibujada en CSS (paleta, sin icono externo). Gira al abrir. */
+.mk-mega-sum::after {
+    content: "";
+    width: .4rem;
+    height: .4rem;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform .15s ease;
+    opacity: .6;
+    margin-top: -.15rem;
+}
+
+.mk-mega:hover .mk-mega-sum,
+.mk-mega:focus-within .mk-mega-sum {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+}
+
+.mk-mega:hover .mk-mega-sum::after,
+.mk-mega:focus-within .mk-mega-sum::after {
+    transform: rotate(-135deg);
+    margin-top: .1rem;
+}
+
+.mk-mega-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mk-mega-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: .55rem .25rem;
+    text-decoration: none;
+    color: var(--mk-tinta-100);
+    font-family: var(--mk-font-texto);
+    font-size: .9rem;
+    white-space: nowrap;
+}
+
+.mk-mega-item:hover { color: var(--mk-tinta-100); }
+.mk-mega-item:hover > span:first-child { text-decoration: underline; }
+.mk-mega-cant { color: var(--mk-tinta-40); font-size: .8rem; }
+
+/* --- Desktop: el panel cae como dropdown flotante, visible al hover -------- */
+@media (min-width: 641px) {
+    .mk-mega-panel {
+        position: absolute;
+        top: calc(100% + 1.4rem);   /* debajo del summary, pasando el padding inferior del header */
+        left: 0;
+        min-width: 240px;
+        background: var(--mk-blanco);
+        border: 1px solid var(--mk-tinta-20);
+        padding: .75rem 1rem;
+        z-index: 20;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, .12);
+
+        /* Oculto por defecto; se revela al hover/focus. Se anima opacidad, no display,
+           para que la transición se vea. */
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-.4rem);
+        transition: opacity .15s ease, transform .15s ease, visibility .15s;
+    }
+
+    /* Puente invisible sobre el hueco entre el botón y el panel: sin esto, al cruzar
+       el espacio con el mouse se pierde el :hover y el panel se cierra. */
+    .mk-mega-panel::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: -1.4rem;
+        height: 1.4rem;
+    }
+
+    .mk-mega:hover .mk-mega-panel,
+    .mk-mega:focus-within .mk-mega-panel {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+}
+
+/* --- Mobile: los géneros del header desaparecen ---------------------------
+   En celular la navegación por sección (género → tipos) vive en el drawer de
+   filtros del catálogo, no acá. El header queda con el logo y los links planos. */
+@media (max-width: 640px) {
+    /* Los géneros se fueron al drawer del catálogo; quedan sólo los links planos,
+       que van en FILA (horizontal), centrados y con un gap más chico. */
+    .mk-nav {
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .mk-mega { display: none; }
+}

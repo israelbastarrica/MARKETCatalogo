@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- El HOST del monolito modular. Referencia:
+       - Compartido (infraestructura transversal)
+       - los Contratos de cada módulo (para poder inyectar sus interfaces)
+       - la capa Datos de cada módulo, SÓLO para registrar el módulo en el arranque
+         (Program.cs llama a AgregarModuloCatalogo(); nada más del código del host toca esa capa)
+       - la Ui (RCL) de cada módulo, para que sus páginas y componentes se descubran vía
+         AdditionalAssemblies en Routes.razor -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Compartido\MarketCatalogo.Compartido\MarketCatalogo.Compartido.csproj" />
+
+    <ProjectReference Include="..\Modulos\Catalogo\MarketCatalogo.Catalogo.Contratos\MarketCatalogo.Catalogo.Contratos.csproj" />
+    <ProjectReference Include="..\Modulos\Catalogo\MarketCatalogo.Catalogo.Datos\MarketCatalogo.Catalogo.Datos.csproj" />
+    <ProjectReference Include="..\Modulos\Catalogo\MarketCatalogo.Catalogo.Ui\MarketCatalogo.Catalogo.Ui.csproj" />
+
+    <ProjectReference Include="..\Modulos\Institucional\MarketCatalogo.Institucional.Ui\MarketCatalogo.Institucional.Ui.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>cd20b3ac-b4f5-4ddd-99de-b5b96e5ef217</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

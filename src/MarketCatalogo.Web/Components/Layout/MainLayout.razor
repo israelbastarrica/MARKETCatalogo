@@ -1,0 +1,32 @@
+@inherits LayoutComponentBase
+
+@* Shell de sitio PÚBLICO: header con el wordmark, contenido, footer en negativo.
+   Nada de sidebar de admin — eso es MARKETweb, que es el sistema interno. *@
+
+<div class="mk-page">
+
+    <header class="mk-header">
+        <a class="mk-logo mk-header-logo" href="/" aria-label="MARKET.arg — inicio">Market<span class="mk-logo-arg">.arg</span></a>
+        <NavMenu />
+    </header>
+
+    <main class="mk-main">
+        @Body
+    </main>
+
+    <footer class="mk-footer mk-negativo">
+        <div class="mk-footer-marca">
+            <span class="mk-logo">Market<span class="mk-logo-arg">.arg</span></span>
+            @* Tagline tal como está en el manual (display caps, sin tilde). *@
+            <span class="mk-logo-tagline">Vivi la experiencia</span>
+        </div>
+        <p class="mk-rotulo mk-footer-legal">Industria Argentina</p>
+    </footer>
+
+</div>
+
+<div id="blazor-error-ui">
+    Ocurrió un error no controlado.
+    <a href="." class="reload">Recargar</a>
+    <span class="dismiss">🗙</span>
+</div>

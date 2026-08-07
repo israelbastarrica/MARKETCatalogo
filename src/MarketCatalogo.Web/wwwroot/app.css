@@ -1,0 +1,274 @@
+/* ============================================================================
+   MARKET arg — sistema de diseño
+   Derivado del Manual de Marca oficial (docs/ManualDeMarca.pdf).
+   Ver docs/DISENO.md para las normas y su justificación.
+
+   REGLA CENTRAL: la marca es monocromática. Solo #000, #FFF y la escala de
+   opacidad 100/70/40/20%. El rosa y el verde menta que aparecen en material
+   viejo están PROHIBIDOS por el manual — no se usan ni para acentos ni para
+   estados. El único color de la pantalla es la foto del producto.
+   ============================================================================ */
+
+/* Las @font-face viven en wwwroot/css/fonts.css (generado, ver el encabezado de
+   ese archivo). Se carga antes que esto desde App.razor.                      */
+
+/* --- Tokens --------------------------------------------------------------- */
+
+:root {
+    /* Paleta — lo único que existe */
+    --mk-negro: #000;
+    --mk-blanco: #fff;
+
+    /* Escala de opacidad del manual, sobre fondo claro.
+       Solo 100% y 70% son válidos para TEXTO (40% da 2,9:1 de contraste y es
+       ilegible). 40% y 20% son para bordes, divisores y fondos. */
+    --mk-tinta-100: rgba(0, 0, 0, 1);
+    --mk-tinta-70: rgba(0, 0, 0, .70);
+    --mk-tinta-40: rgba(0, 0, 0, .40);
+    --mk-tinta-20: rgba(0, 0, 0, .20);
+
+    /* La misma escala en negativo, para los bloques de fondo negro */
+    --mk-tinta-inv-100: rgba(255, 255, 255, 1);
+    --mk-tinta-inv-70: rgba(255, 255, 255, .70);
+    --mk-tinta-inv-40: rgba(255, 255, 255, .40);
+    --mk-tinta-inv-20: rgba(255, 255, 255, .20);
+
+    /* Tipografía */
+    --mk-font-titulo: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mk-font-texto: 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    /* Tracking. El wordmark del logo NO se altera (norma del manual). */
+    --mk-tracking-logo: .38em;
+    --mk-tracking-rotulo: .18em;
+
+    /* Reducción mínima del logo en digital, del manual */
+    --mk-logo-min: 183px;
+}
+
+/* --- Base ---------------------------------------------------------------- */
+
+html {
+    /* Scroll suave para los saltos con ancla, como el "volver arriba" del catálogo. */
+    scroll-behavior: smooth;
+}
+
+html, body {
+    font-family: var(--mk-font-texto);
+    color: var(--mk-tinta-100);
+    background: var(--mk-blanco);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--mk-font-titulo);
+    font-weight: 600;
+    letter-spacing: -.01em;
+}
+
+a {
+    color: var(--mk-tinta-100);
+    text-decoration-thickness: 1px;
+    text-underline-offset: .2em;
+}
+
+a:hover {
+    color: var(--mk-tinta-70);
+}
+
+/* Foco visible y monocromático: accesibilidad sin salirse de la paleta. */
+:focus-visible {
+    outline: 2px solid var(--mk-negro);
+    outline-offset: 2px;
+}
+
+h1:focus {
+    outline: none;
+}
+
+/* --- Wordmark ------------------------------------------------------------
+   "MARKET" con tracking abierto + ".ARG" chico. Prohibido alterar el tracking
+   o usar la "M" sola. Este CSS es un stand-in hasta que llegue el SVG oficial. */
+
+.mk-logo {
+    font-family: var(--mk-font-titulo);
+    font-weight: 400;
+    letter-spacing: var(--mk-tracking-logo);
+    text-transform: uppercase;
+    white-space: nowrap;
+    min-width: var(--mk-logo-min);
+    text-decoration: none;
+}
+
+.mk-logo .mk-logo-arg {
+    font-size: .45em;
+    letter-spacing: var(--mk-tracking-rotulo);
+}
+
+.mk-logo-tagline {
+    font-family: var(--mk-font-texto);
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    font-size: .5em;
+}
+
+/* Versión negativa: bloques de fondo negro (portadas, hero, footer). */
+.mk-negativo {
+    background: var(--mk-negro);
+    color: var(--mk-blanco);
+}
+
+.mk-negativo a,
+.mk-negativo .mk-logo {
+    color: var(--mk-blanco);
+}
+
+.mk-negativo :focus-visible {
+    outline-color: var(--mk-blanco);
+}
+
+/* Rótulos tipo señalética (códigos de artículo, metadatos, categorías). */
+.mk-rotulo {
+    font-family: var(--mk-font-texto);
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    font-size: .75rem;
+    color: var(--mk-tinta-70);
+}
+
+/* --- Retema de Bootstrap ------------------------------------------------
+   Bootstrap trae su propio azul y su propia escala de grises, que contradicen
+   el manual. Se neutraliza acá vía sus custom properties en vez de pelearle
+   componente por componente.
+   PENDIENTE (ver PLAN.md): evaluar sacar Bootstrap del todo. Para un diseño
+   monocromático y editorial, la mitad de lo que aporta se termina sobrescribiendo. */
+
+:root {
+    --bs-primary: #000;
+    --bs-primary-rgb: 0, 0, 0;
+    --bs-link-color: #000;
+    --bs-link-hover-color: rgba(0, 0, 0, .7);
+    --bs-body-color: #000;
+    --bs-body-font-family: var(--mk-font-texto);
+    --bs-border-color: rgba(0, 0, 0, .2);
+}
+
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #000;
+    --bs-btn-border-color: #000;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: rgba(0, 0, 0, .7);
+    --bs-btn-hover-border-color: rgba(0, 0, 0, .7);
+    --bs-btn-focus-shadow-rgb: 0, 0, 0;
+    --bs-btn-active-bg: #000;
+    --bs-btn-active-border-color: #000;
+}
+
+.btn:focus, .btn:active:focus, .form-control:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 .1rem #fff, 0 0 0 .25rem #000;
+}
+
+.form-check-input:checked {
+    background-color: #000;
+    border-color: #000;
+}
+
+/* --- Validación y errores ------------------------------------------------
+   Sin rojo ni verde: el manual no los tiene. El estado se comunica con peso,
+   borde y texto, que es lo que hace la señalética del propio manual. */
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--mk-tinta-40);
+}
+
+.invalid {
+    outline: 2px solid var(--mk-negro);
+}
+
+.validation-message {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+}
+
+.blazor-error-boundary {
+    background: var(--mk-negro);
+    color: var(--mk-blanco);
+    padding: 1rem;
+    font-family: var(--mk-font-texto);
+}
+
+.blazor-error-boundary::after {
+    content: "Ocurrió un error.";
+}
+
+/* --- Fotos de producto --------------------------------------------------
+   La foto es lo único con color en la pantalla, así que va sobre blanco puro
+   y sin filtros ni overlays que le alteren el color de la prenda. */
+
+.mk-foto {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: var(--mk-blanco);
+}
+
+/* ============================================================================
+   ÁTOMOS DE UI COMPARTIDOS
+   Piezas genéricas reutilizables por cualquier módulo — NO son el layout de una
+   página concreta. El layout específico de cada módulo vive en su propia hoja:
+     _content/MarketCatalogo.Catalogo.Ui/catalogo.css
+     _content/MarketCatalogo.Institucional.Ui/institucional.css
+   (misma frontera que el resto del monolito modular: el host no conoce los
+   internos de cada módulo).
+   ============================================================================ */
+
+/* Migas de pan: señalética chica, separadas por chevrons. */
+.mk-migas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: 1rem;
+}
+
+.mk-migas a { text-decoration: none; }
+.mk-migas a:hover { text-decoration: underline; }
+.mk-migas > span { color: var(--mk-tinta-40); }
+
+/* Estados vacíos (sin resultados, no encontrado, error de carga). */
+.mk-vacio {
+    padding: 3rem 0;
+    color: var(--mk-tinta-70);
+}
+
+/* Pastillas (talle / color / disponibilidad / etiquetas en general). */
+.mk-pastillas {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin: 0;
+    padding: 0;
+}
+
+.mk-pastilla {
+    border: 1px solid var(--mk-tinta-40);
+    padding: .3rem .8rem;
+    font-size: .85rem;
+    min-width: 2.4rem;
+    text-align: center;
+}
+
+/* CTA: el botón principal (negro pleno), único énfasis fuerte del sistema. */
+.mk-cta {
+    display: inline-block;
+    padding: .8rem 2rem;
+    background: var(--mk-negro);
+    color: var(--mk-blanco);
+    text-decoration: none;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    font-size: .8rem;
+}
+
+.mk-cta:hover { background: var(--mk-tinta-70); color: var(--mk-blanco); }

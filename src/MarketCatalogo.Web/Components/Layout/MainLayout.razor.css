@@ -1,0 +1,103 @@
+/* Shell de sitio público. Paleta y tipografías: ver wwwroot/app.css y docs/DISENO.md. */
+
+.mk-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* --- Header --------------------------------------------------------------
+   Positivo (negro sobre blanco). El wordmark respeta la reducción mínima de
+   183 px del manual: si no entra, pasa a una fila propia — NO se reduce.      */
+
+.mk-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+    background: var(--mk-blanco);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.mk-header-logo {
+    font-size: 1.5rem;
+    color: var(--mk-tinta-100);
+}
+
+.mk-main {
+    flex: 1;
+}
+
+/* --- Footer, en negativo ------------------------------------------------- */
+
+.mk-footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 2rem;
+    padding: 4rem 2rem 2.5rem;
+    margin-top: 6rem;
+}
+
+.mk-footer-marca {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.mk-footer .mk-logo {
+    font-size: 1.5rem;
+}
+
+/* El .mk-rotulo global apunta a fondo claro; sobre negro va la escala inversa. */
+.mk-footer-legal {
+    color: var(--mk-tinta-inv-70);
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .mk-header, .mk-footer {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+
+    /* El logo se queda en su tamaño mínimo y la nav baja abajo. */
+    .mk-header {
+        justify-content: center;
+    }
+}
+
+/* --- Error UI de Blazor, en la paleta de marca --------------------------- */
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: var(--mk-negro);
+    color: var(--mk-blanco);
+    bottom: 0;
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: .8rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    font-family: var(--mk-font-texto);
+}
+
+#blazor-error-ui a {
+    color: var(--mk-blanco);
+    margin-left: .75rem;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: .75rem;
+    top: .5rem;
+}

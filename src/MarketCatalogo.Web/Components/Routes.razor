@@ -1,0 +1,12 @@
+@* AdditionalAssemblies: así el Router descubre las páginas @page de cada módulo, que viven en sus
+   propios Razor Class Library (Catalogo.Ui, Institucional.Ui) y no en el proyecto del host. *@
+<Router AppAssembly="typeof(Program).Assembly"
+        AdditionalAssemblies="new[] {
+            typeof(MarketCatalogo.Catalogo.Ui.UrlCatalogo).Assembly,
+            typeof(MarketCatalogo.Institucional.Ui.Paginas.Nosotros).Assembly
+        }">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>

@@ -21,6 +21,9 @@ jobs:
       STAGING: 'C:\Documentos\MarketCatalogo_stage'
       SERVICIOS_URL: 'http://127.0.0.1:8099'
       SERVICE_ID: 'catalogo'
+      # Donde escucha el sitio en el server (lo define --urls en los AppParameters del servicio; si se
+      # cambia allá, cambiarlo acá también o la verificación final da falso negativo).
+      SITE_URL: 'http://127.0.0.1:8003'
     steps:
       - name: Checkout main (limpio, desde GitHub)
         uses: actions/checkout@v4
@@ -54,7 +57,7 @@ jobs:
       - name: Verificar que el sitio volvio a levantar
         shell: powershell
         run: |
-          $url = 'http://127.0.0.1:5090/'
+          $url = $env:SITE_URL
           for ($i = 1; $i -le 20; $i++) {
             Start-Sleep -Seconds 3
             try {

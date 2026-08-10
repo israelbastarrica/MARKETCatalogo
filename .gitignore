@@ -492,3 +492,6 @@ $RECYCLE.BIN/
 # Versionarlas rompería el deploy: el cache tiene prioridad y serviría fotos de prueba como reales.
 _fotoscache/
 _fotostest/
+
+# Marcador de version: lo escribe el build en cada compilacion (ver build-info.ps1).
+src/MarketCatalogo.Web/wwwroot/buildinfo.txt

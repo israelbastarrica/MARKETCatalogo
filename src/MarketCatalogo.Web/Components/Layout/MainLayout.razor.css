@@ -135,6 +135,8 @@
 }
 
 .mk-footer-legal { margin: 0; color: var(--mk-tinta-40); }
+/* Commit publicado: más apagado todavía que el legal — está para nosotros, no para el visitante. */
+.mk-version { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .55; margin-left: .15rem; }
 
 @media (max-width: 640px) {
     .mk-header, .mk-footer {

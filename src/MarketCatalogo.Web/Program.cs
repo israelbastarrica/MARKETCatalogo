@@ -45,4 +45,7 @@ app.MapFotos();
 // robots.txt y sitemap.xml, armados en vivo desde el caché.
 app.MapSeo();
 
+// /version: de qué commit salió el build que está corriendo. Lo usa el deploy para verificar.
+app.MapVersion();
+
 app.Run();

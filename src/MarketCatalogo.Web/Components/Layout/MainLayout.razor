@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject IWebHostEnvironment Env
 
 @* Shell de sitio PÚBLICO: header con el wordmark, contenido, footer en negativo.
    Nada de sidebar de admin — eso es MARKETweb, que es el sistema interno. *@
@@ -78,7 +79,15 @@
         </div>
 
         <div class="mk-footer-base">
-            <p class="mk-footer-legal mk-rotulo">© @DateTime.Now.Year Market · Industria Argentina</p>
+            @* El commit del build, para saber qué versión está viva sin adivinar. Discreto a propósito: es
+               para nosotros, no para el visitante. El detalle completo está en /version. *@
+            <p class="mk-footer-legal mk-rotulo">
+                © @DateTime.Now.Year Market · Industria Argentina
+                @if (MarketCatalogo.Web.Endpoints.VersionEndpoint.Sha(Env) is { Length: > 0 } sha)
+                {
+                    <span class="mk-version" title="Versión publicada (commit)">· @sha</span>
+                }
+            </p>
         </div>
     </footer>
 

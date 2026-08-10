@@ -29,4 +29,12 @@
     <UserSecretsId>cd20b3ac-b4f5-4ddd-99de-b5b96e5ef217</UserSecretsId>
   </PropertyGroup>
 
+  <!-- Marcador de versión: escribe el último commit (hash + fecha + asunto) en wwwroot/buildinfo.txt en
+       cada build, para que el sitio publicado pueda decir de qué commit salió (pie del sitio y /version).
+       Si git falla, queda vacío y el sitio simplemente no muestra versión. Mismo mecanismo que MarketWeb. -->
+  <Target Name="EscribirBuildInfo" BeforeTargets="BeforeBuild">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\build-info.ps1&quot;"
+          ContinueOnError="true" StandardOutputImportance="low" />
+  </Target>
+
 </Project>

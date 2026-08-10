@@ -66,3 +66,22 @@ jobs:
             } catch { }
           }
           throw "El sitio no respondio 200 en 60s. Revisar C:\Documentos\MarketCatalogo\logs\err.log"
+
+      # Que responda 200 no prueba que este corriendo lo que acabamos de compilar: puede haber quedado vivo
+      # un build anterior (servicio que no reinicio, sync que no copio). /version dice de que commit salio el
+      # build que esta corriendo, y lo comparamos con el commit del run. Sin esto, el 10/08/2026 dimos por
+      # bueno un deploy mirando titulos de paginas a ojo.
+      - name: Verificar que quedo vivo ESTE commit
+        shell: powershell
+        run: |
+          $corto = "${{ github.sha }}".Substring(0,7)
+          try {
+            $v = (Invoke-WebRequest -Uri "$($env:SITE_URL.TrimEnd('/'))/version" -UseBasicParsing -TimeoutSec 15).Content.Trim()
+          } catch {
+            Write-Host "::warning::No se pudo leer /version ($($_.Exception.Message)). El sitio responde, pero no puedo confirmar la version."
+            exit 0
+          }
+          Write-Host "Vivo: $v"
+          Write-Host "Esperado: $corto"
+          if ($v -like "$corto*") { Write-Host "OK: esta corriendo el commit de este run." }
+          else { throw "El sitio responde pero con OTRA version. Vivo='$v', esperado='$corto'." }

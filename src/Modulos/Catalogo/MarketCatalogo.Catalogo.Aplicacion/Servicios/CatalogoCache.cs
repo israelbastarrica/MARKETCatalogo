@@ -153,8 +153,16 @@ public sealed class CatalogoCache
             overridePorCodigo.TryGetValue(a.ArtCod, out var ovr);
             if (ovr?.OcultarManual == true) continue;
 
+            // El ERP guardó parte del texto con la 'ñ' perdida como '?' (dato mal cargado upstream; no se
+            // puede corregir en Dragonfish desde acá, que sólo lee). Se repara al leer, en un solo lugar,
+            // para todo el texto de presentación que viene del ERP. Ver Texto.RepararEnie.
+            var artDes  = Texto.RepararEnie(a.ArtDes);
+            var rubro   = Texto.RepararEnie(a.Rubro);
+            var genero  = Texto.RepararEnie(a.Genero);
+            var familia = Texto.RepararEnie(a.Familia);
+
             var titulo = string.IsNullOrWhiteSpace(ovr?.NombreComercial)
-                ? TituloArticulo.Derivar(a.ArtDes, a.Familia)
+                ? TituloArticulo.Derivar(artDes, familia)
                 : ovr!.NombreComercial!.Trim();
 
             var combo = Combo.Parsear(a.Combo);
@@ -167,7 +175,7 @@ public sealed class CatalogoCache
                 if (Talles.EsDesconocido(v.Talle) && v.Talle.Length > 0) tallesDesconocidos.Add(v.Talle);
 
             var variantesDto = vs
-                .Select(v => new VarianteDto(v.ColorCod, LimpiarColor(v.Color, v.ColorCod), v.Talle,
+                .Select(v => new VarianteDto(v.ColorCod, LimpiarColor(Texto.RepararEnie(v.Color), v.ColorCod), v.Talle,
                                              Talles.Mostrar(v.Talle), Talles.Resolver(v.Talle).Orden))
                 .OrderBy(v => v.TalleOrden).ThenBy(v => v.Color, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -187,15 +195,15 @@ public sealed class CatalogoCache
             {
                 ArtCod = a.ArtCod,
                 Titulo = titulo,
-                Descripcion = a.ArtDes,
+                Descripcion = artDes,
                 Marketing = string.IsNullOrWhiteSpace(ovr?.Marketing) ? null : ovr!.Marketing!.Trim(),
                 Slug = Texto.SlugProducto(titulo, a.ArtCod),
-                Rubro = a.Rubro,
-                RubroSlug = Texto.Slug(a.Rubro),
-                Genero = a.Genero,
-                GeneroSlug = Texto.Slug(a.Genero),
-                Familia = string.IsNullOrWhiteSpace(a.Familia) ? null : a.Familia,
-                FamiliaSlug = string.IsNullOrWhiteSpace(a.Familia) ? null : Texto.Slug(a.Familia),
+                Rubro = rubro,
+                RubroSlug = Texto.Slug(rubro),
+                Genero = genero,
+                GeneroSlug = Texto.Slug(genero),
+                Familia = string.IsNullOrWhiteSpace(familia) ? null : familia,
+                FamiliaSlug = string.IsNullOrWhiteSpace(familia) ? null : Texto.Slug(familia),
                 ComboTexto = combo is null ? null : Combo.Mostrar(combo.Cantidad, combo.Total),
                 ComboCantidad = combo?.Cantidad,
                 ComboTotal = combo?.Total,
@@ -208,7 +216,7 @@ public sealed class CatalogoCache
                 Variantes = variantesDto,
                 Talles = talles,
                 Colores = colores,
-                TextoBusqueda = Texto.SinAcentos($"{titulo} {a.ArtDes} {a.ArtCod} {a.Familia}"),
+                TextoBusqueda = Texto.SinAcentos($"{titulo} {artDes} {a.ArtCod} {familia}"),
             });
         }
 

@@ -16,7 +16,11 @@
 
 <nav class="mk-nav">
 
-    <NavLink class="mk-nav-link" href="catalogo" Match="NavLinkMatch.All">Catálogo</NavLink>
+    @* "Catálogo" no va como link en DESKTOP: el catálogo entero ya es accesible por los géneros (Mujer,
+       Hombre, Niños…) que despliegan sus tipos, así que un link plano sería redundante. En CELULAR los
+       géneros se ocultan (se mueven al drawer de filtros), así que ahí SÍ hace falta el link como puerta
+       de entrada al catálogo — de ahí la clase mk-nav-catalogo, que sólo se muestra en mobile. *@
+    <NavLink class="mk-nav-link mk-nav-catalogo" href="catalogo" Match="NavLinkMatch.All">Catálogo</NavLink>
 
     @foreach (var s in _secciones)
     {

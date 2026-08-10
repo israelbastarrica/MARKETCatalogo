@@ -8,8 +8,10 @@ Proyecto independiente de MARKETweb, mismo stack (.NET 9 + Blazor + Dapper + SQL
 > Este documento es **el plan vigente**. El razonamiento y las mediciones que llevaron a cada decisión
 > están en los docs de al lado: [MEDICION.md](MEDICION.md) (números reales),
 > [DECISION-TABLAS.md](DECISION-TABLAS.md) (por qué casi no se guarda nada),
-> [DISENO.md](DISENO.md) (marca), [CONTENIDO.md](CONTENIDO.md) (copy aprobada) y
-> [CATALOGO-SYNC.md](CATALOGO-SYNC.md) (camino de escalamiento, no vigente).
+> [DISENO.md](DISENO.md) (marca), [CONTENIDO.md](CONTENIDO.md) (copy aprobada),
+> [CATALOGO-SYNC.md](CATALOGO-SYNC.md) (camino de escalamiento, no vigente) y
+> [EXTENSIBILIDAD-VENTAS.md](EXTENSIBILIDAD-VENTAS.md) (cómo se extiende a ventas/descuento de stock si
+> algún día se vende; no vigente).
 
 ---
 

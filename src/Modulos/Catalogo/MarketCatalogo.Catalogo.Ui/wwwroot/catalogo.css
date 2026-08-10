@@ -90,17 +90,19 @@
     width: .85rem;
     height: .85rem;
     border: 1px solid var(--mk-tinta-40);
-    background: var(--mk-blanco);
+    background: var(--mk-fondo);
 }
 
-.mk-faceta-opcion.activa .mk-faceta-marca { background: var(--mk-negro); border-color: var(--mk-negro); }
+.mk-faceta-opcion.activa .mk-faceta-marca { background: var(--mk-acento); border-color: var(--mk-acento); }
 .mk-faceta-opcion.activa .mk-faceta-nombre { font-weight: 600; }
 
 .mk-faceta-nombre { flex: 1; }
 .mk-faceta-cantidad { color: var(--mk-tinta-40); font-size: .8rem; }
 
-/* Los colores vienen en mayúscula de Dragon (NEGRO, ARENA…); se muestran en minúscula. */
+/* Los colores vienen en mayúscula de Dragon (NEGRO, ARENA…); se muestran con sólo la
+   primera letra en mayúscula (NEGRO → Negro): minúscula todo + ::first-letter en mayúscula. */
 .mk-faceta-color .mk-faceta-nombre { text-transform: lowercase; }
+.mk-faceta-color .mk-faceta-nombre::first-letter { text-transform: uppercase; }
 
 /* --- Chips de filtros activos -------------------------------------------- */
 
@@ -117,14 +119,14 @@
     align-items: center;
     gap: .4rem;
     padding: .3rem .7rem;
-    border: 1px solid var(--mk-negro);
+    border: 1px solid var(--mk-tinta-100);
     border-radius: 999px;
     text-decoration: none;
     font-size: .85rem;
     color: var(--mk-tinta-100);
 }
 
-.mk-chip:hover { background: var(--mk-negro); color: var(--mk-blanco); }
+.mk-chip:hover { background: var(--mk-acento); color: var(--mk-acento-tinta); }
 .mk-chip-limpiar { text-decoration: underline; color: var(--mk-tinta-70); }
 
 /* --- Barra de orden ------------------------------------------------------ */
@@ -192,7 +194,7 @@
 }
 
 .mk-suc.activa { color: var(--mk-tinta-100); font-weight: 600; }
-.mk-suc.activa .mk-suc-tick { background: var(--mk-negro); border-color: var(--mk-negro); }
+.mk-suc.activa .mk-suc-tick { background: var(--mk-acento); border-color: var(--mk-acento); }
 
 /* El "check" del tick, dibujado en CSS (sin icono externo). */
 .mk-suc.activa .mk-suc-tick::after {
@@ -200,7 +202,7 @@
     width: .3rem;
     height: .55rem;
     margin-top: -2px;
-    border: solid var(--mk-blanco);
+    border: solid var(--mk-acento-tinta);
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
@@ -223,7 +225,7 @@
 .mk-card-foto {
     aspect-ratio: 4 / 5;
     overflow: hidden;
-    background: rgba(0, 0, 0, .04);
+    background: var(--mk-fondo-sutil);
 }
 
 .mk-card-foto .mk-foto {
@@ -288,7 +290,7 @@
 
 .mk-producto-foto {
     aspect-ratio: 4 / 5;
-    background: rgba(0, 0, 0, .04);
+    background: var(--mk-fondo-sutil);
     overflow: hidden;
 }
 
@@ -335,8 +337,8 @@
     z-index: 50;
     width: 2.75rem;
     height: 2.75rem;
-    background: var(--mk-negro);
-    color: var(--mk-blanco);
+    background: var(--mk-acento);
+    color: var(--mk-acento-tinta);
     border-radius: 50%;
     text-decoration: none;
     font-size: 1.25rem;
@@ -344,7 +346,7 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
 }
 
-.mk-subir:hover { color: var(--mk-blanco); }
+.mk-subir:hover { color: var(--mk-acento-tinta); }
 
 /* El checkbox que guarda el estado abierto/cerrado del drawer se oculta a la
    vista pero SIGUE siendo interactivo (no se usa `hidden` ni display:none: un
@@ -405,8 +407,8 @@
         bottom: 1rem;
         z-index: 50;
         padding: .7rem 1.15rem;
-        background: var(--mk-blanco);
-        border: 1px solid var(--mk-negro);
+        background: var(--mk-fondo);
+        border: 1px solid var(--mk-tinta-100);
         border-radius: 999px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
         cursor: pointer;
@@ -420,8 +422,8 @@
         min-width: 1.3rem;
         height: 1.3rem;
         padding: 0 .35rem;
-        background: var(--mk-negro);
-        color: var(--mk-blanco);
+        background: var(--mk-acento);
+        color: var(--mk-acento-tinta);
         border-radius: 999px;
         font-size: .75rem;
     }
@@ -437,7 +439,7 @@
         height: 100dvh;
         margin: 0;
         padding: 1.25rem 1.25rem 2rem;
-        background: var(--mk-blanco);
+        background: var(--mk-fondo);
         border-right: 1px solid var(--mk-tinta-20);
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -498,21 +500,14 @@
     /* Aire al pie para que los botones flotantes no tapen la última fila ni el sello de precios. */
     .mk-catalogo-resultados { padding-bottom: 4.5rem; }
 
-    /* Ficha en celular: una sola columna, foto ARRIBA y toda la info (precio, talles, colores,
-       descripción) DEBAJO. La foto se acota en alto para que no ocupe toda la pantalla y la info
-       quede visible sin tener que scrollear una pantalla entera. */
+    /* Ficha apilada: una sola columna, foto ARRIBA a TODO EL ANCHO y la info (precio, talles, colores,
+       descripción) DEBAJO. La foto ocupa el ancho completo con su proporción 4:5 —igual que la card de
+       la grilla—, sin franjas a los costados; se scrollea para ver el detalle, estilo tienda. */
     .mk-producto { grid-template-columns: 1fr; gap: 1.5rem; }
 
-    .mk-producto-foto {
-        aspect-ratio: auto;
-        max-height: 55vh;
-    }
-
-    .mk-producto-foto .mk-foto {
-        height: auto;
-        max-height: 55vh;
-        object-fit: contain;   /* la prenda entera, sin recortar */
-    }
+    .mk-producto-foto { aspect-ratio: 4 / 5; }
+    /* El .mk-foto ya es width:100% height:100% object-fit:cover (bloque base): llena el ancho sin recortes
+       relevantes porque las fotos ya vienen en 4:5. */
 }
 
 @media (max-width: 640px) {

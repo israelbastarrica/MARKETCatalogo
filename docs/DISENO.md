@@ -121,9 +121,11 @@ no algo que deba resolver por mi cuenta.
 }
 ```
 
-**Sin dark mode.** La marca ya es blanco y negro: un "modo oscuro" sería simplemente la versión
-negativa del logo, que el manual ya contempla. Invertir la interfaz completa no aporta y arriesga
-romper las normas de contraste del wordmark.
+**Sin modo oscuro.** El sitio tiene un único tema, claro (fondo blanco, tinta negra). Se probó un modo
+oscuro automático pero se descartó: el catálogo es sobre todo fotos de producto sobre fondo blanco, y en
+oscuro esas fotos quedan como bloques blancos que deslumbran y contradicen el sentido del modo oscuro.
+La versión *negativa* del manual (fondo negro, tinta blanca) se sigue usando puntualmente en bloques
+concretos —hero, footer— vía la clase `.mk-negativo`, no como tema global.
 
 ---
 

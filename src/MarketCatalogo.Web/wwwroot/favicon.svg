@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MARKET">
+  <!-- Favicon de MARKET. Stand-in tipográfico hasta que diseño entregue el vector definitivo
+       (ver docs/DISENO.md §6). Monocromático, forma NEGATIVA del manual (fondo negro, wordmark blanco).
+       El ".ARG" se quitó por decisión del cliente: la marca del sitio es sólo "MARKET". -->
+  <rect fill="#000" width="64" height="64" rx="13" />
+  <text fill="#fff" x="32" y="33" text-anchor="middle" dominant-baseline="central"
+        font-family="'Poppins','Segoe UI',system-ui,sans-serif" font-weight="600"
+        font-size="13.5" letter-spacing="1.1">MARKET</text>
+</svg>

@@ -115,13 +115,20 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
 
     /// <summary>MARKET: la ruta en disco de la foto de cada artículo.
     /// La tabla tiene VARIAS filas por código (hasta 70 medidas), así que hay que quedarse con la
-    /// última por ID. El blob de fallback no se mira: la medición encontró 0 artículos con blob.</summary>
+    /// última por ID. Se prefiere la foto IA (<c>LinkIADisco</c>) sobre la normal (<c>LinkDriveDisco</c>):
+    /// mismo criterio que MARKETweb (CatalogosService, "LinkIADisco preferido, luego LinkDriveDisco").
+    /// Si la fila no tiene ninguna de las dos, el artículo queda sin foto (placeholder).
+    /// El blob de fallback no se mira: la medición encontró 0 artículos con blob.</summary>
     public async Task<IReadOnlyList<FotoRow>> TraerRutasFotoAsync(CancellationToken ct = default)
     {
         const string sql = """
             SELECT ArtCod, Ruta FROM (
                 SELECT ArtCod = RTRIM(F.Codigo),
-                       Ruta   = RTRIM(ISNULL(F.LinkDriveDisco, '')),
+                       -- IA primero; si esa fila no tiene IA, la foto normal. Vacío = sin foto.
+                       Ruta   = COALESCE(
+                                    NULLIF(RTRIM(ISNULL(F.LinkIADisco,   '')), ''),
+                                    NULLIF(RTRIM(ISNULL(F.LinkDriveDisco, '')), ''),
+                                    ''),
                        Fila   = ROW_NUMBER() OVER (PARTITION BY F.Codigo ORDER BY F.ID DESC)
                 FROM MARKET.dbo.GoogleDriveFotosArticulos F WITH (NOLOCK)
                 WHERE ISNULL(F.Eliminado, 0) = 0

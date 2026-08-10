@@ -108,9 +108,16 @@ public sealed class CatalogoService : ICatalogoConsulta
             Talles = Aplicar("talle")
                 .SelectMany(a => a.Talles.Select(t => (Talle: t, Orden: OrdenDeTalle(a, t))))
                 .GroupBy(x => x.Talle, StringComparer.OrdinalIgnoreCase)
-                .Select(g => new OpcionFaceta(g.Key, g.Key, g.Count(),
-                    f.Talles.Contains(g.Key, StringComparer.OrdinalIgnoreCase)))
-                .OrderBy(o => OrdenGlobalDeTalle(o.Valor)).ToList(),
+                // El orden real del talle ya viene calculado por variante (TalleOrden, mapeado por el
+                // CÓDIGO en Talles). Se ordena la faceta por ese orden —el mínimo del grupo— así los
+                // talles quedan agrupados por curva (Letra, Niño, Adulto, Lencería) y en secuencia. Antes
+                // se re-resolvía por la etiqueta mostrada, que fallaba: "1"/"S/M" no matchean el código
+                // "01"/"SM" y caían todos al final, sueltos.
+                .Select(g => (
+                    Op: new OpcionFaceta(g.Key, g.Key, g.Count(),
+                        f.Talles.Contains(g.Key, StringComparer.OrdinalIgnoreCase)),
+                    Orden: g.Min(x => x.Orden)))
+                .OrderBy(x => x.Orden).Select(x => x.Op).ToList(),
 
             Colores = Aplicar("color")
                 .SelectMany(a => a.Colores)
@@ -138,12 +145,4 @@ public sealed class CatalogoService : ICatalogoConsulta
     private static int OrdenDeTalle(ArticuloDto a, string talleMostrado)
         => a.Variantes.Where(v => string.Equals(v.TalleMostrar, talleMostrado, StringComparison.OrdinalIgnoreCase))
                       .Select(v => v.TalleOrden).DefaultIfEmpty(9999).Min();
-
-    private static int OrdenGlobalDeTalle(string talleMostrado)
-    {
-        // La faceta muestra la ETIQUETA del talle ("S/M"), no su código ("SM"), así que hay que
-        // volver a mapear. Son 53 valores: buscar linealmente no cuesta nada.
-        var info = Talles.Resolver(talleMostrado);
-        return info.Grupo == Talles.Grupo.Revisar ? 9999 : info.Orden;
-    }
 }

@@ -6,7 +6,7 @@
 <div class="mk-page">
 
     <header class="mk-header">
-        <a class="mk-logo mk-header-logo" href="/" aria-label="MARKET.arg — inicio">Market<span class="mk-logo-arg">.arg</span></a>
+        <a class="mk-logo mk-header-logo" href="/" aria-label="MARKET — inicio">Market</a>
         <NavMenu />
     </header>
 
@@ -14,13 +14,72 @@
         @Body
     </main>
 
-    <footer class="mk-footer mk-negativo">
-        <div class="mk-footer-marca">
-            <span class="mk-logo">Market<span class="mk-logo-arg">.arg</span></span>
-            @* Tagline tal como está en el manual (display caps, sin tilde). *@
-            <span class="mk-logo-tagline">Vivi la experiencia</span>
+    <footer class="mk-footer">
+        <div class="mk-footer-top">
+            <div class="mk-footer-marca">
+                <a class="mk-logo" href="/">Market</a>
+                @* Tagline tal como está en el manual (display caps, sin tilde). *@
+                <span class="mk-logo-tagline">Vivi la experiencia</span>
+
+                @* Redes sociales. PENDIENTE: reemplazar los href="#" por las URLs reales de la marca. *@
+                <ul class="mk-footer-social" aria-label="Redes sociales">
+                    <li>
+                        <a href="#" aria-label="Instagram" title="Instagram">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.7" />
+                                <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.7" />
+                                <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" />
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" aria-label="Facebook" title="Facebook">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M14 8.5V7c0-.8.4-1.2 1.3-1.2H17V3h-2.4C11.9 3 11 4.5 11 6.6v1.9H9V11h2v10h3V11h2.2l.4-2.5H14z" fill="currentColor" />
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" aria-label="TikTok" title="TikTok">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M16.5 3c.3 2.1 1.6 3.6 3.6 3.8v2.6c-1.3 0-2.5-.4-3.6-1.1v5.7c0 3-2.2 5-5 5s-4.7-2-4.7-4.6c0-2.7 2.2-4.6 4.9-4.4v2.7c-.3-.1-.7-.2-1-.2-1 0-1.9.8-1.9 1.9s.8 2 2 2 2-.9 2-2.1V3h3.7z" fill="currentColor" />
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" aria-label="WhatsApp" title="WhatsApp">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3zm0 2a7 7 0 0 1 5.9 10.8l-.3.5.6 2.2-2.3-.6-.5.3A7 7 0 1 1 12 5zm-2.7 3.3c-.2 0-.5 0-.7.4-.2.4-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.7 2.8 4.3 3.8 2.1.8 2.6.7 3 .6.5-.1 1.4-.6 1.6-1.1.2-.6.2-1 .1-1.1l-.7-.3s-1.1-.5-1.3-.6c-.2-.1-.4-.1-.5.1l-.6.8c-.1.1-.2.2-.5.1s-1-.4-1.9-1.2c-.7-.6-1.2-1.4-1.3-1.6-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4l-.6-1.5c-.2-.4-.3-.4-.5-.4h-.3z" fill="currentColor" />
+                            </svg>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <nav class="mk-footer-cols" aria-label="Pie de página">
+                <div class="mk-footer-col">
+                    <h2 class="mk-rotulo">Tienda</h2>
+                    <ul>
+                        <li><a href="/catalogo">Catálogo</a></li>
+                        <li><a href="/catalogo?gen=mujer">Mujer</a></li>
+                        <li><a href="/catalogo?gen=hombre">Hombre</a></li>
+                        <li><a href="/catalogo?gen=nena,nene,bebe">Niños</a></li>
+                        <li><a href="/catalogo?gen=unisex">Unisex</a></li>
+                    </ul>
+                </div>
+                <div class="mk-footer-col">
+                    <h2 class="mk-rotulo">Marca</h2>
+                    <ul>
+                        <li><a href="/nosotros">Nosotros</a></li>
+                        <li><a href="/noticias">Noticias</a></li>
+                    </ul>
+                </div>
+            </nav>
         </div>
-        <p class="mk-rotulo mk-footer-legal">Industria Argentina</p>
+
+        <div class="mk-footer-base">
+            <p class="mk-footer-legal mk-rotulo">© @DateTime.Now.Year Market · Industria Argentina</p>
+        </div>
     </footer>
 
 </div>

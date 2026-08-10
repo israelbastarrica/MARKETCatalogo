@@ -149,6 +149,12 @@ Lo que **sí** sería poco profesional hoy: montar 5 tablas y un job con detecci
 y hashes **para 981 filas**. Más maquinaria no es más profesional; elegir el mecanismo del tamaño del
 problema, sí.
 
+> **Caso aparte: ventas / descuento de stock.** El caché es un patrón de *lectura* y no se traslada al
+> momento de vender, que es *escritura transaccional*. Eso NO obliga a rehacer nada: el lado de ventas
+> se agrega como módulo transaccional aparte y el catálogo queda como el lado de lectura. El porqué, qué
+> se reutiliza y la regla de la autoridad del stock están en
+> [EXTENSIBILIDAD-VENTAS.md](EXTENSIBILIDAD-VENTAS.md).
+
 ---
 
 ## 3. Los campos del universo (referencia)

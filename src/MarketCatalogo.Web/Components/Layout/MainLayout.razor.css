@@ -18,7 +18,7 @@
     gap: 1rem 2rem;
     padding: 1.5rem 2rem;
     border-bottom: 1px solid var(--mk-tinta-20);
-    background: var(--mk-blanco);
+    background: var(--mk-fondo);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -29,37 +29,110 @@
     color: var(--mk-tinta-100);
 }
 
+/* Desktop: grilla 1fr | auto | 1fr → el logo queda a la izquierda y la nav en la columna del medio,
+   centrada respecto de TODA la pantalla (no del espacio a la derecha del logo). La 3ª columna vacía
+   equilibra el ancho del logo. En celular manda el layout flex de abajo (@media max-width: 640px). */
+@media (min-width: 641px) {
+    .mk-header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+    }
+
+    .mk-header-logo { justify-self: start; }
+}
+
 .mk-main {
     flex: 1;
 }
 
-/* --- Footer, en negativo ------------------------------------------------- */
+/* --- Footer, en blanco --------------------------------------------------- */
 
 .mk-footer {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 2rem;
-    padding: 4rem 2rem 2.5rem;
+    background: var(--mk-fondo);
+    color: var(--mk-tinta-100);
+    border-top: 1px solid var(--mk-tinta-20);
     margin-top: 6rem;
+    padding: 4rem 2rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
+
+/* Fila superior: marca + redes a la izquierda, columnas de links a la derecha. */
+.mk-footer-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 3rem 4rem;
 }
 
 .mk-footer-marca {
     display: flex;
     flex-direction: column;
-    gap: .5rem;
+    gap: 1rem;
+    max-width: 22rem;
 }
 
-.mk-footer .mk-logo {
+.mk-footer-marca .mk-logo {
     font-size: 1.5rem;
+    color: var(--mk-tinta-100);
+    text-decoration: none;
 }
 
-/* El .mk-rotulo global apunta a fondo claro; sobre negro va la escala inversa. */
-.mk-footer-legal {
-    color: var(--mk-tinta-inv-70);
-    margin: 0;
+.mk-footer-marca .mk-logo-tagline { font-size: .7rem; opacity: .7; }
+
+/* Redes sociales: círculos con borde fino; al hover se rellenan (acento). */
+.mk-footer-social { list-style: none; display: flex; gap: .75rem; margin: .5rem 0 0; padding: 0; }
+
+.mk-footer-social a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 1px solid var(--mk-tinta-20);
+    border-radius: 999px;
+    color: var(--mk-tinta-100);
+    transition: border-color .15s ease, background .15s ease, color .15s ease;
 }
+
+.mk-footer-social a:hover {
+    border-color: var(--mk-acento);
+    background: var(--mk-acento);
+    color: var(--mk-acento-tinta);
+}
+
+.mk-footer-social svg { width: 1.15rem; height: 1.15rem; display: block; }
+
+/* Columnas de links. */
+.mk-footer-cols { display: flex; flex-wrap: wrap; gap: 2.5rem 4rem; }
+
+.mk-footer-col h2 { margin: 0 0 1.1rem; color: var(--mk-tinta-100); }
+
+.mk-footer-col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+}
+
+.mk-footer-col a { text-decoration: none; color: var(--mk-tinta-70); font-size: .9rem; }
+.mk-footer-col a:hover { color: var(--mk-tinta-100); }
+
+/* Barra inferior: copyright + procedencia. */
+.mk-footer-base {
+    border-top: 1px solid var(--mk-tinta-20);
+    padding-top: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1.5rem;
+}
+
+.mk-footer-legal { margin: 0; color: var(--mk-tinta-40); }
 
 @media (max-width: 640px) {
     .mk-header, .mk-footer {
@@ -67,9 +140,10 @@
         padding-right: 1.25rem;
     }
 
-    /* El logo se queda en su tamaño mínimo y la nav baja abajo. */
+    /* Logo a la izquierda y toggle de tema a la derecha en la fila de arriba; la nav baja a una fila
+       propia (ver NavMenu.razor.css: flex-basis 100% + order). */
     .mk-header {
-        justify-content: center;
+        justify-content: space-between;
     }
 }
 

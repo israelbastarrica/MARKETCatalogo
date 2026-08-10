@@ -485,3 +485,10 @@ $RECYCLE.BIN/
 
 # Claude Code (tooling local)
 .claude/
+
+# Fotos del catálogo (locales de la máquina, NUNCA se versionan):
+#  _fotoscache = thumbnails generados bajo demanda (regenerable, descartable).
+#  _fotostest  = carpeta de originales para probar en dev (Fotos:DirOriginales).
+# Versionarlas rompería el deploy: el cache tiene prioridad y serviría fotos de prueba como reales.
+_fotoscache/
+_fotostest/

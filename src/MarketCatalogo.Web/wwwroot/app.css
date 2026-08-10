@@ -33,6 +33,14 @@
     --mk-tinta-inv-40: rgba(255, 255, 255, .40);
     --mk-tinta-inv-20: rgba(255, 255, 255, .20);
 
+    /* Superficies y acentos semánticos. La web es monocromática y de un solo tema (claro):
+       --mk-fondo = fondo de página y paneles; --mk-fondo-sutil = fondos de foto/tarjeta;
+       --mk-acento = fondo de CTA/ticks/marcas; --mk-acento-tinta = tinta sobre el acento. */
+    --mk-fondo: #fff;
+    --mk-fondo-sutil: rgba(0, 0, 0, .04);
+    --mk-acento: #000;
+    --mk-acento-tinta: #fff;
+
     /* Tipografía */
     --mk-font-titulo: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --mk-font-texto: 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -55,7 +63,7 @@ html {
 html, body {
     font-family: var(--mk-font-texto);
     color: var(--mk-tinta-100);
-    background: var(--mk-blanco);
+    background: var(--mk-fondo);
     -webkit-font-smoothing: antialiased;
 }
 
@@ -77,7 +85,7 @@ a:hover {
 
 /* Foco visible y monocromático: accesibilidad sin salirse de la paleta. */
 :focus-visible {
-    outline: 2px solid var(--mk-negro);
+    outline: 2px solid var(--mk-tinta-100);
     outline-offset: 2px;
 }
 
@@ -86,8 +94,8 @@ h1:focus {
 }
 
 /* --- Wordmark ------------------------------------------------------------
-   "MARKET" con tracking abierto + ".ARG" chico. Prohibido alterar el tracking
-   o usar la "M" sola. Este CSS es un stand-in hasta que llegue el SVG oficial. */
+   "MARKET" con tracking abierto. El ".ARG" se removió por decisión del cliente: la marca en el
+   sitio es sólo "MARKET". Prohibido usar la "M" sola. Stand-in hasta que llegue el SVG oficial. */
 
 .mk-logo {
     font-family: var(--mk-font-titulo);
@@ -97,11 +105,6 @@ h1:focus {
     white-space: nowrap;
     min-width: var(--mk-logo-min);
     text-decoration: none;
-}
-
-.mk-logo .mk-logo-arg {
-    font-size: .45em;
-    letter-spacing: var(--mk-tracking-rotulo);
 }
 
 .mk-logo-tagline {
@@ -182,7 +185,7 @@ h1:focus {
 }
 
 .invalid {
-    outline: 2px solid var(--mk-negro);
+    outline: 2px solid var(--mk-tinta-100);
 }
 
 .validation-message {
@@ -209,7 +212,7 @@ h1:focus {
     display: block;
     width: 100%;
     height: auto;
-    background: var(--mk-blanco);
+    background: var(--mk-fondo);
 }
 
 /* ============================================================================
@@ -263,12 +266,12 @@ h1:focus {
 .mk-cta {
     display: inline-block;
     padding: .8rem 2rem;
-    background: var(--mk-negro);
-    color: var(--mk-blanco);
+    background: var(--mk-acento);
+    color: var(--mk-acento-tinta);
     text-decoration: none;
     letter-spacing: var(--mk-tracking-rotulo);
     text-transform: uppercase;
     font-size: .8rem;
 }
 
-.mk-cta:hover { background: var(--mk-tinta-70); color: var(--mk-blanco); }
+.mk-cta:hover { background: var(--mk-tinta-70); color: var(--mk-acento-tinta); }

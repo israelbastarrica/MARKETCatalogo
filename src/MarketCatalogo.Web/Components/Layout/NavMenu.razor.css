@@ -7,6 +7,10 @@
     align-items: center;
     gap: 2rem;
     flex-wrap: wrap;
+    /* La nav crece para ocupar el hueco entre el logo (izq) y el toggle de tema (der) y centra
+       sus links ahí adentro, así queda balanceada en el header sin importar cuántos géneros haya. */
+    flex: 1;
+    justify-content: center;
 }
 
 /* Estilo base del link de nav, compartido por los <NavLink> y por los <button>
@@ -20,6 +24,9 @@
     text-transform: uppercase;
     text-decoration: none;
     color: var(--mk-tinta-70);
+    /* line-height fijo: el <button> del género y el <a> de Nosotros/Noticias tienen line-height por
+       defecto distinto; sin esto sus cajas quedan de distinto alto y los rótulos en desnivel. */
+    line-height: 1;
     padding-bottom: .25rem;
     border-bottom: 1px solid transparent;
     white-space: nowrap;
@@ -33,7 +40,7 @@
 .mk-nav ::deep .mk-nav-link.active {
     color: var(--mk-tinta-100);
     font-weight: 600;
-    border-bottom-color: var(--mk-negro);
+    border-bottom-color: var(--mk-tinta-100);
 }
 
 /* --- Mega-menú de géneros -------------------------------------------------
@@ -42,6 +49,10 @@
 
 .mk-mega {
     position: relative;
+    /* Flex para que el <button> ocupe la caja sin el hueco de descendente que deja la línea de texto:
+       así el género se alinea al mismo nivel que los <a> planos (Nosotros/Noticias). */
+    display: inline-flex;
+    align-items: center;
 }
 
 /* El disparador es un <button>: hay que resetearle los estilos nativos para que
@@ -107,12 +118,17 @@
 
 /* --- Desktop: el panel cae como dropdown flotante, visible al hover -------- */
 @media (min-width: 641px) {
+    /* En desktop los géneros cubren el catálogo entero: el link plano "Catálogo" es redundante. */
+    .mk-nav ::deep .mk-nav-catalogo {
+        display: none;
+    }
+
     .mk-mega-panel {
         position: absolute;
         top: calc(100% + 1.4rem);   /* debajo del summary, pasando el padding inferior del header */
         left: 0;
         min-width: 240px;
-        background: var(--mk-blanco);
+        background: var(--mk-fondo);
         border: 1px solid var(--mk-tinta-20);
         padding: .75rem 1rem;
         z-index: 20;
@@ -152,6 +168,10 @@
     /* Los géneros se fueron al drawer del catálogo; quedan sólo los links planos,
        que van en FILA (horizontal), centrados y con un gap más chico. */
     .mk-nav {
+        /* Fila propia a lo ancho, DEBAJO del logo y el toggle (order la manda al final del header).
+           Con todo el ancho, los links (Catálogo · Nosotros · Noticias) entran en horizontal. */
+        flex: 1 1 100%;
+        order: 3;
         gap: 1.5rem;
         flex-wrap: wrap;
         justify-content: center;

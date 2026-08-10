@@ -1,42 +1,164 @@
 /* ============================================================================
    MÓDULO INSTITUCIONAL — estilos de presentación
    Layout de las páginas de contenido (Nosotros, Noticias): hero, bloques de
-   texto y grilla de valores. Se sirve como
+   texto, secciones editoriales y grilla de valores. Se sirve como
    _content/MarketCatalogo.Institucional.Ui/institucional.css.
 
    Depende de los tokens y átomos del sistema de diseño (app.css del host):
    --mk-*, .mk-negativo, .mk-cta, .mk-rotulo. Monocromático (ver DISENO.md).
    ============================================================================ */
 
-/* Contenedor centrado, más angosto que el catálogo: es texto para leer, y una
-   medida de línea corta se lee mejor. */
 .mk-institucional {
-    max-width: 820px;
+    max-width: 940px;
     margin-inline: auto;
-    padding: 2.5rem 2rem 2rem;
+    /* El hero maneja su propio padding superior; acá sólo laterales y pie. */
+    padding: 0 2rem 5rem;
 }
 
-/* Hero a sangre: rompe el padding del contenedor para ir de borde a borde. */
+/* --- Hero a sangre: rompe el padding del contenedor para ir de borde a borde. --- */
 .mk-institucional-hero {
-    margin: -2.5rem -2rem 2.5rem;
-    padding: 4rem 2rem;
+    margin: 0 -2rem 3.5rem;
+    padding: 5rem 2rem 4.5rem;
     text-align: center;
 }
 
-.mk-institucional-hero h1 { font-size: clamp(2rem, 6vw, 3.5rem); margin: 0 0 .5rem; }
+.mk-institucional-hero h1 {
+    font-size: clamp(2.2rem, 6vw, 3.75rem);
+    letter-spacing: -.02em;
+    margin: 0 0 .85rem;
+}
 
-.mk-institucional-bloque { margin-bottom: 2.5rem; line-height: 1.7; }
-.mk-institucional-bloque h2 { font-size: 1.5rem; margin: 0 0 .75rem; }
-.mk-institucional-bloque p { margin: 0 0 1rem; }
+/* El tagline como rótulo bajo el título: chico, tracking abierto, algo tenue. */
+.mk-institucional-hero .mk-logo-tagline {
+    display: inline-block;
+    font-size: .72rem;
+    opacity: .75;
+}
 
-/* Párrafo de apertura, con más cuerpo que el texto normal. */
-.mk-destacado { font-size: 1.2rem; line-height: 1.6; }
+/* --- Bloque de texto simple (intro de Nosotros y contenido de Noticias) --- */
+.mk-institucional-bloque {
+    line-height: 1.75;
+    margin-bottom: 3rem;
+}
 
-.mk-valores { display: grid; gap: 1.5rem; margin: 0; }
-.mk-valor dt { margin-bottom: .35rem; }
+.mk-institucional-bloque p {
+    margin: 0 0 1.1rem;
+    max-width: 64ch;   /* medida de línea corta: se lee mejor */
+}
+
+/* --- Lead de Nosotros: una declaración de apertura grande y aireada (Poppins). El énfasis va en
+   semibold —no en bold 700, que salpicaba y quedaba parchado— y el texto de apoyo en gris, para que
+   la afirmación principal sea la que pesa. --- */
+.mk-institucional-lead {
+    max-width: 48rem;
+    margin-bottom: 3.5rem;
+}
+
+.mk-destacado {
+    font-family: var(--mk-font-titulo);
+    font-size: clamp(1.5rem, 3vw, 2.15rem);
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: -.015em;
+    color: var(--mk-tinta-100);
+    margin: 0 0 1.75rem;
+}
+
+.mk-destacado strong { font-weight: 600; }
+
+/* Párrafos de apoyo del lead: más chicos, en gris, con el énfasis en negro pleno (no bold pesado). */
+.mk-institucional-lead p:not(.mk-destacado) {
+    margin: 0 0 1.1rem;
+    max-width: 60ch;
+    color: var(--mk-tinta-70);
+    font-size: 1.02rem;
+    line-height: 1.75;
+}
+
+.mk-institucional-lead p:not(.mk-destacado):last-child { margin-bottom: 0; }
+
+.mk-institucional-lead p:not(.mk-destacado) strong {
+    font-weight: 600;
+    color: var(--mk-tinta-100);
+}
+
+/* --- Sección editorial: rótulo a la IZQUIERDA, contenido a la DERECHA, separadas
+   por una línea fina. Es el patrón limpio y "de manual" de las páginas About. --- */
+.mk-seccion {
+    border-top: 1px solid var(--mk-tinta-20);
+    margin-top: 3rem;
+    padding-top: 3rem;
+}
+
+.mk-seccion:first-of-type {
+    /* la primera sección ya viene después del lead, no necesita margen doble */
+    margin-top: 0;
+}
+
+/* El h2 se muestra como rótulo/eyebrow (chico, en caps), no como título grande:
+   la jerarquía la da la estructura, no el tamaño. Sigue siendo <h2> para SEO. */
+.mk-seccion-titulo h2 {
+    font-family: var(--mk-font-texto);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    color: var(--mk-tinta-70);
+    margin: 0;
+}
+
+.mk-seccion-cuerpo { line-height: 1.75; }
+.mk-seccion-cuerpo > p { margin: 0 0 1.1rem; max-width: 64ch; }
+.mk-seccion-cuerpo > p:last-child { margin-bottom: 0; }
+
+@media (min-width: 760px) {
+    .mk-seccion {
+        display: grid;
+        grid-template-columns: 12rem 1fr;
+        gap: 3rem;
+    }
+    /* El rótulo acompaña al bloque aunque el texto sea largo. */
+    .mk-seccion-titulo h2 { position: sticky; top: 6rem; }
+}
+
+/* --- Valores: grilla numerada, monocromática, separada por líneas finas. --- */
+.mk-valores {
+    counter-reset: valor;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.75rem 2.5rem;
+    margin: 0;
+}
+
+.mk-valor {
+    counter-increment: valor;
+    border-top: 1px solid var(--mk-tinta-20);
+    padding-top: 1rem;
+}
+
+/* Número editorial (01, 02, …) arriba de cada valor. */
+.mk-valor dt::before {
+    content: counter(valor, decimal-leading-zero);
+    display: block;
+    font-family: var(--mk-font-titulo);
+    font-size: .8rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--mk-tinta-40);
+    margin-bottom: .55rem;
+}
+
+.mk-valor dt { color: var(--mk-tinta-100); margin-bottom: .4rem; }
 .mk-valor dd { margin: 0; color: var(--mk-tinta-70); line-height: 1.6; }
+
+/* --- Cierre con CTA, separado por línea fina. --- */
+.mk-institucional-cierre {
+    border-top: 1px solid var(--mk-tinta-20);
+    margin-top: 3rem;
+    padding-top: 3rem;
+}
 
 @media (max-width: 640px) {
     .mk-institucional { padding-inline: 1.25rem; }
-    .mk-institucional-hero { margin-inline: -1.25rem; }
+    .mk-institucional-hero { margin-inline: -1.25rem; padding-block: 3.5rem 3rem; }
+    .mk-valores { grid-template-columns: 1fr; gap: 1.5rem; }
 }

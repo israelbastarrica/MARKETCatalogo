@@ -68,6 +68,30 @@ public static class MenuSecciones
             .ToList();
     }
 
+    /// <summary>Rótulo de sección para un conjunto de géneros que viene de un ?gen= multi-género,
+    /// respetando la fusión: nena+nene+bebe → "Niños". Si caen en varias secciones, las une con " y ".
+    /// Vacío si la lista está vacía. Lo usa el título/miga del catálogo para leer "Indumentaria de Niños"
+    /// cuando la sección entró por el filtro multi-género en vez de por la ruta /{rubro}/{genero}.</summary>
+    public static string NombreDeGeneros(IReadOnlyList<string> generoSlugs, IReadOnlyList<RubroMenu> menu)
+    {
+        if (generoSlugs is null || generoSlugs.Count == 0) return "";
+
+        // Nombre "lindo" de cada género tal como viene en la data (para los que no están fusionados).
+        var nombres = menu.SelectMany(r => r.Generos)
+            .GroupBy(g => g.Slug, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => Titulo(g.First().Nombre), StringComparer.OrdinalIgnoreCase);
+
+        // Cada género a su sección (fusionada o él mismo) y se deduplica: nena/nene/bebe colapsan a "Niños".
+        var secciones = generoSlugs
+            .Select(s => Fusion.TryGetValue(s, out var f)
+                ? f.Nombre
+                : nombres.TryGetValue(s, out var n) ? n : Titulo(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return string.Join(" y ", secciones);
+    }
+
     // La taxonomía viene en mayúsculas de Dragon ("DAMA", "INDUMENTARIA"): se muestra en Title Case.
     private static string Titulo(string s)
     {

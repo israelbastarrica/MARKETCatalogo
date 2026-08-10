@@ -12,7 +12,7 @@
 
 @* Grilla del catálogo, SSR puro. Todo el estado viene de la ruta y del query string. *@
 
-<PageTitle>@TituloPagina — MARKET.arg</PageTitle>
+<PageTitle>@TituloPagina — MARKET</PageTitle>
 <HeadContent>
     <meta name="description" content="@Descripcion" />
     @* Las combinaciones de filtros son miles de URLs con contenido casi duplicado: si Google las
@@ -37,6 +37,12 @@
                 {
                     <span aria-hidden="true">›</span>
                     <span>@NombreGenero</span>
+                }
+                else if (_filtros.Generos.Count > 0)
+                {
+                    @* Sección entrada por ?gen= (ej. Niños): se muestra igual que un género de ruta. *@
+                    <span aria-hidden="true">›</span>
+                    <span>@NombreSeccionGen</span>
                 }
             }
         </nav>
@@ -220,12 +226,27 @@
               .FirstOrDefault(g => g.Slug == Genero)?.Nombre
         ?? Genero ?? "";
 
-    private string TituloPagina => (Rubro, Genero) switch
-    {
-        (null, _) => "Catálogo",
-        (not null, null) => NombreRubro,
-        _ => $"{NombreRubro} de {NombreGenero}",
-    };
+    // Rótulo de la sección cuando la género entró por el filtro multi-género (?gen=), ej. "Niños"
+    // (nena+nene+bebe fusionados). Vacío si no hay ?gen=.
+    private string NombreSeccionGen =>
+        _snapshot is not null ? MenuSecciones.NombreDeGeneros(_filtros.Generos, _snapshot.Menu) : "";
+
+    // Nombre de la sección de género, venga por ruta (/{rubro}/{genero}) o por filtro multi-género
+    // (?gen=). Vacío si la vista no está acotada a una sección.
+    private string NombreSeccion =>
+        Genero is not null ? NombreGenero
+        : _filtros.Generos.Count > 0 ? NombreSeccionGen
+        : "";
+
+    // "Unisex" no se lee bien como "Indumentaria de Unisex": esa sección muestra sólo el rubro.
+    private bool SeccionEsUnisex =>
+        (Genero ?? (_filtros.Generos.Count == 1 ? _filtros.Generos[0] : null))
+            is { } g && g.Equals("unisex", StringComparison.OrdinalIgnoreCase);
+
+    private string TituloPagina =>
+        Rubro is null ? "Catálogo"
+        : NombreSeccion.Length == 0 || SeccionEsUnisex ? NombreRubro
+        : $"{NombreRubro} de {NombreSeccion}";
 
     private string Descripcion =>
         $"{TituloPagina} en MARKET arg. {(_pagina?.Total ?? 0)} artículos con precios y disponibilidad por sucursal.";

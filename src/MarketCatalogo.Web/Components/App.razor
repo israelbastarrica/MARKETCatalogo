@@ -16,7 +16,12 @@
     <link rel="stylesheet" href="@Assets["_content/MarketCatalogo.Institucional.Ui/institucional.css"]" />
     <link rel="stylesheet" href="@Assets["MarketCatalogo.Web.styles.css"]" />
     <ImportMap />
-    <link rel="icon" type="image/png" href="favicon.png" />
+    @* Ícono de marca: PNG (wwwroot/favicon.png), la forma negativa del manual con el wordmark completo.
+       Se usa PNG y NO el SVG porque los favicons SVG con <text> no se renderizan de forma confiable en
+       todos los navegadores (justamente no aparecían). El favicon.svg queda en wwwroot por si más
+       adelante llega el vector definitivo de diseño. El ?v= rompe el caché agresivo de favicons: subir
+       el número cada vez que cambie el ícono. *@
+    <link rel="icon" type="image/png" href="favicon.png?v=4" />
     <HeadOutlet />
 </head>
 

@@ -4,7 +4,7 @@
    (docs/CONTENIDO.md). No reescribirla acá: si cambia, cambia en el manual primero.
    Se preservan las erratas del original — corregirlas es decisión de marca. *@
 
-<PageTitle>Quiénes somos — MARKET.arg</PageTitle>
+<PageTitle>Quiénes somos — MARKET</PageTitle>
 <HeadContent>
     <meta name="description" content="MARKET es una marca argentina de indumentaria: precios asequibles para todo el mundo en el día a día, para mujer, hombre, niña y niño." />
 </HeadContent>
@@ -16,63 +16,60 @@
         <p class="mk-logo-tagline">Vivi la experiencia</p>
     </header>
 
-    <section class="mk-institucional-bloque">
+    <section class="mk-institucional-lead">
         <p class="mk-destacado">
             <strong>Market es una marca de indumentaria</strong> que desde un comienzo se basa en los
             mismos fundamentos: <strong>precios asequibles para todo el mundo en el día a día.</strong>
         </p>
-        <p>
-            Desde prendas básicas de gran calidad hasta modelos destacados
-            <strong>para mujer, hombre, niña y niño</strong>.
-        </p>
-        <p>
-            En Market, hay algo para todos. Movidos por la creatividad y la auténtica pasión por lo que
-            hacemos, <strong>innovamos constantemente para crear prendas inspiradas en el diseño, así
-            como artículos básicos para el día a día, a precios asequibles.</strong>
-        </p>
     </section>
 
-    <section class="mk-institucional-bloque">
-        <h2>Nuestra misión</h2>
-        <p>
-            Llevar la moda a millones de personas y ofrecer prendas bien diseñadas, funcionales,
-            duraderas, asequibles y sostenibles para personas con grandes estilos y presupuestos
-            limitados.
-        </p>
-        <p>
-            Nos comprometemos a ofrecer una experiencia de compra única, inspirando a través de la moda,
-            la comodidad y la innovación.
-        </p>
+    <section class="mk-seccion">
+        <div class="mk-seccion-titulo"><h2>Nuestra misión</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Llevar la moda a millones de personas y ofrecer prendas bien diseñadas, funcionales,
+                duraderas, asequibles y sostenibles para personas con grandes estilos y presupuestos
+                limitados.
+            </p>
+            <p>
+                Nos comprometemos a ofrecer una experiencia de compra única, inspirando a través de la
+                moda, la comodidad y la innovación.
+            </p>
+        </div>
     </section>
 
-    <section class="mk-institucional-bloque">
-        <h2>Nuestra visión</h2>
-        <p>
-            Nuestra visión es convertirnos en la marca líder en moda textil, reconocida por nuestra
-            excelencia en diseño, calidad y servicio al cliente, haciendo que la moda sea accesible para
-            todos.
-        </p>
-        <p>
-            Buscamos no solo vestir a personas, sino también promover un estilo de vida sostenible,
-            cuidando de nuestros recursos humanos y del planeta para las generaciones futuras.
-        </p>
+    <section class="mk-seccion">
+        <div class="mk-seccion-titulo"><h2>Nuestra visión</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Nuestra visión es convertirnos en la marca líder en moda textil, reconocida por nuestra
+                excelencia en diseño, calidad y servicio al cliente, haciendo que la moda sea accesible
+                para todos.
+            </p>
+            <p>
+                Buscamos no solo vestir a personas, sino también promover un estilo de vida sostenible,
+                cuidando de nuestros recursos humanos y del planeta para las generaciones futuras.
+            </p>
+        </div>
     </section>
 
-    <section class="mk-institucional-bloque">
-        <h2>Valores</h2>
-        <dl class="mk-valores">
-            @foreach (var (nombre, texto) in Valores)
-            {
-                <div class="mk-valor">
-                    <dt class="mk-rotulo">@nombre</dt>
-                    <dd>@texto</dd>
-                </div>
-            }
-        </dl>
+    <section class="mk-seccion">
+        <div class="mk-seccion-titulo"><h2>Valores</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <dl class="mk-valores">
+                @foreach (var (nombre, texto) in Valores)
+                {
+                    <div class="mk-valor">
+                        <dt class="mk-rotulo">@nombre</dt>
+                        <dd>@texto</dd>
+                    </div>
+                }
+            </dl>
+        </div>
     </section>
 
-    <section class="mk-institucional-bloque">
-        <p><a class="mk-cta" href="/catalogo">Ver el catálogo</a></p>
+    <section class="mk-institucional-cierre">
+        <a class="mk-cta" href="/catalogo">Ver el catálogo</a>
     </section>
 </article>
 

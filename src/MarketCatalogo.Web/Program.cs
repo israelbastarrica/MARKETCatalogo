@@ -4,6 +4,12 @@ using MarketCatalogo.Web.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// El sitio corre como SERVICIO DE WINDOWS en el server (el panel MARKETServicios lo controla por nombre).
+// Sin esto, un servicio creado con `sc.exe` no recibe el aviso de "arrancó bien" y Windows marca el arranque
+// como fallido aunque el proceso quede vivo — y no haría falta NSSM de intermediario. Cuando se corre a mano
+// (dotnet run, consola) esta línea no hace nada: detecta que no hay Service Control Manager detrás.
+builder.Host.UseWindowsService();
+
 builder.Services.AddRazorComponents();
 
 // Cada módulo se registra con UNA línea. El host no ve nada de adentro de Catalogo.Datos ni

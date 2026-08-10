@@ -147,6 +147,13 @@
     .mk-header {
         justify-content: center;
     }
+
+    /* El logo ocupa toda la fila y centra su TEXTO: sin esto, su min-width de 183px (mínimo de marca)
+       deja "MARKET" alineado a la izquierda dentro de la caja y parece corrido del centro. */
+    .mk-header-logo {
+        flex-basis: 100%;
+        text-align: center;
+    }
 }
 
 /* --- Error UI de Blazor, en la paleta de marca --------------------------- */

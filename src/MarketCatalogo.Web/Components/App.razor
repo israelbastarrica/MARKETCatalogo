@@ -48,6 +48,33 @@
             }
         })();
     </script>
+
+    @* Aparición progresiva de los bloques .mk-reveal (ej. secciones de Nosotros). Mejora progresiva:
+       sin JS no se toca nada (el CSS deja todo visible); con JS se marca <html class="js-reveal"> y cada
+       bloque aparece al entrar en pantalla. Se re-inicializa tras cada navegación mejorada. *@
+    <script>
+        (function () {
+            function initReveal() {
+                document.documentElement.classList.add('js-reveal');
+                var els = document.querySelectorAll('.mk-reveal:not(.is-visible)');
+                if (!('IntersectionObserver' in window)) {
+                    els.forEach(function (el) { el.classList.add('is-visible'); });
+                    return;
+                }
+                var io = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (e) {
+                        if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
+                    });
+                }, { rootMargin: '0px 0px -10% 0px', threshold: .1 });
+                els.forEach(function (el) { io.observe(el); });
+            }
+            if (document.readyState !== 'loading') initReveal();
+            else document.addEventListener('DOMContentLoaded', initReveal);
+            if (window.Blazor && Blazor.addEventListener) {
+                Blazor.addEventListener('enhancedload', initReveal);
+            }
+        })();
+    </script>
 </body>
 
 </html>

@@ -154,6 +154,13 @@
         flex-basis: 100%;
         text-align: center;
     }
+
+    /* Footer centrado en mobile: marca, redes y columnas al centro (en desktop siguen a los lados). */
+    .mk-footer-top { justify-content: center; }
+    .mk-footer-marca { max-width: none; align-items: center; text-align: center; }
+    .mk-footer-social { justify-content: center; }
+    .mk-footer-cols { justify-content: center; text-align: center; width: 100%; }
+    .mk-footer-base { justify-content: center; text-align: center; }
 }
 
 /* --- Error UI de Blazor, en la paleta de marca --------------------------- */

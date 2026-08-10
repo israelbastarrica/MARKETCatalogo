@@ -15,6 +15,30 @@
     padding: 0 2rem 5rem;
 }
 
+/* --- Aparición progresiva (progressive enhancement) ----------------------
+   Cada bloque .mk-reveal aparece (fade + subir) al entrar en pantalla. El estado oculto SOLO se
+   aplica cuando el JS marcó <html class="js-reveal"> (ver App.razor): sin JS, todo se ve normal.
+   Con "reduce motion" no se anima. */
+.js-reveal .mk-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity .6s ease, transform .6s ease;
+    will-change: opacity, transform;
+}
+
+.js-reveal .mk-reveal.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .js-reveal .mk-reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
+
 /* --- Hero a sangre: rompe el padding del contenedor para ir de borde a borde. --- */
 .mk-institucional-hero {
     margin: 0 -2rem 3.5rem;

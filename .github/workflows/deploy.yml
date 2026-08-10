@@ -1,0 +1,65 @@
+name: Deploy MARKET Catálogo
+
+# Deploy MANUAL: NO deploya en cada push. Se dispara a mano (Actions -> Run workflow, o desde la pantalla
+# "Actualizar servidor" de MarketWeb vía la API de GitHub). Compila SIEMPRE origin/main.
+# Corre en un self-hosted runner INSTALADO EN EL SERVER, registrado en ESTE repo (los runners son por
+# repositorio: el de MARKETweb no puede correr jobs de acá).
+on:
+  workflow_dispatch:
+
+# Un deploy a la vez.
+concurrency:
+  group: deploy-marketcatalogo
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, windows]
+    env:
+      # STAGING = carpeta temporal donde publica el build; MARKETServicios hace robocopy STAGING -> la
+      # carpeta live del servicio (C:\Documentos\MarketCatalogo) y reinicia el servicio MarketCatalogo.
+      STAGING: 'C:\Documentos\MarketCatalogo_stage'
+      SERVICIOS_URL: 'http://127.0.0.1:8099'
+      SERVICE_ID: 'catalogo'
+    steps:
+      - name: Checkout main (limpio, desde GitHub)
+        uses: actions/checkout@v4
+
+      - name: Publicar self-contained
+        shell: powershell
+        run: |
+          dotnet publish src/MarketCatalogo.Web/MarketCatalogo.Web.csproj -c Release -r win-x64 --self-contained true -o "$env:STAGING"
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish falló" }
+
+      # El sitio es PÚBLICO y de solo lectura: reiniciarlo no corta ningún proceso del depósito, así que
+      # acá NO va el paso de "esperar hueco sin candados" que sí tiene MarketWeb.
+      - name: Deploy (stop -> robocopy -> start vía MARKETServicios)
+        shell: powershell
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:DEPLOY_TOKEN)) { throw "Falta el secret DEPLOY_TOKEN" }
+          $body = @{ staging = $env:STAGING } | ConvertTo-Json
+          try {
+            $r = Invoke-WebRequest -Uri "$($env:SERVICIOS_URL)/api/deploy/$($env:SERVICE_ID)" -Method Post `
+                   -Headers @{ 'X-Deploy-Token' = $env:DEPLOY_TOKEN } -Body $body -ContentType 'application/json' `
+                   -UseBasicParsing -TimeoutSec 60
+            Write-Host "Deploy disparado OK (HTTP $($r.StatusCode)). MARKETServicios hace stop -> sync -> start."
+          } catch {
+            throw "MARKETServicios rechazo el deploy: $($_.Exception.Message)"
+          }
+
+      # A diferencia de MarketWeb, acá la request NO deberia cortarse: el que se reinicia es el servicio del
+      # catalogo, no el que atiende esta llamada. Si falla, falla de verdad y el run queda en rojo.
+      - name: Verificar que el sitio volvio a levantar
+        shell: powershell
+        run: |
+          $url = 'http://127.0.0.1:5090/'
+          for ($i = 1; $i -le 20; $i++) {
+            Start-Sleep -Seconds 3
+            try {
+              $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+              if ($r.StatusCode -eq 200) { Write-Host "Sitio arriba (HTTP 200) tras $($i * 3)s."; exit 0 }
+            } catch { }
+          }
+          throw "El sitio no respondio 200 en 60s. Revisar C:\Documentos\MarketCatalogo\logs\err.log"

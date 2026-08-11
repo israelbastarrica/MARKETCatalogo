@@ -51,6 +51,23 @@
 
     /* Reducción mínima del logo en digital, del manual */
     --mk-logo-min: 183px;
+
+    /* Alto del header en desktop, FIJO (min-height en MainLayout.razor.css): así cualquier otro
+       elemento que necesite engancharse justo debajo (el sidebar y la toolbar sticky del catálogo,
+       por ejemplo) usa este mismo número y nunca queda un hueco por el que se cuele el contenido.
+       Sin esto, el alto real dependía de la métrica de línea de Poppins — no determinístico. */
+    --mk-header-alto: 5.5rem;
+}
+
+/* Debajo de 640px el header pasa a DOS filas (logo arriba, nav abajo — ver el
+   @media max-width:640px de MainLayout.razor.css), así que necesita más alto que en desktop.
+   Se redefine acá, no en MainLayout.razor.css, porque son los CONSUMIDORES de la variable
+   (la toolbar sticky del catálogo) los que necesitan el valor correcto en cada ancho — este
+   token vive en el host, que es justamente el que sabe cuánto mide su propio header. */
+@media (max-width: 640px) {
+    :root {
+        --mk-header-alto: 9rem;
+    }
 }
 
 /* --- Base ---------------------------------------------------------------- */

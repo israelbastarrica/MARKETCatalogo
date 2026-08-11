@@ -29,6 +29,10 @@
     <Routes />
     <script src="_framework/blazor.web.js"></script>
 
+    @* Scroll infinito del catálogo (ver el comentario en el propio archivo). Vive en el módulo
+       Catalogo.Ui, no acá, por la misma frontera que catalogo.css: el host sólo la enlaza. *@
+    <script src="@Assets["_content/MarketCatalogo.Catalogo.Ui/catalogo-scroll.js"]"></script>
+
     @* Mejora progresiva (NO es estado de la app: los filtros son links y funcionan sin esto).
        El drawer de filtros se abre/cierra con un checkbox del DOM. Cada filtro navega por SSR y la
        navegación mejorada de Blazor reemplaza el DOM, reseteando ese checkbox → el drawer se cerraba

@@ -79,7 +79,10 @@ public sealed record FiltrosCatalogo
     public IReadOnlyList<string> Talles { get; init; } = [];
     public IReadOnlyList<string> Colores { get; init; } = [];
     public IReadOnlyList<string> Locales { get; init; } = [];
-    public IReadOnlyList<int> Combos { get; init; } = [];
+    // Filtro de combo, de dos niveles (cantidad de unidades y precio del tramo): cada valor es
+    // "{cantidad}-{total}", ej. "2-15000". El nivel de cantidad (Combo de 2, de 10…) es sólo un
+    // <details> visual en el panel; lo que filtra de verdad es elegir un precio puntual.
+    public IReadOnlyList<string> ComboDetalles { get; init; } = [];
 
     public decimal? PrecioMin { get; init; }
     public decimal? PrecioMax { get; init; }
@@ -91,6 +94,17 @@ public sealed record FiltrosCatalogo
 }
 
 public sealed record OpcionFaceta(string Valor, string Etiqueta, int Cantidad, bool Activa);
+
+/// <summary>Un grupo de la faceta de combo: la cantidad de unidades (ej. "Combo de 2") y, adentro, los
+/// precios de ese tramo. El grupo en sí no filtra — es el <c>&lt;details&gt;</c> del panel — el filtro
+/// está en <see cref="Detalles"/>. <see cref="TieneActivo"/> abre el grupo solo si ya hay un precio
+/// tildado adentro, para que el filtro activo no quede escondido al recargar la página.</summary>
+public sealed record OpcionFacetaCombo(int Unidades, string Etiqueta, int Cantidad, bool TieneActivo,
+                                       IReadOnlyList<OpcionFaceta> Detalles);
+
+/// <summary>Un tramo válido de combo (cuántas unidades y a qué precio total), tal como está definido en
+/// la grilla de márgenes (MARKET.dbo.PruebaCombos) — no se deriva de lo que hay armado.</summary>
+public sealed record ComboTier(int Cantidad, decimal Total);
 
 public sealed class PaginaCatalogoDto
 {
@@ -104,7 +118,7 @@ public sealed class PaginaCatalogoDto
     public required IReadOnlyList<OpcionFaceta> Talles { get; init; }
     public required IReadOnlyList<OpcionFaceta> Colores { get; init; }
     public required IReadOnlyList<OpcionFaceta> Locales { get; init; }
-    public required IReadOnlyList<OpcionFaceta> Combos { get; init; }
+    public required IReadOnlyList<OpcionFacetaCombo> Combos { get; init; }
 }
 
 /// <summary>Una entrada del menú principal: rubro con sus géneros y cuántos artículos tiene cada uno.</summary>

@@ -47,12 +47,13 @@ public static class Talles
         ["L"]   = new(Grupo.Letra, 104),            // (323)
         ["LXL"] = new(Grupo.Letra, 105, "L/XL"),    // (18)
         ["XL"]  = new(Grupo.Letra, 106),            // (309)
-        ["2XL"] = new(Grupo.Letra, 107),            // (195)
-        ["3XL"] = new(Grupo.Letra, 108),            // (76)
-        ["4XL"] = new(Grupo.Letra, 109),            // (24)
-        ["5XL"] = new(Grupo.Letra, 110),            // (17)
-        ["6XL"] = new(Grupo.Letra, 111),            // (4)
-        ["7XL"] = new(Grupo.Letra, 112),            // (2)
+        ["2XL"]   = new(Grupo.Letra, 107),          // (195)
+        ["2/3XL"] = new(Grupo.Letra, 108),          // combinado, como SM/LXL
+        ["3XL"]   = new(Grupo.Letra, 109),          // (76)
+        ["4XL"]   = new(Grupo.Letra, 110),          // (24)
+        ["5XL"]   = new(Grupo.Letra, 111),          // (17)
+        ["6XL"]   = new(Grupo.Letra, 112),          // (4)
+        ["7XL"]   = new(Grupo.Letra, 113),          // (2)
 
         // --- Niño (numéricos chicos, con y sin cero adelante) ----------------
         ["01"]  = new(Grupo.Nino, 200, "1"),        // (1)
@@ -68,6 +69,9 @@ public static class Talles
         ["12"]  = new(Grupo.Nino, 210),             // (153)
         ["14"]  = new(Grupo.Nino, 211),             // (151)
         ["16"]  = new(Grupo.Nino, 212),             // (98)
+        ["20"]  = new(Grupo.Nino, 213),             // (1)
+        ["24"]  = new(Grupo.Nino, 214),             // (5)
+        ["25"]  = new(Grupo.Nino, 215),             // (1)
 
         // --- Adulto (numéricos de indumentaria / calzado) --------------------
         ["36"]  = new(Grupo.Adulto, 300),           // (2)

@@ -55,11 +55,22 @@
     }
 
     @* El "Tipo" (rubro) no va como faceta: se elige por sección (mega-menú/drawer). Acá queda el
-       refinamiento fino dentro de la sección elegida. *@
+       refinamiento fino dentro de la sección elegida. Combo NO va acá: vive siempre en la toolbar
+       sticky de arriba (ComboDropdown, ver CatalogoGrilla.razor), no en este panel. *@
     <Faceta Titulo="Prenda"  Clave="familia" Opciones="Pagina.Familias" Filtros="Filtros" />
     <Faceta Titulo="Talle"   Clave="talle"   Opciones="Pagina.Talles"   Filtros="Filtros" />
     <Faceta Titulo="Color"   Clave="color"   Opciones="Pagina.Colores"  Filtros="Filtros" />
-    <Faceta Titulo="Combo"   Clave="combo"   Opciones="Pagina.Combos"   Filtros="Filtros" />
+
+    @* Orden: en desktop ya está en la toolbar; acá sólo se ve en mobile (mk-filtros-orden, CSS),
+       donde la toolbar la esconde para dejarle el lugar a Sucursal + Combo, que son más usados. *@
+    <div class="mk-orden mk-filtros-orden">
+        <span class="mk-rotulo">Orden</span>
+        @foreach (var (valor, etiqueta) in new[] { ("precio-asc", "Menor precio"), ("precio-desc", "Mayor precio") })
+        {
+            <a class="mk-orden-opcion @(Filtros.Orden == valor ? "activa" : "")"
+               href="@UrlCatalogo.Construir(Filtros, "orden", valor)">@etiqueta</a>
+        }
+    </div>
 
 </aside>
 

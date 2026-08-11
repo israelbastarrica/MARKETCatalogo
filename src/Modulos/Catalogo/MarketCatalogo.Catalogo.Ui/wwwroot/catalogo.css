@@ -42,20 +42,42 @@
     align-items: start;
 }
 
-/* El panel de filtros queda pegado al hacer scroll: la grilla es larga. */
+/* El panel de filtros queda pegado al hacer scroll: la grilla es larga. Necesita su propio
+   límite de alto + scroll (igual que ya hacía la versión mobile en @media abajo): si no,
+   con Prenda+Talle+Color+Combo abiertos el panel entero se pasa del viewport y Combo, al
+   final, sólo se alcanza scrolleando la página entera hasta el fondo de la grilla. */
 .mk-filtros {
     position: sticky;
-    top: 6rem;
+    top: var(--mk-header-alto);
     display: flex;
     flex-direction: column;
     gap: 2rem;
+    max-height: calc(100vh - var(--mk-header-alto) - 2rem);
+    overflow-y: auto;
+    /* Por spec, si overflow-y no es "visible" y overflow-x no se toca, el navegador computa
+       overflow-x como "auto" también — quedaba paneable de costado sin necesidad. Se anula explícito. */
+    overflow-x: hidden;
+    /* Sin esto, al llegar al borde del scroll del panel el gesto seguía pasándole el scroll a la
+       página entera (los productos se movían solos) — "scroll chaining". Se corta acá. */
+    overscroll-behavior-y: contain;
+    /* Sigue siendo scrolleable (rueda, touch, teclado); lo único que se saca es la barra visible,
+       que al lado de las barras propias de cada faceta (mk-faceta-lista) quedaba amontonado. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+
+.mk-filtros::-webkit-scrollbar { display: none; }
 
 /* --- Facetas ------------------------------------------------------------- */
 
 .mk-faceta-titulo {
     margin: 0 0 .75rem;
-    padding-bottom: .5rem;
+    line-height: 1.5rem;
+    /* Medido con getBoundingClientRect() real: .mk-toolbar da 50.59px de alto, este bloque daba
+       41px — la diferencia (9.6px = .6rem) se suma acá para que las dos líneas queden a la misma
+       altura por medición, no por cálculo teórico (que no incluía el alto real del contenido de
+       la toolbar: checkboxes + texto, más alto que el min-height que se le había puesto). */
+    padding-bottom: 1.6rem;
     border-bottom: 1px solid var(--mk-tinta-20);
 }
 
@@ -69,6 +91,8 @@
     /* Las facetas largas (color) no empujan la página entera: scrollean solas. */
     max-height: 15rem;
     overflow-y: auto;
+    overflow-x: hidden;   /* si no, overflow-y:auto habilita también el paneo de costado */
+    overscroll-behavior-y: contain;   /* que no le pase el scroll a .mk-filtros ni a la página */
 }
 
 .mk-faceta-opcion {
@@ -79,6 +103,14 @@
     text-decoration: none;
     color: var(--mk-tinta-100);
     font-size: .95rem;
+    /* Arrastrar empezando sobre un <a> puede disparar el "arrastrar el link" nativo del navegador,
+       o directo seleccionar el texto, en vez de scrollear (se nota sobre todo en touch/emulación
+       mobile) — se desactivan los dos; el link se sigue abriendo con un click/tap normal. */
+    -webkit-user-drag: none;
+    user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: pan-y;
 }
 
 .mk-faceta-opcion:hover { color: var(--mk-tinta-100); }
@@ -103,6 +135,148 @@
    primera letra en mayúscula (NEGRO → Negro): minúscula todo + ::first-letter en mayúscula. */
 .mk-faceta-color .mk-faceta-nombre { text-transform: lowercase; }
 .mk-faceta-color .mk-faceta-nombre::first-letter { text-transform: uppercase; }
+
+/* --- Faceta de combo (dos niveles: cantidad + precio, ver ComboDropdown.razor) -- */
+
+.mk-faceta-combo-grupos > li { list-style: none; }
+
+.mk-faceta-combo-grupos details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    padding: .35rem .25rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+/* Chrome/Safari dibujan su propio triángulo aparte del ::marker; se reemplaza por el mismo signo
+   "›" que ya usa el drill-down de secciones, así los dos looks de disclosure quedan iguales. */
+.mk-faceta-combo-grupos summary::-webkit-details-marker { display: none; }
+.mk-faceta-combo-grupos summary::marker { content: ""; }
+
+.mk-faceta-combo-grupos summary::after {
+    content: '›';
+    flex: 0 0 auto;
+    color: var(--mk-tinta-40);
+    transform: rotate(90deg);
+    transition: transform .15s ease;
+}
+
+.mk-faceta-combo-grupos details[open] > summary::after { transform: rotate(-90deg); }
+
+.mk-faceta-combo-detalles {
+    list-style: none;
+    margin: 0 0 .5rem;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .1rem;
+}
+
+/* --- Combo, dropdown de la toolbar (ver ComboDropdown.razor) -------------
+   Combo vive SIEMPRE acá, en la toolbar sticky — en mobile y en desktop, nunca en el drawer de
+   filtros: es el más usado de los dos, así que se mantiene siempre a mano en vez de un tap más
+   adentro del panel. --- */
+
+.mk-combo-dropdown {
+    position: relative;
+}
+
+/* Checkbox oculto que guarda abierto/cerrado: mismo patrón sr-only que .mk-filtros-check. */
+.mk-combo-toggle-check {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.mk-combo-dropdown-boton {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    cursor: pointer;
+    padding: .3rem 0;
+}
+
+.mk-combo-dropdown-boton::after {
+    content: '›';
+    display: inline-block;
+    color: var(--mk-tinta-40);
+    transform: rotate(90deg);
+    transition: transform .15s ease;
+}
+
+.mk-combo-toggle-check:checked ~ .mk-combo-dropdown-boton::after { transform: rotate(-90deg); }
+
+.mk-combo-dropdown-contador {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.3rem;
+    height: 1.3rem;
+    padding: 0 .35rem;
+    background: var(--mk-acento);
+    color: var(--mk-acento-tinta);
+    border-radius: 999px;
+    font-size: .75rem;
+}
+
+/* Fondo invisible a pantalla completa mientras está abierto: tocar cualquier punto afuera del
+   panel cae acá y cierra el dropdown (es un <label for> del mismo checkbox). Oculto por defecto
+   para no atrapar clicks cuando el dropdown está cerrado. */
+.mk-combo-dropdown-backdrop { display: none; }
+
+.mk-combo-toggle-check:checked ~ .mk-combo-dropdown-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    cursor: default;
+}
+
+/* El panel cae flotando debajo del botón, mismo criterio que el mega-menú del header
+   (position:relative en el trigger + position:absolute acá): no empuja el resto de la toolbar.
+   Oculto por defecto — sólo se muestra con el checkbox tildado. */
+.mk-combo-dropdown-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + .5rem);
+    left: 0;
+    min-width: 260px;
+    max-height: 20rem;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    background: var(--mk-fondo);
+    border: 1px solid var(--mk-tinta-20);
+    padding: .5rem 1rem;
+    z-index: 20;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .12);
+}
+
+.mk-combo-toggle-check:checked ~ .mk-combo-dropdown-panel { display: block; }
+
+/* En mobile el botón "Combo" puede quedar centrado en la barra (Sucursal+Combo centrados), lejos
+   del borde izquierdo — un panel de min-width:260px anclado a ÉL se sale del viewport angosto y
+   empuja la página entera de costado. Se lo cuelga de la TOOLBAR completa en vez del botón puntual
+   (position:static en .mk-combo-dropdown deja que el panel absolute suba a buscar el próximo
+   ancestro posicionado, que es .mk-toolbar — sticky también cuenta), a todo el ancho de esa barra,
+   que ya vive dentro del margen de la pantalla. */
+@media (max-width: 900px) {
+    .mk-combo-dropdown { position: static; }
+
+    .mk-combo-dropdown-panel {
+        left: 1rem;
+        right: 1rem;
+        min-width: 0;
+    }
+}
 
 /* --- Chips de filtros activos -------------------------------------------- */
 
@@ -157,12 +331,54 @@
     justify-content: space-between;
     gap: 1rem 2rem;
     margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
+    /* min-height fijo (no el que den checkboxes/texto): junto con el padding, suma la MISMA altura
+       total que .mk-faceta-titulo (line-height 1.5rem + padding-bottom 1rem allá), así las dos
+       líneas quedan a la misma altura por matemática. Repartido arriba y abajo (no todo abajo):
+       Sucursal/Combo/Orden quedan centrados verticalmente, no pegados arriba. */
+    min-height: 1.5rem;
+    padding-top: .5rem;
+    padding-bottom: .5rem;
     border-bottom: 1px solid var(--mk-tinta-20);
+    /* Pegada debajo del header (mismo top que usa .mk-filtros) para poder tocar Sucursal, Combo
+       u Orden en cualquier momento sin volver arriba. Necesita fondo opaco: si no, las cards se
+       ven pasar por detrás al scrollear. z-index por debajo del header (10), que manda siempre. */
+    position: sticky;
+    top: var(--mk-header-alto);
+    z-index: 5;
+    background: var(--mk-fondo);
 }
 
 /* La barra ya trae su propio margen; el .mk-orden de adentro no dobla. */
 .mk-toolbar .mk-orden { margin-bottom: 0; }
+
+/* En mobile la toolbar sticky no tiene lugar para las tres cosas: se prioriza Sucursal + Combo
+   (más usados) y Orden se muda al drawer de filtros (mk-filtros-orden, ver PanelFiltros.razor).
+   Sin Orden, Sucursal+Combo quedan como único contenido: se centran en la barra (el
+   align-items:center de .mk-toolbar ya los centra verticalmente). */
+@media (max-width: 900px) {
+    .mk-toolbar .mk-orden { display: none; }
+    .mk-toolbar { justify-content: center; }
+}
+
+/* La copia de Orden que vive en el drawer: sólo se ve en mobile — en desktop ya está en la
+   toolbar, no hace falta duplicarla acá. */
+.mk-filtros-orden {
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+@media (min-width: 901px) {
+    .mk-filtros-orden { display: none; }
+}
+
+/* Agrupa Sucursal + Combo pegados entre sí a la izquierda: con el space-between del toolbar
+   solo (sin este wrapper), Combo quedaba centrado en vez de al lado de Sucursal. */
+.mk-toolbar-izq {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 2rem;
+}
 
 .mk-sucursales {
     display: flex;
@@ -212,7 +428,7 @@
 .mk-grilla {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 2.5rem 1.75rem;
+    gap: 1.75rem .75rem;
 }
 
 .mk-card {
@@ -277,6 +493,22 @@
     justify-content: center;
     gap: 1.5rem;
     margin-top: 3rem;
+}
+
+/* Scroll infinito (mejora progresiva, ver catalogo-scroll.js). Sin JS no se toca nada: la
+   paginación por links de siempre queda intacta. Con JS, <html class="js-infinita"> se agrega
+   y esta misma nav pasa a ser el sensor que dispara la carga de la página siguiente al entrar
+   en pantalla — sus links se ocultan y sólo queda visible el estado en mk-cargando-mas. */
+.mk-cargando-mas { display: none; }
+
+.js-infinita .mk-paginacion > a,
+.js-infinita .mk-paginacion > .mk-rotulo {
+    display: none;
+}
+
+.js-infinita .mk-cargando-mas {
+    display: inline-block;
+    color: var(--mk-tinta-40);
 }
 
 .mk-actualizado { margin-top: 2rem; text-align: right; color: var(--mk-tinta-40); }
@@ -440,11 +672,16 @@
         z-index: 60;
         width: min(85vw, 320px);
         height: 100dvh;
+        max-height: none;   /* pisa el max-height del sidebar de desktop, que si no deja el drawer corto */
         margin: 0;
         padding: 1.25rem 1.25rem 2rem;
         background: var(--mk-fondo);
         border-right: 1px solid var(--mk-tinta-20);
         overflow-y: auto;
+        overflow-x: hidden;   /* mismo motivo que en desktop: overflow-y:auto solo habilita el otro eje */
+        /* Nada de overscroll-behavior acá: combinado con -webkit-overflow-scrolling trababa el
+           scroll en algunos Chromium. No hace falta igual — .mk-filtros-backdrop, el fondo oscuro
+           de abajo, ya bloquea la interacción con la página mientras el drawer está abierto. */
         -webkit-overflow-scrolling: touch;
         transform: translateX(-100%);
         transition: transform .25s ease;
@@ -457,6 +694,13 @@
     .mk-filtros .mk-faceta-lista {
         max-height: none;
         overflow-y: visible;
+        /* El overflow-x:hidden de la regla base (desktop) se sigue heredando acá, y por spec de
+           CSS "si un eje es visible y el otro no, el visible se fuerza a auto" — cada faceta
+           terminaba siendo, sin querer, su propio contenedor de scroll (sin barra, porque el
+           contenido entra justo), y eso le robaba la rueda del mouse al scroll del panel entero.
+           Con los dos ejes en visible, la lista deja de ser un contenedor de scroll y el gesto
+           pasa derecho a .mk-filtros, que es el único que tiene que scrollear acá. */
+        overflow-x: visible;
     }
 
     .mk-filtros-cabecera {
@@ -510,7 +754,7 @@
 
 @media (max-width: 640px) {
     .mk-catalogo, .mk-producto { padding-inline: 1.25rem; }
-    .mk-grilla { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.75rem 1rem; }
+    .mk-grilla { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.25rem .6rem; }
 
     /* --- Drill-down de secciones dentro del drawer -----------------------
        Nivel 1: lista de géneros. Al tocar uno, :has() oculta los demás y su
@@ -518,9 +762,10 @@
        Todo sin una línea de JavaScript. */
     .mk-secciones {
         display: block;
+        /* Sin border-bottom propio: el último género (Unisex) ya cierra con el suyo
+           (mk-sec-gen); tener los dos pegados, separados sólo por un padding, se veía
+           como una línea de más. */
         margin-bottom: 1.75rem;
-        padding-bottom: 1.25rem;
-        border-bottom: 1px solid var(--mk-tinta-20);
     }
 
     .mk-secciones-titulo { display: block; margin-bottom: .75rem; }

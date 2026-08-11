@@ -82,33 +82,40 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         return PorLotesAsync<ArticuloRow>(sql, codigos, dragon: true, ct);
     }
 
-    /// <summary>DRAGON: color × talle de cada artículo. Sale de COMB de CENTRAL, que es el RANGO del
-    /// artículo — no el stock de cada sucursal. Para una vidriera sin carrito, es lo correcto.</summary>
-    public Task<IReadOnlyList<VarianteRow>> TraerVariantesAsync(
+    /// <summary>DRAGON: color × talle de cada artículo, de las órdenes de compra (PRECOMPRA). El color
+    /// sale como texto directo del remito (FCOTXT) — sin el problema de matcheo de COMB. Se excluyen
+    /// las órdenes anuladas (PRECOMPRA.ANULADO). Primera fuente de la cascada.</summary>
+    public Task<IReadOnlyList<VarianteRow>> TraerVariantesPrecompraAsync(
         IReadOnlyCollection<string> codigos, CancellationToken ct = default)
     {
-        // El nombre del color sale de DPCOLOR, pero NO se matchea por la paleta del artículo (ART.PALCOL)
-        // como hace MARKETweb: en el catálogo real la PALCOL asignada muchas veces no contiene el código
-        // de color que la combinación usa (art. en paleta "001" con color "00", etc.), y ese join deja
-        // ~15% de las variantes sin nombre, mostrando el código crudo ("00", "51") en la vidriera.
-        //
-        // DPCOLOR tiene sólo 3 paletas y los códigos NO se solapan entre ellas (00=NEUTRO en la 000,
-        // 01–43 en la 001, 51=SURTIDO en la 002), así que el CÓDIGO por sí solo identifica el color sin
-        // ambigüedad. Se matchea por el VALOR NUMÉRICO del código (TRY_CAST): eso ignora la paleta y de
-        // paso absorbe el zero-padding inconsistente de COMB ("3" = "03", "051" = "51"). Cobertura medida:
-        // 13.729/13.739 variantes con código (99,9%). TRY_CAST devuelve NULL en códigos no numéricos o
-        // vacíos —"sin color"— y NULL no matchea, que es justo lo que se quiere.
         const string sql = """
-            SELECT ArtCod   = RTRIM(CB.COART),
-                   ColorCod = RTRIM(CB.COCOL),
-                   Color    = RTRIM(ISNULL(DPC.DESCRIP, '')),
-                   Talle    = RTRIM(CB.TALLE)
-            FROM ZooLogic.COMB CB WITH (NOLOCK)
-            LEFT JOIN ZooLogic.DPCOLOR DPC WITH (NOLOCK)
-                   ON TRY_CAST(RTRIM(DPC.CODCOL) AS INT) = TRY_CAST(RTRIM(CB.COCOL) AS INT)
-                  AND RTRIM(ISNULL(DPC.DESCRIP, '')) <> ''
-            WHERE RTRIM(CB.COART) IN @codigos
-            GROUP BY RTRIM(CB.COART), RTRIM(CB.COCOL), RTRIM(ISNULL(DPC.DESCRIP, '')), RTRIM(CB.TALLE);
+            SELECT ArtCod   = RTRIM(PC.FART),
+                   ColorCod = RTRIM(PC.FCOLO),
+                   Color    = RTRIM(ISNULL(PC.FCOTXT, '')),
+                   Talle    = RTRIM(PC.FTALL)
+            FROM ZooLogic.PRECOMPRADET PC WITH (NOLOCK)
+            JOIN ZooLogic.PRECOMPRA PH WITH (NOLOCK) ON PH.CODIGO = PC.CODIGO
+            WHERE RTRIM(PC.FART) IN @codigos AND ISNULL(PH.ANULADO, 0) = 0
+            GROUP BY RTRIM(PC.FART), RTRIM(PC.FCOLO), RTRIM(ISNULL(PC.FCOTXT, '')), RTRIM(PC.FTALL);
+            """;
+        return PorLotesAsync<VarianteRow>(sql, codigos, dragon: true, ct);
+    }
+
+    /// <summary>DRAGON: color × talle de cada artículo, de los remitos de compra (REMCOMPRA). Mismo
+    /// criterio que PRECOMPRA (color como texto directo, se excluyen los anulados). Segunda fuente
+    /// de la cascada: cubre artículos que no tuvieron ninguna orden de compra cargada.</summary>
+    public Task<IReadOnlyList<VarianteRow>> TraerVariantesRemcompraAsync(
+        IReadOnlyCollection<string> codigos, CancellationToken ct = default)
+    {
+        const string sql = """
+            SELECT ArtCod   = RTRIM(RC.FART),
+                   ColorCod = RTRIM(RC.FCOLO),
+                   Color    = RTRIM(ISNULL(RC.FCOTXT, '')),
+                   Talle    = RTRIM(RC.FTALL)
+            FROM ZooLogic.REMCOMPRADET RC WITH (NOLOCK)
+            JOIN ZooLogic.REMCOMPRA RH WITH (NOLOCK) ON RH.CODIGO = RC.CODIGO
+            WHERE RTRIM(RC.FART) IN @codigos AND ISNULL(RH.ANULADO, 0) = 0
+            GROUP BY RTRIM(RC.FART), RTRIM(RC.FCOLO), RTRIM(ISNULL(RC.FCOTXT, '')), RTRIM(RC.FTALL);
             """;
         return PorLotesAsync<VarianteRow>(sql, codigos, dragon: true, ct);
     }
@@ -159,6 +166,20 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             _log.LogInformation(ex, "CatalogoArticulo no disponible; se sigue sin overrides editoriales.");
             return Array.Empty<OverrideRow>();
         }
+    }
+
+    /// <summary>MARKET: los tramos oficiales de combo (unidades y precio total), de la grilla de
+    /// márgenes. Tabla chica (unas pocas decenas de filas): se trae entera, sin lotes.</summary>
+    public async Task<IReadOnlyList<ComboTierRow>> TraerComboTiersAsync(CancellationToken ct = default)
+    {
+        const string sql = """
+            SELECT Cantidad = N, Total
+            FROM MARKET.dbo.PruebaCombos WITH (NOLOCK)
+            WHERE Activo = 1 AND Eliminado = 0
+            GROUP BY N, Total;
+            """;
+        using var cn = _db.CrearMarket();
+        return (await cn.QueryAsync<ComboTierRow>(new CommandDefinition(sql, commandTimeout: 30, cancellationToken: ct))).ToList();
     }
 
     private async Task<IReadOnlyList<T>> PorLotesAsync<T>(

@@ -80,9 +80,10 @@ public sealed class CatalogoCache
 
             _log.LogInformation(
                 "Catálogo actualizado en {Ms} ms: {Total} publicados de {Armados} armados " +
-                "({SinFoto} sin foto, {Descartados} descartados por taxonomía).",
+                "({SinFoto} sin foto, {Descartados} descartados por taxonomía, {SinVariantes} " +
+                "descartados por no tener color/talle en PRECOMPRA ni REMCOMPRA).",
                 reloj.ElapsedMilliseconds, nuevo.Total, nuevo.TotalArmados, nuevo.SinFoto,
-                nuevo.DescartadosPorTaxonomia);
+                nuevo.DescartadosPorTaxonomia, nuevo.SinVariantes);
 
             if (nuevo.TallesDesconocidos.Count > 0)
                 _log.LogWarning("Talles no registrados en Talles.cs: {Talles}. Agregarlos con su grupo y orden.",
@@ -119,11 +120,27 @@ public sealed class CatalogoCache
         var codigos = localesPorCodigo.Keys.ToArray();
         if (codigos.Length == 0) return CatalogoSnapshot.Vacio();
 
-        // 2) Las otras cuatro fuentes. Las de Dragon van por su propia conexión (D8c).
+        // 2) Las otras fuentes. Las de Dragon van por su propia conexión (D8c).
         var articulos = await _repo.TraerArticulosAsync(codigos, ct);
-        var variantes = await _repo.TraerVariantesAsync(codigos, ct);
         var fotos = await _repo.TraerRutasFotoAsync(ct);
         var overrides = await _repo.TraerOverridesAsync(ct);
+        var comboTiers = await _repo.TraerComboTiersAsync(ct);
+
+        // Color/talle: cascada de DOS fuentes, por artículo — PRECOMPRA primero (color como texto
+        // directo del remito, sin el problema de matcheo de COMB contra DPCOLOR), después REMCOMPRA
+        // (mismo criterio, cubre lo que no tuvo orden de compra). A propósito NO se cae a COMB: sus
+        // datos vienen sucios, así que un artículo sin nada en PRECOMPRA ni REMCOMPRA queda sin
+        // colores/talles antes que mostrar algo incorrecto (excepto Lencería, que no usa esta
+        // cascada — ver el "Único" fijo más abajo).
+        var variantesPrecompra = await _repo.TraerVariantesPrecompraAsync(codigos, ct);
+        var codigosSinPrecompra = codigos.Except(
+            variantesPrecompra.Select(v => v.ArtCod), StringComparer.OrdinalIgnoreCase).ToArray();
+
+        var variantesRemcompra = codigosSinPrecompra.Length == 0
+            ? Array.Empty<VarianteRow>()
+            : await _repo.TraerVariantesRemcompraAsync(codigosSinPrecompra, ct);
+
+        var variantes = variantesPrecompra.Concat(variantesRemcompra).ToList();
 
         var fotoPorCodigo = fotos
             .GroupBy(f => f.ArtCod, StringComparer.OrdinalIgnoreCase)
@@ -142,6 +159,7 @@ public sealed class CatalogoCache
         var tallesDesconocidos = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
         var descartados = 0;
         var sinFoto = 0;
+        var sinVariantes = 0;
 
         foreach (var a in articulos)
         {
@@ -152,6 +170,12 @@ public sealed class CatalogoCache
 
             overridePorCodigo.TryGetValue(a.ArtCod, out var ovr);
             if (ovr?.OcultarManual == true) continue;
+
+            // Sin ninguna fila en PRECOMPRA ni REMCOMPRA no se publica: mejor no mostrar el artículo
+            // que mostrarlo sin colores/talles. Lencería es la excepción — no usa esta cascada (ver
+            // más abajo), así que no se descarta por esto.
+            var esLenceria = Texto.SinAcentos(a.Rubro) == "lenceria";
+            if (!esLenceria && !variantesPorCodigo.ContainsKey(a.ArtCod)) { sinVariantes++; continue; }
 
             // El ERP guardó parte del texto con la 'ñ' perdida como '?' (dato mal cargado upstream; no se
             // puede corregir en Dragonfish desde acá, que sólo lee). Se repara al leer, en un solo lugar,
@@ -170,26 +194,43 @@ public sealed class CatalogoCache
             var tieneFoto = !string.IsNullOrWhiteSpace(ruta);
             if (!tieneFoto) sinFoto++;
 
-            var vs = variantesPorCodigo.GetValueOrDefault(a.ArtCod) ?? new();
-            foreach (var v in vs)
-                if (Talles.EsDesconocido(v.Talle) && v.Talle.Length > 0) tallesDesconocidos.Add(v.Talle);
+            // Lencería no usa la cascada PRECOMPRA/REMCOMPRA para color/talle: es la categoría con
+            // los datos más inconsistentes en las tres fuentes (corpiños, conjuntos, medias con
+            // curvas de talle que no se corresponden entre sí), así que en vez de mostrar algo
+            // potencialmente incorrecto se muestra un talle y un color únicos, fijo.
+            List<VarianteDto> variantesDto;
+            List<string> talles;
+            List<string> colores;
 
-            var variantesDto = vs
-                .Select(v => new VarianteDto(v.ColorCod, LimpiarColor(Texto.RepararEnie(v.Color), v.ColorCod), v.Talle,
-                                             Talles.Mostrar(v.Talle), Talles.Resolver(v.Talle).Orden))
-                .OrderBy(v => v.TalleOrden).ThenBy(v => v.Color, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            if (esLenceria)
+            {
+                variantesDto = [];
+                talles = ["Único"];
+                colores = ["Único"];
+            }
+            else
+            {
+                var vs = variantesPorCodigo.GetValueOrDefault(a.ArtCod) ?? new();
+                foreach (var v in vs)
+                    if (Talles.EsDesconocido(v.Talle) && v.Talle.Length > 0) tallesDesconocidos.Add(v.Talle);
 
-            var talles = variantesDto
-                .Where(v => !Talles.EsSinTalle(v.Talle))
-                .GroupBy(v => v.TalleMostrar)
-                .OrderBy(g => g.Min(v => v.TalleOrden))
-                .Select(g => g.Key).ToList();
+                variantesDto = vs
+                    .Select(v => new VarianteDto(v.ColorCod, LimpiarColor(Texto.RepararEnie(v.Color), v.ColorCod), v.Talle,
+                                                 Talles.Mostrar(v.Talle), Talles.Resolver(v.Talle).Orden))
+                    .OrderBy(v => v.TalleOrden).ThenBy(v => v.Color, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
-            var colores = variantesDto
-                .Where(v => v.Color.Length > 0)
-                .Select(v => v.Color).Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList();
+                talles = variantesDto
+                    .Where(v => !Talles.EsSinTalle(v.Talle))
+                    .GroupBy(v => v.TalleMostrar)
+                    .OrderBy(g => g.Min(v => v.TalleOrden))
+                    .Select(g => g.Key).ToList();
+
+                colores = variantesDto
+                    .Where(v => v.Color.Length > 0)
+                    .Select(v => v.Color).Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList();
+            }
 
             lista.Add(new ArticuloDto
             {
@@ -228,6 +269,8 @@ public sealed class CatalogoCache
             PorCodigo = lista.GroupBy(x => x.ArtCod, StringComparer.OrdinalIgnoreCase)
                              .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase),
             Menu = ArmarMenu(lista),
+            ComboTiers = comboTiers.Select(t => new ComboTier(t.Cantidad, t.Total)).Distinct()
+                                   .OrderBy(t => t.Cantidad).ThenBy(t => t.Total).ToList(),
             // Sólo las rutas de artículos que quedaron publicados: el endpoint de fotos no puede
             // servir la imagen de algo que el catálogo no muestra.
             RutaFotoPorCodigo = lista.Where(a => a.TieneFoto)
@@ -238,6 +281,7 @@ public sealed class CatalogoCache
             TotalArmados = codigos.Length,
             DescartadosPorTaxonomia = descartados,
             SinFoto = sinFoto,
+            SinVariantes = sinVariantes,
             TallesDesconocidos = tallesDesconocidos.ToList(),
         };
     }

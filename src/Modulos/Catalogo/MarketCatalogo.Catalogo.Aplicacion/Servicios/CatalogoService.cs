@@ -51,7 +51,9 @@ public sealed class CatalogoService : ICatalogoConsulta
         bool PasaTalle(ArticuloDto a)   => f.Talles.Count == 0 || a.Talles.Any(t => f.Talles.Contains(t, StringComparer.OrdinalIgnoreCase));
         bool PasaColor(ArticuloDto a)   => f.Colores.Count == 0 || a.Colores.Any(c => f.Colores.Contains(c, StringComparer.OrdinalIgnoreCase));
         bool PasaLocal(ArticuloDto a)   => f.Locales.Count == 0 || a.Locales.Any(l => f.Locales.Contains(Texto.Slug(l), StringComparer.OrdinalIgnoreCase));
-        bool PasaCombo(ArticuloDto a)   => f.Combos.Count == 0 || (a.ComboCantidad is not null && f.Combos.Contains(a.ComboCantidad.Value));
+        bool PasaCombo(ArticuloDto a)   => f.ComboDetalles.Count == 0
+            || (a.ComboCantidad is not null && a.ComboTotal is not null
+                && f.ComboDetalles.Contains($"{a.ComboCantidad}-{(int)a.ComboTotal.Value}"));
         bool PasaPrecio(ArticuloDto a)  => (f.PrecioMin is null || a.PrecioUnidadCombo >= f.PrecioMin)
                                         && (f.PrecioMax is null || a.PrecioUnidadCombo <= f.PrecioMax);
         bool PasaTexto(ArticuloDto a)   => textoNorm is null || a.TextoBusqueda.Contains(textoNorm, StringComparison.Ordinal);
@@ -84,6 +86,37 @@ public sealed class CatalogoService : ICatalogoConsulta
         var pagina = Math.Max(1, f.Pagina);
         var items = ordenados.Skip((pagina - 1) * FiltrosCatalogo.PorPagina)
                              .Take(FiltrosCatalogo.PorPagina).ToList();
+
+        // Combo es de dos niveles: los GRUPOS (cantidad) y sus TRAMOS (precio) salen de la grilla oficial
+        // de márgenes (snap.ComboTiers), no de agrupar lo que hay armado — así el panel ofrece los tramos
+        // reales del negocio aunque momentáneamente algún artículo tenga un CLASIFART fuera de tabla. El
+        // conteo de cada tramo sí sale del catálogo armado, como el resto de las facetas.
+        var conteoPorTramo = Aplicar("combo")
+            .Where(a => a.ComboCantidad is > 0 && a.ComboTotal is > 0)
+            .GroupBy(a => (Cantidad: a.ComboCantidad!.Value, Total: (int)a.ComboTotal!.Value))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var combos = snap.ComboTiers
+            .GroupBy(t => t.Cantidad)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var detalles = g.OrderBy(t => t.Total)
+                    .Select(t =>
+                    {
+                        var valor = $"{g.Key}-{(int)t.Total}";
+                        var cantidad = conteoPorTramo.GetValueOrDefault((g.Key, (int)t.Total));
+                        return new OpcionFaceta(valor, Combo.Mostrar(g.Key, t.Total), cantidad,
+                            f.ComboDetalles.Contains(valor));
+                    })
+                    // Igual que cualquier otra faceta: un tramo sin ningún artículo no se ofrece.
+                    .Where(d => d.Cantidad > 0)
+                    .ToList();
+                return new OpcionFacetaCombo(g.Key, $"Combo de {g.Key}",
+                    detalles.Sum(d => d.Cantidad), detalles.Any(d => d.Activa), detalles);
+            })
+            .Where(o => o.Detalles.Count > 0)
+            .ToList();
 
         return new PaginaCatalogoDto
         {
@@ -133,12 +166,7 @@ public sealed class CatalogoService : ICatalogoConsulta
                     f.Locales.Contains(Texto.Slug(g.Key), StringComparer.OrdinalIgnoreCase)))
                 .OrderBy(o => o.Etiqueta).ToList(),
 
-            Combos = Aplicar("combo")
-                .Where(a => a.ComboCantidad is > 0)
-                .GroupBy(a => a.ComboCantidad!.Value)
-                .Select(g => new OpcionFaceta(g.Key.ToString(), $"Combo de {g.Key}", g.Count(),
-                    f.Combos.Contains(g.Key)))
-                .OrderBy(o => o.Valor).ToList(),
+            Combos = combos,
         };
     }
 

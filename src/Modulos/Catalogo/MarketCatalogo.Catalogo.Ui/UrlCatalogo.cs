@@ -1,4 +1,5 @@
-﻿using MarketCatalogo.Catalogo.Contratos;
+﻿using System.Globalization;
+using MarketCatalogo.Catalogo.Contratos;
 
 namespace MarketCatalogo.Catalogo.Ui;
 
@@ -42,7 +43,7 @@ public static class UrlCatalogo
         Agregar("talle", Val("talle", Csv(f.Talles)));
         Agregar("color", Val("color", Csv(f.Colores)));
         Agregar("local", Val("local", Csv(f.Locales)));
-        Agregar("combo", Val("combo", f.Combos.Count > 0 ? string.Join(",", f.Combos) : null));
+        Agregar("combo", Val("combo", Csv(f.ComboDetalles)));
         Agregar("precioMin", Val("precioMin", f.PrecioMin?.ToString("0")));
         Agregar("precioMax", Val("precioMax", f.PrecioMax?.ToString("0")));
         Agregar("q", Val("q", f.Texto));
@@ -75,7 +76,7 @@ public static class UrlCatalogo
     /// <summary>Los ticks de sucursal de arriba de la grilla. Alias de Toggle sobre la clave "local".</summary>
     public static string AlternarLocal(FiltrosCatalogo f, string slug) => Toggle(f, "local", slug);
 
-    // Valores actuales de una faceta multi como lista de strings (combo se representa por su número).
+    // Valores actuales de una faceta multi como lista de strings (combo viaja como "cantidad-total").
     private static IReadOnlyList<string> ValoresDe(FiltrosCatalogo f, string clave) => clave switch
     {
         "tipo"    => f.Rubros,
@@ -84,7 +85,7 @@ public static class UrlCatalogo
         "talle"   => f.Talles,
         "color"   => f.Colores,
         "local"   => f.Locales,
-        "combo"   => f.Combos.Select(c => c.ToString()).ToList(),
+        "combo"   => f.ComboDetalles,
         _         => Array.Empty<string>(),
     };
 
@@ -107,7 +108,7 @@ public static class UrlCatalogo
     /// URLs con contenido casi duplicado y no deben competir entre sí en Google.</summary>
     public static bool TieneRefinamientos(FiltrosCatalogo f)
         => f.Rubros.Count > 0 || f.Generos.Count > 0 || f.Familias.Count > 0 || f.Talles.Count > 0 || f.Colores.Count > 0
-           || f.Locales.Count > 0 || f.Combos.Count > 0
+           || f.Locales.Count > 0 || f.ComboDetalles.Count > 0
            || f.PrecioMin is not null || f.PrecioMax is not null
            || !string.IsNullOrWhiteSpace(f.Texto) || f.Pagina > 1 || f.Orden != "destacados";
 
@@ -121,7 +122,7 @@ public static class UrlCatalogo
         foreach (var v in f.Talles)   yield return ($"Talle {v}", Toggle(f, "talle", v));
         foreach (var v in f.Colores)  yield return (Lindo(v), Toggle(f, "color", v));
         foreach (var v in f.Locales)  yield return (Lindo(v), Toggle(f, "local", v));
-        foreach (var v in f.Combos)   yield return ($"Combo de {v}", Toggle(f, "combo", v.ToString()));
+        foreach (var v in f.ComboDetalles) yield return (EtiquetaCombo(v), Toggle(f, "combo", v));
         if (f.PrecioMin is not null || f.PrecioMax is not null)
         {
             var etiqueta = (f.PrecioMin, f.PrecioMax) switch
@@ -138,6 +139,17 @@ public static class UrlCatalogo
 
     // Quitar el rango de precio son dos claves a la vez, así que primero se limpia una.
     private static FiltrosCatalogo Construir2(FiltrosCatalogo f) => f with { PrecioMax = null };
+
+    // El chip arma su etiqueta a partir del valor crudo del filtro ("2-15000" → "2 x $15.000"): acá no
+    // hay acceso a PaginaCatalogoDto.Combos (con la etiqueta ya armada), sólo a FiltrosCatalogo.
+    private static string EtiquetaCombo(string valor)
+    {
+        var partes = valor.Split('-', 2);
+        if (partes.Length == 2 && int.TryParse(partes[0], out var cantidad)
+            && decimal.TryParse(partes[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var total))
+            return $"{cantidad} x ${total:N0}";
+        return $"Combo {valor}";
+    }
 
     private static string Lindo(string slug)
     {

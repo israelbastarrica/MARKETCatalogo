@@ -17,6 +17,11 @@
     flex-wrap: wrap;
     gap: 1rem 2rem;
     padding: 1.5rem 2rem;
+    /* Alto fijo (no el que dé la tipografía): así --mk-header-alto es un número real y no una
+       estimación, y todo lo que se pega justo debajo del header (sticky) lo puede usar sin que
+       quede un hueco. min-height, no height: en mobile la nav baja a su propia fila y el header
+       necesita poder crecer más alto que esto. */
+    min-height: var(--mk-header-alto);
     border-bottom: 1px solid var(--mk-tinta-20);
     background: var(--mk-fondo);
     position: sticky;

@@ -11,6 +11,10 @@ public sealed class CatalogoSnapshot
     public required IReadOnlyDictionary<string, ArticuloDto> PorCodigo { get; init; }
     public required IReadOnlyList<RubroMenu> Menu { get; init; }
 
+    /// <summary>Los tramos oficiales de combo (grilla de márgenes), no derivados del catálogo armado.
+    /// Fuente de qué cantidades y qué precios ofrece el filtro de combo.</summary>
+    public required IReadOnlyList<ComboTier> ComboTiers { get; init; }
+
     /// <summary>ARTCOD → ruta de la foto original en disco (GoogleDriveFotosArticulos.LinkDriveDisco).
     /// No va en el DTO porque es una ruta del servidor y no tiene por qué salir al HTML; el endpoint de
     /// fotos la consulta acá. Efecto secundario buscado: <b>sólo se pueden servir fotos de artículos que
@@ -26,6 +30,9 @@ public sealed class CatalogoSnapshot
     public required int DescartadosPorTaxonomia { get; init; }
     /// <summary>Publicados sin foto, que salen con placeholder (hoy ~303). Métrica a seguir.</summary>
     public required int SinFoto { get; init; }
+    /// <summary>Descartados por no tener ninguna fila en PRECOMPRA ni REMCOMPRA (y no ser Lencería,
+    /// que no usa esa cascada): mejor no publicarlos que mostrarlos sin colores ni talles.</summary>
+    public required int SinVariantes { get; init; }
     /// <summary>Talles que aparecieron en COMB y no están en <see cref="Talles"/>. Si esto crece,
     /// hay que agregarlos al diccionario en código.</summary>
     public required IReadOnlyList<string> TallesDesconocidos { get; init; }
@@ -39,11 +46,13 @@ public sealed class CatalogoSnapshot
         PorSlug = new Dictionary<string, ArticuloDto>(),
         PorCodigo = new Dictionary<string, ArticuloDto>(),
         Menu = Array.Empty<RubroMenu>(),
+        ComboTiers = Array.Empty<ComboTier>(),
         RutaFotoPorCodigo = new Dictionary<string, string>(),
         Generado = DateTimeOffset.MinValue,
         TotalArmados = 0,
         DescartadosPorTaxonomia = 0,
         SinFoto = 0,
+        SinVariantes = 0,
         TallesDesconocidos = Array.Empty<string>(),
     };
 }

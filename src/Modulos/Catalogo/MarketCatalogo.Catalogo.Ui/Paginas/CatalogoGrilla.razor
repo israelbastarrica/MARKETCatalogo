@@ -108,21 +108,25 @@
 
                 <div class="mk-toolbar">
 
-                    @* Sucursales como ticks, arriba de la grilla (no en el panel de filtros): es
-                       multi-selección — se puede ver LURO, PERALTA o ambas. Ninguna marcada = todas. *@
-                    @if (_pagina.Locales.Count > 0)
-                    {
-                        <div class="mk-sucursales">
-                            <span class="mk-rotulo">Sucursal</span>
-                            @foreach (var l in _pagina.Locales)
-                            {
-                                <a class="mk-suc @(l.Activa ? "activa" : "")"
-                                   href="@UrlCatalogo.AlternarLocal(_filtros, l.Valor)">
-                                    <span class="mk-suc-tick" aria-hidden="true"></span>@l.Etiqueta
-                                </a>
-                            }
-                        </div>
-                    }
+                    <div class="mk-toolbar-izq">
+                        @* Sucursales como ticks, arriba de la grilla (no en el panel de filtros): es
+                           multi-selección — se puede ver LURO, PERALTA o ambas. Ninguna marcada = todas. *@
+                        @if (_pagina.Locales.Count > 0)
+                        {
+                            <div class="mk-sucursales">
+                                <span class="mk-rotulo">Sucursal</span>
+                                @foreach (var l in _pagina.Locales)
+                                {
+                                    <a class="mk-suc @(l.Activa ? "activa" : "")"
+                                       href="@UrlCatalogo.AlternarLocal(_filtros, l.Valor)">
+                                        <span class="mk-suc-tick" aria-hidden="true"></span>@l.Etiqueta
+                                    </a>
+                                }
+                            </div>
+                        }
+
+                        <ComboDropdown Opciones="_pagina.Combos" Filtros="_filtros" />
+                    </div>
 
                     <div class="mk-orden">
                         <span class="mk-rotulo">Orden</span>
@@ -157,16 +161,21 @@
 
                     @if (_pagina.Paginas > 1)
                     {
+                        @* Con JS (catalogo-scroll.js) esta nav se convierte en el sensor de scroll infinito:
+                           rel="prev"/"next" son los enlaces que la mejora progresiva sabe leer, y
+                           mk-cargando-mas es donde va escribiendo su estado. Sin JS queda la
+                           paginación de siempre, cada página con su URL real. *@
                         <nav class="mk-paginacion" aria-label="Páginas">
                             @if (_pagina.Pagina > 1)
                             {
-                                <a href="@UrlCatalogo.Construir(_filtros, "pag", (_pagina.Pagina - 1).ToString())">Anterior</a>
+                                <a rel="prev" href="@UrlCatalogo.Construir(_filtros, "pag", (_pagina.Pagina - 1).ToString())">Anterior</a>
                             }
                             <span class="mk-rotulo">Página @_pagina.Pagina de @_pagina.Paginas</span>
                             @if (_pagina.Pagina < _pagina.Paginas)
                             {
-                                <a href="@UrlCatalogo.Construir(_filtros, "pag", (_pagina.Pagina + 1).ToString())">Siguiente</a>
+                                <a rel="next" href="@UrlCatalogo.Construir(_filtros, "pag", (_pagina.Pagina + 1).ToString())">Siguiente</a>
                             }
+                            <span class="mk-cargando-mas" aria-live="polite"></span>
                         </nav>
                     }
                 }
@@ -263,7 +272,7 @@
             Talles = ParsearCsv(Talle),
             Colores = ParsearCsv(Color),
             Locales = ParsearCsv(Local),
-            Combos = ParsearCsv(Combo).Select(s => int.TryParse(s, out var n) ? n : -1).Where(n => n > 0).Distinct().ToList(),
+            ComboDetalles = ParsearCsv(Combo),
             PrecioMin = PrecioMin,
             PrecioMax = PrecioMax,
             Texto = Vacio(Texto),

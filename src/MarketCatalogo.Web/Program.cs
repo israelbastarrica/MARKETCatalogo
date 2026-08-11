@@ -12,6 +12,9 @@ builder.Host.UseWindowsService();
 
 builder.Services.AddRazorComponents();
 
+// Estado de la versión publicada (al día / atrasada respecto de main), para el pie del sitio.
+builder.Services.AddSingleton<MarketCatalogo.Web.Servicios.EstadoVersion>();
+
 // Cada módulo se registra con UNA línea. El host no ve nada de adentro de Catalogo.Datos ni
 // Catalogo.Aplicacion más allá de esta llamada — sólo lo que Catalogo.Contratos expone.
 builder.Services.AgregarModuloCatalogo();

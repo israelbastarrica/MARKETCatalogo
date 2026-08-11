@@ -1,5 +1,5 @@
 @inherits LayoutComponentBase
-@inject IWebHostEnvironment Env
+@inject MarketCatalogo.Web.Servicios.EstadoVersion Version
 
 @* Shell de sitio PÚBLICO: header con el wordmark, contenido, footer en negativo.
    Nada de sidebar de admin — eso es MARKETweb, que es el sistema interno. *@
@@ -103,12 +103,15 @@
 
         <div class="mk-footer-base">
             @* El commit del build, para saber qué versión está viva sin adivinar. Discreto a propósito: es
-               para nosotros, no para el visitante. El detalle completo está en /version. *@
+               para nosotros, no para el visitante. El detalle completo está en /version.
+               Sin color de semáforo: la marca es monocromática, así que "al día" es el tono normal del pie y
+               "atrasada" se apaga a gris — el dato lo dice el tooltip. *@
             <p class="mk-footer-legal mk-rotulo">
                 © @DateTime.Now.Year Market · Industria Argentina
-                @if (MarketCatalogo.Web.Endpoints.VersionEndpoint.Sha(Env) is { Length: > 0 } sha)
+                @{ Version.AsegurarFresco(); }
+                @if (Version.Sha is { Length: > 0 } sha)
                 {
-                    <span class="mk-version" title="Versión publicada (commit)">· @sha</span>
+                    <span class="mk-version @ClaseVersion" title="@TituloVersion">· @sha</span>
                 }
             </p>
         </div>
@@ -121,3 +124,17 @@
     <a href="." class="reload">Recargar</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    // Al día = tono normal del pie. Atrasada = apagado a gris (no hay semáforo de colores: la marca es
+    // monocromática). Desconocido = como al día, para no inventar un estado que no pudimos verificar.
+    private string ClaseVersion => Version.Estado == Servicios.EstadoVersion.Situacion.Atrasada ? "mk-version--vieja" : "";
+
+    private string TituloVersion => Version.Estado switch
+    {
+        Servicios.EstadoVersion.Situacion.AlDia => "Versión publicada: es la última de main",
+        Servicios.EstadoVersion.Situacion.Atrasada =>
+            $"Versión publicada: hay {Version.Detras} commit{(Version.Detras == 1 ? "" : "s")} sin publicar",
+        _ => "Versión publicada (commit)"
+    };
+}

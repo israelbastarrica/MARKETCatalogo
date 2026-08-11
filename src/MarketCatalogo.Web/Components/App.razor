@@ -75,6 +75,22 @@
             }
         })();
     </script>
+
+    @* La navegación mejorada de Blazor conserva la posición de scroll, así que al ir a otro artículo o
+       sección la página nueva aparecía "scrolleada". Se lleva al tope en cada navegación hacia ADELANTE
+       (click); en volver/avanzar del navegador (popstate) se respeta la posición previa. *@
+    <script>
+        (function () {
+            var esHistorial = false;
+            window.addEventListener('popstate', function () { esHistorial = true; });
+            if (window.Blazor && Blazor.addEventListener) {
+                Blazor.addEventListener('enhancedload', function () {
+                    if (esHistorial) { esHistorial = false; return; }
+                    window.scrollTo(0, 0);
+                });
+            }
+        })();
+    </script>
 </body>
 
 </html>

@@ -231,7 +231,9 @@
 .mk-card-foto .mk-foto {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* contain (no cover): las fotos son de cuerpo entero y con cover se recortaban cabeza y pies.
+       La tarjeta mantiene su proporción 4:5 para que la grilla quede pareja; la foto entra completa. */
+    object-fit: contain;
     transition: opacity .2s ease;
 }
 
@@ -289,13 +291,14 @@
 }
 
 .mk-producto-foto {
-    aspect-ratio: 4 / 5;
     background: var(--mk-fondo-sutil);
     overflow: hidden;
 }
 
-.mk-producto-foto .mk-foto { width: 100%; height: 100%; object-fit: cover; }
-.mk-producto-foto .mk-card-sinfoto { min-height: 100%; }
+/* Imagen a su proporción NATURAL: ocupa el ancho y muestra la foto entera, sin recortar cabeza/pies. */
+.mk-producto-foto .mk-foto { width: 100%; height: auto; display: block; }
+/* El placeholder (sin foto) sí mantiene una proporción fija para no colapsar. */
+.mk-producto-foto .mk-card-sinfoto { aspect-ratio: 4 / 5; }
 
 .mk-producto-datos { display: flex; flex-direction: column; gap: .35rem; }
 .mk-producto-datos > .mk-migas { margin-bottom: .5rem; }
@@ -500,14 +503,9 @@
     /* Aire al pie para que los botones flotantes no tapen la última fila ni el sello de precios. */
     .mk-catalogo-resultados { padding-bottom: 4.5rem; }
 
-    /* Ficha apilada: una sola columna, foto ARRIBA a TODO EL ANCHO y la info (precio, talles, colores,
-       descripción) DEBAJO. La foto ocupa el ancho completo con su proporción 4:5 —igual que la card de
-       la grilla—, sin franjas a los costados; se scrollea para ver el detalle, estilo tienda. */
+    /* Ficha apilada: una sola columna, foto ARRIBA a todo el ancho (a su proporción natural, sin recorte)
+       y la info (precio, talles, colores, descripción) DEBAJO. Se scrollea para ver el detalle. */
     .mk-producto { grid-template-columns: 1fr; gap: 1.5rem; }
-
-    .mk-producto-foto { aspect-ratio: 4 / 5; }
-    /* El .mk-foto ya es width:100% height:100% object-fit:cover (bloque base): llena el ancho sin recortes
-       relevantes porque las fotos ya vienen en 4:5. */
 }
 
 @media (max-width: 640px) {

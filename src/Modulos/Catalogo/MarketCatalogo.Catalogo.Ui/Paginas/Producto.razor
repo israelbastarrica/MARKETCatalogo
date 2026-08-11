@@ -10,7 +10,7 @@
 
 @if (_art is null)
 {
-    <PageTitle>Artículo no encontrado — MARKET</PageTitle>
+    <PageTitle>Artículo no encontrado - MARKET</PageTitle>
     <section class="mk-vacio mk-producto-vacio">
         <h1>No encontramos ese artículo</h1>
         <p>Puede que ya no esté disponible.</p>
@@ -19,7 +19,7 @@
 }
 else
 {
-    <PageTitle>@_art.Titulo — MARKET</PageTitle>
+    <PageTitle>@_art.Titulo - MARKET</PageTitle>
     <HeadContent>
         <meta name="description" content="@MetaDescripcion" />
         <link rel="canonical" href="@($"/producto/{_art.Slug}")" />

@@ -123,6 +123,11 @@
 .mk-footer-col a { text-decoration: none; color: var(--mk-tinta-70); font-size: .9rem; }
 .mk-footer-col a:hover { color: var(--mk-tinta-100); }
 
+/* Local con pin de mapa: el ícono va tenue y se aviva junto al texto en hover. */
+.mk-footer-local { display: inline-flex; align-items: center; gap: .4rem; }
+.mk-footer-pin { width: .9rem; height: .9rem; flex: 0 0 auto; color: var(--mk-tinta-40); }
+.mk-footer-local:hover .mk-footer-pin { color: var(--mk-tinta-100); }
+
 /* Barra inferior: copyright + procedencia. */
 .mk-footer-base {
     border-top: 1px solid var(--mk-tinta-20);

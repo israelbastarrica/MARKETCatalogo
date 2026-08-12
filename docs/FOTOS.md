@@ -93,53 +93,62 @@ código no pueda salirse de la carpeta (`..\..\web.config`).
 ## 5. Que el visitante SIEMPRE vea la más reciente
 
 El nombre del thumbnail es sólo **`{código}_{ancho}.webp`** — **no** codifica de qué original salió. Sin
-cuidado, esto genera dos desfasajes cuando una foto cambia (ej. a un artículo que sólo tenía foto de disco
-se le genera la IA). Se resuelven en dos capas, **ambas usando la misma señal: la fecha de modificación del
-archivo original**.
+cuidado, esto deja fotos viejas pegadas cuando una foto cambia (ej. a un artículo que sólo tenía foto de
+disco se le genera la IA). Se resuelve con un **token de versión** — la fecha de modificación del original —
+que es a la vez parte de la **URL** (para el navegador) y del **nombre del archivo cacheado** (para el
+servidor). Es el patrón estándar de *fingerprint de assets*.
 
-### 5.1 Servidor — regenera el thumbnail si el original es más nuevo
+> **Por qué versión y no comparar fechas.** Una tentación es "regenerar si el original es más nuevo que el
+> thumbnail". Falla en el caso principal: al pasar de disco a IA, el `_ia.jpg` puede ser **más viejo** que el
+> `.webp` que se generó desde la foto de disco → la comparación no detecta el cambio. El token usa la fecha
+> como **identidad** (igual/distinto), no como orden: si cambia el archivo de origen, cambia el token, y con
+> eso el nombre del thumbnail. Funciona aunque las fechas estén "al revés".
 
-En `FotosService.ObtenerAsync`, antes de servir el `.webp` cacheado se compara su fecha con la del original:
+### 5.1 El token de versión
 
-```csharp
-if (File.Exists(destino) && File.GetLastWriteTimeUtc(origen) <= File.GetLastWriteTimeUtc(destino))
-    return destino;   // el thumbnail está al día
-// si no: se regenera desde el original nuevo
-```
-
-Así, cuando aparece un `_ia.jpg` nuevo (fecha reciente), el `.webp` viejo queda desactualizado y se
-**regenera solo** en la próxima visita — sin borrar carpetas a mano.
-
-### 5.2 Navegador — URL versionada (`?v=`)
-
-Aunque el servidor ya sirva la nueva, el navegador cachea la imagen (header `immutable`, 30 días) y, con la
-**misma URL**, no la volvería a pedir. La solución estándar es **cambiar la URL cuando cambia la foto**:
-
-- `ArticuloDto.FotoVersion` = token de versión, calculado en `CatalogoCache.VersionFoto` como la **fecha de
-  modificación del original** (`GetLastWriteTimeUtc(...).Ticks`). Si el archivo no está accesible en esa
-  máquina, cae al hash de la ruta (que igual cubre el caso disco→IA, porque ahí cambia el nombre).
+- `ArticuloDto.FotoVersion` se calcula en `CatalogoCache.VersionFoto` como la **fecha de modificación del
+  original** (`GetLastWriteTimeUtc(...).Ticks`, en hex). Si el archivo no está accesible en esa máquina, cae
+  al hash de la ruta (que igual cubre disco→IA, porque ahí cambia el nombre).
 - Las `<img>` piden `/fotos/{código}_{ancho}.webp?v={FotoVersion}`.
 
-Resultado:
+### 5.2 Navegador — URL versionada
 
-- Foto sin cambios → misma URL → el navegador usa su caché (rápido, sin requests).
-- Foto cambia / se genera la IA → `?v=` distinto → **URL nueva → baja la nueva al instante**.
+- Foto sin cambios → misma URL → el navegador usa su caché (rápido, sin requests). Por eso el header sigue
+  siendo `immutable` a 30 días: es correcto **porque la URL cambia cuando cambia la foto**.
+- Foto cambia → `?v=` distinto → **URL nueva → el navegador baja la nueva al instante**.
 
-El `?v=` es sólo query string: el endpoint lo ignora al parsear (`{archivo}` sigue siendo
-`{código}_{ancho}.webp`), y el `.webp` en disco **no** se versiona (se regenera en su lugar, ver 5.1).
+### 5.3 Servidor — el `.webp` en disco lleva la versión en el nombre
+
+`FotosService.ObtenerAsync` lee el `?v=` (lo sanitiza: sólo letras/dígitos) y arma el nombre del thumbnail
+con él: **`{código}_{ancho}_{versión}.webp`**.
+
+- Si existe → lo sirve (existe = ya se generó para ESTA versión → está bien).
+- Si no existe → lo genera desde el original **actual** (IA-primero, vía el snapshot).
+
+Así el servidor **no** puede quedar sirviendo un thumbnail viejo: un cambio de foto produce un nombre nuevo
+que todavía no existe → se regenera. (Los links viejos sin `?v=` caen al nombre sin versión, sólo por
+compatibilidad.)
+
+### 5.4 Limpieza automática de huérfanos
+
+Al generar `{código}_{ancho}_{versión}.webp`, `LimpiarVersionesViejas` **borra los otros
+`{código}_{ancho}_*.webp`** de ese artículo (versiones anteriores, y el nombre viejo sin versión),
+conservando el recién generado. Así el disco no acumula huérfanos y **no hace falta un job aparte ni borrar
+la carpeta a mano**. Es best effort: si un borrado falla (archivo en uso), se loguea y sigue.
 
 ### Flujo completo cuando se le genera la IA a un artículo
 
 1. En ≤5 min el caché en memoria del catálogo se refresca y toma el nuevo `LinkIADisco` (COALESCE IA primero).
-2. Su `FotoVersion` cambia (el `_ia.jpg` tiene fecha nueva) → cambia el `?v=` de sus `<img>`.
-3. El navegador ve una URL nueva → pide la foto → el servidor ve que el original es más nuevo → regenera el
-   `.webp` desde la IA → **se ve la IA**. Todo automático.
+2. Su `FotoVersion` cambia (el `_ia.jpg` es otro archivo, otra fecha) → cambia el `?v=` de sus `<img>`.
+3. El navegador ve una URL nueva → pide `..._{versiónNueva}.webp` → el servidor no lo tiene → lo genera
+   desde la IA, borra las versiones viejas de esa foto → **se ve la IA**. Todo automático.
 
 ## 6. El endpoint
 
 `GET /fotos/{archivo}` (`FotosEndpoint`), con `archivo` = `{código}_{ancho}.webp`:
 
-- Parsea código y ancho (el código puede tener puntos, ej. `IM013.056`).
+- Parsea código y ancho (el código puede tener puntos, ej. `IM013.056`) y lee el `?v=` de la query, que le
+  pasa al servicio para que forme parte del nombre del thumbnail (ver 5.3).
 - Delega en `IFotosCatalogo` (el host no sabe de SkiaSharp ni de dónde se cachea).
 - Responde con `Cache-Control: public, max-age=2592000, immutable` (30 días). Es correcto **porque la URL
   cambia cuando cambia la foto** (ver 5.2); sin el `?v=` este header dejaría fotos viejas pegadas.

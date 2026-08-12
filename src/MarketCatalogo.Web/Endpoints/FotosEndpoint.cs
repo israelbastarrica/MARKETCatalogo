@@ -27,7 +27,10 @@ public static class FotosEndpoint
             if (corte <= 0 || !int.TryParse(sinExt[(corte + 1)..], out var ancho)) return Results.NotFound();
 
             var codigo = sinExt[..corte];
-            var res = await fotos.ObtenerAsync(codigo, ancho, ct);
+            // ?v= es el token de versión de la foto (fecha del original). Forma parte del nombre del
+            // thumbnail cacheado, así un cambio de foto (disco→IA) genera un archivo nuevo automáticamente.
+            var version = ctx.Request.Query["v"].ToString();
+            var res = await fotos.ObtenerAsync(codigo, ancho, version, ct);
             if (res is null) return Results.NotFound();
 
             // Inmutable: el nombre del archivo identifica el contenido.

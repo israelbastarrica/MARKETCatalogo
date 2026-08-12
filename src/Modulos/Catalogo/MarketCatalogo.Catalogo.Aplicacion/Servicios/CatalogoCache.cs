@@ -23,6 +23,12 @@ public sealed class CatalogoCache
     private readonly ICatalogoRepositorio _repo;
     private readonly ILogger<CatalogoCache> _log;
     private readonly TimeSpan _ttl;
+    // Ruta opcional (SOLO local) donde volcar el detalle de qué se publicó y qué se descartó, para
+    // depurar el catálogo. Si está vacía no se escribe nada. Se setea en appsettings.Development.json.
+    private readonly string? _diagPath;
+    // Mismo override de carpeta que usa FotosService: para que el diagnóstico chequee la existencia del
+    // archivo en la MISMA ruta que resolvería el endpoint de fotos. Vacío = ruta de la DB tal cual.
+    private readonly string? _dirOriginales;
 
     private readonly SemaphoreSlim _candado = new(1, 1);
     private volatile CatalogoSnapshot _actual = CatalogoSnapshot.Vacio();
@@ -34,6 +40,9 @@ public sealed class CatalogoCache
         // Sin GetValue<T> para no arrastrar Configuration.Binder sólo por un entero.
         var minutos = int.TryParse(cfg["Catalogo:MinutosCache"], out var m) ? m : 5;
         _ttl = TimeSpan.FromMinutes(Math.Clamp(minutos, 1, 120));
+        var diag = cfg["Catalogo:DiagnosticoPath"];
+        _diagPath = string.IsNullOrWhiteSpace(diag) ? null : diag.Trim();
+        _dirOriginales = cfg["Fotos:DirOriginales"];
     }
 
     public CatalogoSnapshot Actual => _actual;
@@ -160,22 +169,49 @@ public sealed class CatalogoCache
         var descartados = 0;
         var sinFoto = 0;
         var sinVariantes = 0;
+        // Detalle de descartes para el volcado de diagnóstico (sólo si _diagPath está configurado).
+        var descartadosDetalle = _diagPath is null ? null : new List<string>();
 
         foreach (var a in articulos)
         {
             // Filtro de basura. OBLIGATORIO ahora que se publican los artículos sin foto: antes la
             // descartaba sola el requisito de tener foto. Sin esto saldría publicado el pseudo-artículo
             // de promoción "2X15000" (rubro y género = "No aplica") como si fuera un producto.
-            if (!TaxonomiaValida(a.Rubro) || !TaxonomiaValida(a.Genero)) { descartados++; continue; }
+            if (!TaxonomiaValida(a.Rubro) || !TaxonomiaValida(a.Genero))
+            {
+                descartados++;
+                descartadosDetalle?.Add(LineaDiag(a, $"taxonomía inválida (rubro='{a.Rubro}', género='{a.Genero}')"));
+                continue;
+            }
+
+            // POR AHORA: se publica ÚNICAMENTE el rubro Indumentaria. El resto (Accesorios, Lencería,
+            // Calzado…) queda fuera del catálogo hasta que se decida sumarlos. Para volver a mostrar
+            // todo, borrar este bloque. Mismo criterio de comparación (sin acentos, minúsculas) que el
+            // de Lencería de más abajo, para no depender de mayúsculas/tildes que vienen del ERP.
+            if (Texto.SinAcentos(a.Rubro) != "indumentaria")
+            {
+                descartados++;
+                descartadosDetalle?.Add(LineaDiag(a, $"rubro no indumentaria ('{a.Rubro}')"));
+                continue;
+            }
 
             overridePorCodigo.TryGetValue(a.ArtCod, out var ovr);
-            if (ovr?.OcultarManual == true) continue;
+            if (ovr?.OcultarManual == true)
+            {
+                descartadosDetalle?.Add(LineaDiag(a, "oculto manual (override)"));
+                continue;
+            }
 
             // Sin ninguna fila en PRECOMPRA ni REMCOMPRA no se publica: mejor no mostrar el artículo
             // que mostrarlo sin colores/talles. Lencería es la excepción — no usa esta cascada (ver
             // más abajo), así que no se descarta por esto.
             var esLenceria = Texto.SinAcentos(a.Rubro) == "lenceria";
-            if (!esLenceria && !variantesPorCodigo.ContainsKey(a.ArtCod)) { sinVariantes++; continue; }
+            if (!esLenceria && !variantesPorCodigo.ContainsKey(a.ArtCod))
+            {
+                sinVariantes++;
+                descartadosDetalle?.Add(LineaDiag(a, "sin variantes en PRECOMPRA ni REMCOMPRA"));
+                continue;
+            }
 
             // El ERP guardó parte del texto con la 'ñ' perdida como '?' (dato mal cargado upstream; no se
             // puede corregir en Dragonfish desde acá, que sólo lee). Se repara al leer, en un solo lugar,
@@ -193,6 +229,7 @@ public sealed class CatalogoCache
             var ruta = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
             var tieneFoto = !string.IsNullOrWhiteSpace(ruta);
             if (!tieneFoto) sinFoto++;
+            var fotoVersion = tieneFoto ? VersionFoto(ruta!) : null;
 
             // Lencería no usa la cascada PRECOMPRA/REMCOMPRA para color/talle: es la categoría con
             // los datos más inconsistentes en las tres fuentes (corpiños, conjuntos, medias con
@@ -252,6 +289,7 @@ public sealed class CatalogoCache
                 PrecioUnidadSuelta = a.PrecioSuelta > 0 ? a.PrecioSuelta : null,
                 PrecioSueltaTexto = a.PrecioSuelta > 0 ? Combo.Plata(a.PrecioSuelta.Value) : null,
                 TieneFoto = tieneFoto,
+                FotoVersion = fotoVersion,
                 Destacado = ovr?.Destacado ?? 0,
                 Locales = localesPorCodigo.GetValueOrDefault(a.ArtCod) ?? Array.Empty<string>(),
                 Variantes = variantesDto,
@@ -260,6 +298,9 @@ public sealed class CatalogoCache
                 TextoBusqueda = Texto.SinAcentos($"{titulo} {artDes} {a.ArtCod} {familia}"),
             });
         }
+
+        if (_diagPath is not null)
+            await EscribirDiagnosticoAsync(lista, descartadosDetalle!, fotoPorCodigo, ct);
 
         return new CatalogoSnapshot
         {
@@ -303,6 +344,88 @@ public sealed class CatalogoCache
         var c = (cod ?? "").Trim();
         if (c.Length == 0 || int.TryParse(c, out _)) return "";
         return c;
+    }
+
+    /// <summary>Token de versión para la URL de la foto (<c>?v=</c>). Es la fecha de modificación del
+    /// archivo original: cambia cuando la foto se reemplaza o se le genera la IA, así el navegador baja la
+    /// nueva sin esperar a que venza su caché. Si el archivo no está accesible en esta máquina, se cae al
+    /// hash de la ruta — que igual cubre el caso disco→IA, porque ahí cambia el nombre del archivo.</summary>
+    private string VersionFoto(string rutaEnBase)
+    {
+        try
+        {
+            var origen = RutasFoto.Resolver(rutaEnBase, _dirOriginales);
+            if (origen is not null && File.Exists(origen))
+                return File.GetLastWriteTimeUtc(origen).Ticks.ToString("x");
+        }
+        catch { /* sin acceso al disco: se usa el fallback */ }
+        return ((uint)StringComparer.Ordinal.GetHashCode(rutaEnBase)).ToString("x");
+    }
+
+    // Una línea de diagnóstico para un artículo descartado: código, motivo y su taxonomía cruda del ERP.
+    private static string LineaDiag(ArticuloRow a, string motivo)
+        => $"{a.ArtCod}\t{motivo}\t[{a.Rubro} / {a.Genero} / {a.Familia}]\t{a.ArtDes}";
+
+    /// <summary>Vuelca a un .txt qué artículos se publicaron y cuáles se descartaron (con motivo), para
+    /// depurar el catálogo en local. Nunca hace fallar el refresh: si no puede escribir, sólo avisa.</summary>
+    private async Task EscribirDiagnosticoAsync(
+        List<ArticuloDto> publicados, List<string> descartados,
+        Dictionary<string, string> fotoPorCodigo, CancellationToken ct)
+    {
+        try
+        {
+            // Estado de foto por artículo, resolviendo el archivo en la MISMA ruta que el endpoint:
+            //   SIN LINK      -> no hay LinkIADisco ni LinkDriveDisco en la DB.
+            //   FALTA ARCHIVO -> hay link en la DB, pero el archivo no está en disco (por eso sale en blanco).
+            //   OK            -> hay link y el archivo existe.
+            string EstadoFoto(ArticuloDto a, out string detalle)
+            {
+                detalle = "";
+                if (!a.TieneFoto) return "SIN LINK";
+                var ruta = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
+                var origen = RutasFoto.Resolver(ruta, _dirOriginales);
+                var esIA = ruta is not null && ruta.Contains("_ia.", StringComparison.OrdinalIgnoreCase);
+                if (origen is not null && File.Exists(origen)) return esIA ? "OK (IA)" : "OK (drive)";
+                detalle = $"\tarchivo esperado: {origen}";
+                return "FALTA ARCHIVO";
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"# Catálogo local — {publicados.Count} publicados, {descartados.Count} descartados");
+            sb.AppendLine("# (POR AHORA sólo se publica el rubro Indumentaria — ver CatalogoCache.cs)");
+            sb.AppendLine();
+
+            // Se calcula una vez por artículo, en orden, contando de paso.
+            var lineas = new List<string>(publicados.Count);
+            int ok = 0, falta = 0, sinLink = 0;
+            foreach (var a in publicados.OrderBy(x => x.ArtCod, StringComparer.OrdinalIgnoreCase))
+            {
+                var estado = EstadoFoto(a, out var detalle);
+                if (estado.StartsWith("OK")) ok++;
+                else if (estado == "FALTA ARCHIVO") falta++;
+                else sinLink++;
+                lineas.Add($"{a.ArtCod}\t{estado}\t[{a.Rubro} / {a.Genero}]\t{a.Titulo}{detalle}");
+            }
+
+            sb.AppendLine($"===== PUBLICADOS ({publicados.Count} — {ok} con foto OK, {falta} con link pero SIN archivo, {sinLink} sin link) =====");
+            sb.AppendLine("# código\testado foto\ttipo / género\ttítulo[\tarchivo esperado si falta]");
+            foreach (var linea in lineas) sb.AppendLine(linea);
+
+            sb.AppendLine();
+            sb.AppendLine($"===== DESCARTADOS ({descartados.Count}) =====");
+            sb.AppendLine("# código\tmotivo\t[rubro / género / familia]\tdescripción");
+            foreach (var linea in descartados.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                sb.AppendLine(linea);
+
+            var dir = Path.GetDirectoryName(_diagPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            await File.WriteAllTextAsync(_diagPath!, sb.ToString(), ct);
+            _log.LogInformation("Diagnóstico del catálogo escrito en {Path}.", _diagPath);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "No se pudo escribir el diagnóstico del catálogo en {Path}.", _diagPath);
+        }
     }
 
     private static IReadOnlyList<RubroMenu> ArmarMenu(List<ArticuloDto> lista) =>

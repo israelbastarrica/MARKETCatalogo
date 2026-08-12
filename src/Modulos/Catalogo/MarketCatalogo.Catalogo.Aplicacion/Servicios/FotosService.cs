@@ -26,7 +26,7 @@ public sealed class FotosService : IFotosCatalogo
     private static readonly int[] Anchos = [400, 1200];
     public IReadOnlyList<int> AnchosPermitidos => Anchos;
 
-    private const int CalidadWebp = 80;
+    private const int CalidadWebp = 100;
 
     private readonly CatalogoCache _cache;
     private readonly ILogger<FotosService> _log;
@@ -55,13 +55,22 @@ public sealed class FotosService : IFotosCatalogo
         if (seguro.Length == 0) return null;
 
         var destino = Path.Combine(_dirCache, $"{seguro}_{ancho}.webp");
-        if (File.Exists(destino)) return new FotoResultado(destino, "image/webp");
 
+        // Se resuelve el original ANTES de servir el thumbnail cacheado: hace falta su fecha para saber si
+        // el .webp quedó viejo. El nombre del thumbnail es sólo código+ancho, así que NO cambia cuando la
+        // foto de origen cambia (p. ej. al artículo que sólo tenía foto de disco se le genera una IA). Sin
+        // este chequeo, se seguiría sirviendo el thumbnail viejo para siempre.
         var snap = await _cache.ObtenerAsync(ct);
         if (!snap.RutaFotoPorCodigo.TryGetValue(cod, out var rutaOriginal)) return null;
 
         var origen = RutasFoto.Resolver(rutaOriginal, _dirOriginalesOverride);
         if (origen is null || !File.Exists(origen)) return null;
+
+        // Se sirve el thumbnail cacheado SÓLO si está al día: existe y se generó DESPUÉS del original.
+        // Si el original es más nuevo (foto reemplazada, o recién generada la IA), se cae abajo y se
+        // regenera solo — sin borrar la carpeta a mano.
+        if (File.Exists(destino) && File.GetLastWriteTimeUtc(origen) <= File.GetLastWriteTimeUtc(destino))
+            return new FotoResultado(destino, "image/webp");
 
         try
         {

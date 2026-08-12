@@ -28,7 +28,7 @@ else
         <meta property="og:description" content="@MetaDescripcion" />
         @if (_art.TieneFoto)
         {
-            <meta property="og:image" content="@($"{Origen}/fotos/{_art.ArtCod}_1200.webp")" />
+            <meta property="og:image" content="@($"{Origen}/fotos/{_art.ArtCod}_1200.webp?v={_art.FotoVersion}")" />
         }
     </HeadContent>
 
@@ -38,7 +38,7 @@ else
             @if (_art.TieneFoto)
             {
                 <img class="mk-foto"
-                     src="/fotos/@(_art.ArtCod)_1200.webp"
+                     src="/fotos/@(_art.ArtCod)_1200.webp?v=@_art.FotoVersion"
                      width="1200" height="1500"
                      alt="@_art.Titulo" />
             }

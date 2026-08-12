@@ -40,11 +40,12 @@ public static partial class Combo
         return new Datos(s.ToUpperInvariant(), cantidad, total, total / cantidad);
     }
 
-    /// <summary>Cómo se muestra la oferta: "2 x $15.000".</summary>
+    /// <summary>Cómo se muestra la oferta: "2x15.000". SIN símbolo de peso (decisión de marca).</summary>
     public static string Mostrar(int cantidad, decimal total)
-        => $"{cantidad} x {Plata(total)}";
+        => $"{cantidad}x{Plata(total)}";
 
-    /// <summary>Formato de moneda argentino sin decimales: $15.000.</summary>
+    /// <summary>Formato de moneda argentino sin decimales y SIN símbolo de peso: "15.000".
+    /// Por decisión de marca, en el sitio ningún precio muestra el "$".</summary>
     public static string Plata(decimal monto)
-        => "$" + monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+        => monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
 }

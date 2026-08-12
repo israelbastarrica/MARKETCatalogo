@@ -214,6 +214,12 @@ WHERE ISNULL(O.OcultarManual, 0) = 0
   AND LEN(RTRIM(ISNULL(CATE.DESCRIP, ''))) > 0 AND RTRIM(CATE.DESCRIP) <> 'No aplica';
 ```
 
+> **Nota (posterior a esta ilustración):** el `RutaFoto = G.LinkDriveDisco` de arriba quedó desactualizado.
+> Hoy la foto se resuelve **IA primero, disco después** (`COALESCE(LinkIADisco, LinkDriveDisco)`), en su
+> propia consulta (`TraerRutasFotoAsync`). Y además del filtro de basura de acá, el armado del snapshot
+> aplica más filtros de publicación (entre ellos el temporal de **sólo Indumentaria**). El detalle vive en
+> [FOTOS.md](FOTOS.md) y [CATALOGO-PUBLICACION.md](CATALOGO-PUBLICACION.md).
+
 Y en el mismo batch, las variantes (~14.225 filas):
 
 ```sql

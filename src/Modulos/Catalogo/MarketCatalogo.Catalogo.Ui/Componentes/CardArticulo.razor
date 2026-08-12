@@ -11,8 +11,8 @@
             @* width/height fijos para que la grilla no salte mientras cargan (layout shift).
                srcset deja que un celular retina baje la de 1200 para el mismo hueco. *@
             <img class="mk-foto"
-                 src="/fotos/@(Articulo.ArtCod)_400.webp"
-                 srcset="/fotos/@(Articulo.ArtCod)_400.webp 400w, /fotos/@(Articulo.ArtCod)_1200.webp 1200w"
+                 src="/fotos/@(Articulo.ArtCod)_400.webp?v=@Articulo.FotoVersion"
+                 srcset="/fotos/@(Articulo.ArtCod)_400.webp?v=@Articulo.FotoVersion 400w, /fotos/@(Articulo.ArtCod)_1200.webp?v=@Articulo.FotoVersion 1200w"
                  sizes="(max-width: 640px) 50vw, 300px"
                  width="400" height="500"
                  loading="lazy" decoding="async"

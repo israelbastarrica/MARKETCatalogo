@@ -57,6 +57,10 @@ dotnet run --project src/MarketCatalogo.Web
   nada, con los tiempos medidos. Incluye por qué no sirve reutilizar `GoogleDriveFotosArticulos`.
 - [docs/CATALOGO-SYNC.md](docs/CATALOGO-SYNC.md) — diseño materializado (5 tablas + job).
   **No vigente**: es el camino si el catálogo crece ~5x.
+- [docs/CATALOGO-PUBLICACION.md](docs/CATALOGO-PUBLICACION.md) — qué artículo se publica y cuál se
+  descarta (filtros, incluido el temporal de **sólo Indumentaria**) y el `.txt` de diagnóstico.
+- [docs/FOTOS.md](docs/FOTOS.md) — pipeline de fotos: **IA primero, disco después**, resize + caché de
+  thumbnails, y cómo el visitante ve **siempre la más reciente** (auto-refresh + URL versionada).
 - [docs/DISENO.md](docs/DISENO.md) — sistema de diseño derivado del Manual de Marca. **Leer antes de
   tocar CSS.** La marca es monocromática: el rosa y el verde menta están prohibidos.
 - [docs/CONTENIDO.md](docs/CONTENIDO.md) — copy institucional aprobada (quiénes somos, misión, visión,

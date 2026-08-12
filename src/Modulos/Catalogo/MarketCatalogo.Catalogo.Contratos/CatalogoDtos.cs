@@ -39,6 +39,12 @@ public sealed class ArticuloDto
     public string? PrecioSueltaTexto { get; init; }
 
     public bool TieneFoto { get; init; }
+
+    /// <summary>Token de versión de la foto (fecha de modificación del original). Va como <c>?v=</c> en la
+    /// URL de la imagen: cuando la foto cambia (p. ej. se le genera la IA), el token cambia y el navegador
+    /// baja la nueva sin esperar a que venza su caché. null si el artículo no tiene foto.</summary>
+    public string? FotoVersion { get; init; }
+
     public int Destacado { get; init; }
 
     /// <summary>Locales donde está armado, ej. ["LURO", "PERALTA"].</summary>

@@ -439,18 +439,19 @@
 }
 
 .mk-card-foto {
+    /* Proporción fija → TODAS las cards miden lo mismo (grilla pareja). Las fotos del catálogo se
+       están estandarizando a un único tamaño 2:3; cuando estén todas, calzan exacto (sin margen ni
+       recorte). Mientras tanto, `contain` muestra la foto entera (nunca recorta cabeza/pies) y el
+       fondo del mismo color disimula el margencito de las que aún no coinciden. */
+    aspect-ratio: 2 / 3;
     overflow: hidden;
     background: var(--mk-fondo-sutil);
 }
 
 .mk-card-foto .mk-foto {
-    /* Ancho completo + alto natural (mismo criterio que la ficha). Antes la caja tenía una
-       proporción fija y la foto entraba con `contain`: como las fotos reales no comparten una
-       proporción exacta, quedaba margen a los costados y el texto no alineaba con la foto. Con
-       width:100% / height:auto la foto llena SIEMPRE todo el ancho de la card, así su borde
-       coincide con el del título/precio. Nunca recorta (no es cover). */
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: contain;
     display: block;
     transition: opacity .2s ease;
 }
@@ -461,9 +462,7 @@
    sin parecer una imagen rota. */
 .mk-card-sinfoto {
     width: 100%;
-    /* La caja ya no fija proporción (la foto define su alto): el placeholder la fija él mismo
-       para no colapsar cuando el artículo no tiene foto. */
-    aspect-ratio: 3 / 4;
+    height: 100%;
     background: repeating-linear-gradient(
         -45deg,
         rgba(0, 0, 0, .03) 0, rgba(0, 0, 0, .03) 10px,
@@ -534,7 +533,7 @@
 /* Imagen a su proporción NATURAL: ocupa el ancho y muestra la foto entera, sin recortar cabeza/pies. */
 .mk-producto-foto .mk-foto { width: 100%; height: auto; display: block; }
 /* El placeholder (sin foto) sí mantiene una proporción fija para no colapsar. */
-.mk-producto-foto .mk-card-sinfoto { aspect-ratio: 4 / 5; }
+.mk-producto-foto .mk-card-sinfoto { aspect-ratio: 2 / 3; }
 
 /* Foto ampliable: sólo con JS (catalogo-zoom.js marca el cursor de lupa cuando el visor está activo).
    Sin JS es una imagen normal, así que no anunciamos un zoom que no existe. */
@@ -552,7 +551,13 @@
     display: none;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, .9);
+    padding: 2.5rem;
+    /* Fondo atenuado + desenfocado: la página se ve detrás borroneada y la foto queda destacada.
+       El velo claro (no negro) es el look de la referencia. backdrop-filter con fallback al velo
+       algo más opaco si el navegador no lo soporta. */
+    background: rgba(245, 244, 242, .72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     /* El navegador no maneja el pinch/scroll: lo hace el JS con transform. */
     touch-action: none;
     overscroll-behavior: contain;
@@ -564,6 +569,9 @@
     max-height: 100%;
     /* La foto entera entra en pantalla al abrir; el zoom la agranda desde ahí. */
     object-fit: contain;
+    /* Sombra suave para que "flote" y se despegue del fondo borroneado (como en la referencia). */
+    box-shadow: 0 1.5rem 3.5rem rgba(0, 0, 0, .22);
+    background: #fff;
     transform-origin: center center;
     will-change: transform;
     cursor: grab;
@@ -575,20 +583,27 @@
 
 .mk-zoom-cerrar {
     position: fixed;
-    top: .75rem;
+    top: 1rem;
     right: 1rem;
     z-index: 1001;
     width: 2.75rem;
     height: 2.75rem;
     border: 0;
     border-radius: 50%;
-    background: rgba(255, 255, 255, .15);
+    /* Botón oscuro: ahora el fondo del visor es claro. */
+    background: rgba(0, 0, 0, .55);
     color: #fff;
     font-size: 1.75rem;
     line-height: 1;
     cursor: pointer;
 }
-.mk-zoom-cerrar:hover { background: rgba(255, 255, 255, .3); }
+.mk-zoom-cerrar:hover { background: rgba(0, 0, 0, .75); }
+
+/* Fallback: si el navegador no soporta backdrop-filter, se compensa con un velo más opaco
+   para que igual atenúe la página de atrás. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .mk-zoom-overlay { background: rgba(245, 244, 242, .95); }
+}
 
 .mk-producto-datos { display: flex; flex-direction: column; gap: .35rem; }
 .mk-producto-datos > .mk-migas { margin-bottom: .5rem; }

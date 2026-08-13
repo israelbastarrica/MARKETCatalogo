@@ -159,6 +159,15 @@
         visibility: visible;
         transform: translateY(0);
     }
+
+    /* El último género queda pegado al borde derecho de la nav: su panel se ancla a la DERECHA del
+       botón (abre hacia la izquierda) para no pasarse del viewport. El header ya recorta cualquier
+       desborde (overflow-x: clip), pero anclarlo acá hace que el panel se vea ENTERO al abrirlo, en
+       vez de quedar cortado. */
+    .mk-mega:last-of-type .mk-mega-panel {
+        left: auto;
+        right: 0;
+    }
 }
 
 /* --- Mobile: los géneros del header desaparecen ---------------------------

@@ -27,6 +27,12 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    /* Los paneles del mega-menú (NavMenu) son position:absolute y, aunque estén ocultos, siguen
+       siendo display:block: el del género más a la derecha se extendía más allá del viewport y
+       generaba scroll horizontal en ciertos anchos (~641–800px). `clip` (no `hidden`) corta ese
+       desborde horizontal SIN volverse contenedor de scroll ni forzar overflow-y: el desplegable
+       sigue cayendo por debajo del header (overflow-y queda visible). */
+    overflow-x: clip;
 }
 
 .mk-header-logo {

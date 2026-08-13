@@ -439,21 +439,19 @@
 }
 
 .mk-card-foto {
-    /* 3:4 = la proporción real de las fotos de catálogo. Con 4:5 (más cuadrado) la foto
-       quedaba angosta dentro de la caja y `contain` le dejaba margen blanco a los costados:
-       eso desalineaba el texto (que sí ocupa todo el ancho) y se leía como "espacio entre
-       fotos". Con 3:4 la foto llena el ancho y el título/precio quedan alineados a sus bordes. */
-    aspect-ratio: 3 / 4;
     overflow: hidden;
     background: var(--mk-fondo-sutil);
 }
 
 .mk-card-foto .mk-foto {
+    /* Ancho completo + alto natural (mismo criterio que la ficha). Antes la caja tenía una
+       proporción fija y la foto entraba con `contain`: como las fotos reales no comparten una
+       proporción exacta, quedaba margen a los costados y el texto no alineaba con la foto. Con
+       width:100% / height:auto la foto llena SIEMPRE todo el ancho de la card, así su borde
+       coincide con el del título/precio. Nunca recorta (no es cover). */
     width: 100%;
-    height: 100%;
-    /* contain (no cover): las fotos son de cuerpo entero y con cover se recortaban cabeza y pies.
-       La tarjeta mantiene su proporción 4:5 para que la grilla quede pareja; la foto entra completa. */
-    object-fit: contain;
+    height: auto;
+    display: block;
     transition: opacity .2s ease;
 }
 
@@ -463,7 +461,9 @@
    sin parecer una imagen rota. */
 .mk-card-sinfoto {
     width: 100%;
-    height: 100%;
+    /* La caja ya no fija proporción (la foto define su alto): el placeholder la fija él mismo
+       para no colapsar cuando el artículo no tiene foto. */
+    aspect-ratio: 3 / 4;
     background: repeating-linear-gradient(
         -45deg,
         rgba(0, 0, 0, .03) 0, rgba(0, 0, 0, .03) 10px,
@@ -535,6 +535,60 @@
 .mk-producto-foto .mk-foto { width: 100%; height: auto; display: block; }
 /* El placeholder (sin foto) sí mantiene una proporción fija para no colapsar. */
 .mk-producto-foto .mk-card-sinfoto { aspect-ratio: 4 / 5; }
+
+/* Foto ampliable: sólo con JS (catalogo-zoom.js marca el cursor de lupa cuando el visor está activo).
+   Sin JS es una imagen normal, así que no anunciamos un zoom que no existe. */
+.js-zoom .mk-producto-foto .mk-zoomable { cursor: zoom-in; }
+
+/* --- Visor con zoom (lightbox) ------------------------------------------- */
+
+/* Bloquea el scroll del fondo mientras el visor está abierto. */
+.mk-zoom-bloqueado { overflow: hidden; }
+
+.mk-zoom-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .9);
+    /* El navegador no maneja el pinch/scroll: lo hace el JS con transform. */
+    touch-action: none;
+    overscroll-behavior: contain;
+}
+.mk-zoom-overlay.activa { display: flex; }
+
+.mk-zoom-img {
+    max-width: 100%;
+    max-height: 100%;
+    /* La foto entera entra en pantalla al abrir; el zoom la agranda desde ahí. */
+    object-fit: contain;
+    transform-origin: center center;
+    will-change: transform;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.mk-zoom-img.ampliada { cursor: grab; }
+.mk-zoom-img.ampliada:active { cursor: grabbing; }
+
+.mk-zoom-cerrar {
+    position: fixed;
+    top: .75rem;
+    right: 1rem;
+    z-index: 1001;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .15);
+    color: #fff;
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.mk-zoom-cerrar:hover { background: rgba(255, 255, 255, .3); }
 
 .mk-producto-datos { display: flex; flex-direction: column; gap: .35rem; }
 .mk-producto-datos > .mk-migas { margin-bottom: .5rem; }

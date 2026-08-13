@@ -37,8 +37,11 @@ else
         <div class="mk-producto-foto">
             @if (_art.TieneFoto)
             {
-                <img class="mk-foto"
+                @* mk-zoomable + data-zoom: catalogo-zoom.js abre el visor con esta misma imagen (1200)
+                   al hacer click. Sin JS es una <img> normal (mejora progresiva). *@
+                <img class="mk-foto mk-zoomable"
                      src="/fotos/@(_art.ArtCod)_1200.webp?v=@_art.FotoVersion"
+                     data-zoom="/fotos/@(_art.ArtCod)_1200.webp?v=@_art.FotoVersion"
                      width="1200" height="1500"
                      alt="@_art.Titulo" />
             }

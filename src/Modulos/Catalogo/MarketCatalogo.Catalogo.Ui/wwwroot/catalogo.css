@@ -439,7 +439,11 @@
 }
 
 .mk-card-foto {
-    aspect-ratio: 4 / 5;
+    /* 3:4 = la proporción real de las fotos de catálogo. Con 4:5 (más cuadrado) la foto
+       quedaba angosta dentro de la caja y `contain` le dejaba margen blanco a los costados:
+       eso desalineaba el texto (que sí ocupa todo el ancho) y se leía como "espacio entre
+       fotos". Con 3:4 la foto llena el ancho y el título/precio quedan alineados a sus bordes. */
+    aspect-ratio: 3 / 4;
     overflow: hidden;
     background: var(--mk-fondo-sutil);
 }

@@ -73,11 +73,13 @@
 .mk-faceta-titulo {
     margin: 0 0 .75rem;
     line-height: 1.5rem;
-    /* Medido con getBoundingClientRect() real: .mk-toolbar da 50.59px de alto, este bloque daba
-       41px — la diferencia (9.6px = .6rem) se suma acá para que las dos líneas queden a la misma
-       altura por medición, no por cálculo teórico (que no incluía el alto real del contenido de
-       la toolbar: checkboxes + texto, más alto que el min-height que se le había puesto). */
-    padding-bottom: 1.6rem;
+    /* El alto total (línea 1.5rem + 1.6rem de padding + borde = 50.6px) iguala al de .mk-toolbar,
+       así el BORDE de abajo de "Prenda" queda a la misma altura que el de la toolbar (medido con
+       getBoundingClientRect: la toolbar da 50.59px por sus checkboxes+texto).
+       El padding va repartido arriba y abajo (.8rem = la mitad de 1.6rem) para que el TEXTO quede
+       CENTRADO en esa caja, igual que Sucursal/Combo están centrados en la suya (align-items:center).
+       Antes iba todo abajo y "Prenda" quedaba pegado arriba, ~13px más alto que Sucursal. */
+    padding: .8rem 0;
     border-bottom: 1px solid var(--mk-tinta-20);
 }
 
@@ -353,11 +355,17 @@
 
 /* En mobile la toolbar sticky no tiene lugar para las tres cosas: se prioriza Sucursal + Combo
    (más usados) y Orden se muda al drawer de filtros (mk-filtros-orden, ver PanelFiltros.razor).
-   Sin Orden, Sucursal+Combo quedan como único contenido: se centran en la barra (el
-   align-items:center de .mk-toolbar ya los centra verticalmente). */
+   Además, para que Combo + Luro/Peralta entren en UNA sola línea cuando el ancho es chico:
+   - se oculta la palabra "Sucursal" (los ticks Luro/Peralta ya se entienden solos);
+   - Combo pasa a ir primero (order:-1), ocupando el lugar donde estaba "Sucursal", y al lado
+     quedan los ticks;
+   - la barra alinea a la izquierda (flex-start) para que Combo arranque pegado al borde, no
+     centrado en el medio. */
 @media (max-width: 900px) {
     .mk-toolbar .mk-orden { display: none; }
-    .mk-toolbar { justify-content: center; }
+    .mk-toolbar { justify-content: flex-start; }
+    .mk-sucursales .mk-rotulo { display: none; }
+    .mk-toolbar-izq .mk-combo-dropdown { order: -1; }
 }
 
 /* La copia de Orden que vive en el drawer: sólo se ve en mobile — en desktop ya está en la
@@ -574,10 +582,14 @@
     background: #fff;
     transform-origin: center center;
     will-change: transform;
+    /* Zoom deslizado: cada paso de rueda / doble click "glidea" hasta su nivel en vez de saltar.
+       Se apaga mientras se arrastra o se hace pinch (.mk-arrastrando) para que el pan vaya sin lag. */
+    transition: transform .18s ease-out;
     cursor: grab;
     user-select: none;
     -webkit-user-drag: none;
 }
+.mk-zoom-img.mk-arrastrando { transition: none; }
 .mk-zoom-img.ampliada { cursor: grab; }
 .mk-zoom-img.ampliada:active { cursor: grabbing; }
 

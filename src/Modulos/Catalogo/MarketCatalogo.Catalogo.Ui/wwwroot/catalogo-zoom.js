@@ -42,6 +42,8 @@
         img.addEventListener('pointerdown', function (e) {
             punteros[e.pointerId] = { x: e.clientX, y: e.clientY };
             img.setPointerCapture(e.pointerId);
+            // Arrastre/pinch en tiempo real: sin la transición del zoom deslizado (si no, laguea).
+            img.classList.add('mk-arrastrando');
             var ids = Object.keys(punteros);
             if (ids.length === 2) pinchDist = distancia(ids);
         });
@@ -69,6 +71,8 @@
         function soltar(e) {
             delete punteros[e.pointerId];
             if (Object.keys(punteros).length < 2) pinchDist = 0;
+            // Ya no hay dedos: vuelve la transición para el próximo zoom de rueda / doble click.
+            if (Object.keys(punteros).length === 0) img.classList.remove('mk-arrastrando');
         }
         img.addEventListener('pointerup', soltar);
         img.addEventListener('pointercancel', soltar);
@@ -86,10 +90,13 @@
     }
 
     // Zoom a un nivel dado manteniendo fijo el punto (cx, cy) de la pantalla.
+    // El centro se calcula de forma lógica (centro del viewport + la traslación actual), NO con
+    // getBoundingClientRect: con la transición de zoom deslizado, el rect devuelve la posición a
+    // mitad de animación y el centrado se desviaría al hacer scroll rápido. La imagen está centrada
+    // por flex, así que sin transformar su centro coincide con el centro del viewport.
     function zoomA(nuevo, cx, cy) {
         nuevo = Math.min(ESC_MAX, Math.max(ESC_MIN, nuevo));
-        var rect = img.getBoundingClientRect();
-        var centroX = rect.left + rect.width / 2, centroY = rect.top + rect.height / 2;
+        var centroX = window.innerWidth / 2 + tx, centroY = window.innerHeight / 2 + ty;
         var ox = cx - centroX, oy = cy - centroY;
         var f = nuevo / escala;
         tx += ox * (1 - f);

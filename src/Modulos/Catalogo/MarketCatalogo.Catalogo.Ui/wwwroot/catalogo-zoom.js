@@ -113,7 +113,11 @@
     }
 
     function abrir(src, alt) {
-        if (!overlay) crear();
+        // Recrear si nunca se creó O si quedó DESCONECTADO del DOM: la navegación mejorada de Blazor
+        // reescribe el <body> y se lleva el overlay (que no es parte del HTML del servidor), pero deja
+        // la variable apuntando al viejo. Sin este chequeo, la 2ª foto agregaba el bloqueo de scroll
+        // pero el overlay no estaba en pantalla → quedaba todo trabado hasta recargar.
+        if (!overlay || !overlay.isConnected) crear();
         img.src = src;
         img.alt = alt || '';
         reset();
@@ -121,9 +125,10 @@
         overlay.classList.add('activa');
     }
     function cerrar() {
-        if (!overlay) return;
-        overlay.classList.remove('activa');
+        // El bloqueo vive en <html> (sobrevive a la navegación): se saca siempre, aunque el overlay
+        // ya no esté, para no dejar el scroll trabado.
         document.documentElement.classList.remove('mk-zoom-bloqueado');
+        if (overlay) overlay.classList.remove('activa');
         punteros = {}; pinchDist = 0;
     }
 
@@ -139,6 +144,12 @@
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') cerrar();
     });
+
+    // Al navegar (navegación mejorada de Blazor) se cierra el visor y se saca el bloqueo de scroll,
+    // así cambiar de página nunca deja el scroll trabado ni un overlay huérfano.
+    if (window.Blazor && Blazor.addEventListener) {
+        Blazor.addEventListener('enhancedload', cerrar);
+    }
 
     // Marca que el visor está disponible: el CSS recién ahí muestra el cursor de lupa en la foto.
     document.documentElement.classList.add('js-zoom');

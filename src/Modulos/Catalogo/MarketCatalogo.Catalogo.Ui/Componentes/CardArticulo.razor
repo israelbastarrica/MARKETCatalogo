@@ -4,7 +4,12 @@
    Talles y colores NO van acá — serían ~14 filas de variantes por artículo para no mostrar nada
    útil en la grilla. Van en la ficha. *@
 
-<a class="mk-card" href="/producto/@Articulo.Slug">
+@* data-enhance-nav="false": la ficha abre con navegación REAL (no la mejorada de Blazor). Así, al
+   volver atrás, el navegador restaura esta grilla desde su back-forward cache EXACTAMENTE como estaba
+   —posición de scroll y todos los artículos cargados por el scroll infinito— sin pedir nada ni correr
+   JS. La navegación mejorada interceptaba el volver y rompía eso (caías al principio / a una página
+   suelta). Es lo más eficiente: restauración nativa e instantánea. *@
+<a class="mk-card" href="/producto/@Articulo.Slug" data-enhance-nav="false">
     <div class="mk-card-foto">
         @if (Articulo.TieneFoto)
         {

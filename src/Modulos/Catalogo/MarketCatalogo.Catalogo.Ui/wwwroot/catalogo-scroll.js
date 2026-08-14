@@ -47,7 +47,12 @@
                         }
                     }
 
-                    history.replaceState(null, '', url);
+                    // NO se toca la URL de la barra. Antes se hacía history.replaceState a ?pag=N y
+                    // eso rompía el "volver atrás": al entrar a un artículo y volver, el navegador
+                    // restauraba ?pag=5 y el SSR renderizaba SÓLO esa página (unos pocos artículos),
+                    // no todo lo scrolleado — y recargar tampoco lo arreglaba. Dejando la URL en la
+                    // página inicial, "atrás" vuelve a la grilla completa (página 1). La carga de más
+                    // páginas no depende de la URL: usa el link "Siguiente" del DOM (siguienteUrl()).
                     cargando = false;
 
                     if (nuevaPaginacion) {

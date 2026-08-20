@@ -31,16 +31,22 @@
         }
 
         @* Curva de talles: aparece al pasar el mouse sobre la card (solo dispositivos con hover
-           real; en touch nunca se muestra). Es un adelanto de la ficha, no un filtro. *@
-        @if (Articulo.Talles.Count > 0)
-        {
-            <div class="mk-card-talles" aria-hidden="true">
+           real; en touch nunca se muestra). Es un adelanto de la ficha, no un filtro. Si el artículo
+           no tiene talles reales (todos son ST/U/X/vacío → grupo SinTalle, así que Talles queda vacío),
+           es talle único y se muestra un solo chip aclarándolo, en vez de quedar mudo. *@
+        <div class="mk-card-talles" aria-hidden="true">
+            @if (Articulo.Talles.Count > 0)
+            {
                 @foreach (var talle in Articulo.Talles)
                 {
                     <span class="mk-card-talle">@talle</span>
                 }
-            </div>
-        }
+            }
+            else
+            {
+                <span class="mk-card-talle mk-card-talle-unico">Talle único</span>
+            }
+        </div>
     </div>
 
     <div class="mk-card-datos">

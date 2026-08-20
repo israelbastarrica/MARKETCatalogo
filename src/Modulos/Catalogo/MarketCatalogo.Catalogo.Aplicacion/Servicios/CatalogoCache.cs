@@ -361,10 +361,14 @@ public sealed class CatalogoCache
     /// <summary>Nombre del color. Si DPCOLOR ya lo resolvió, se usa. Si no, sólo se cae al código cuando
     /// éste NO es numérico: un código numérico sin resolver es un id de color no mapeado (p. ej. "50", que
     /// no está en DPCOLOR), y mostrarlo como si fuera un color ensucia la faceta — mejor tratarlo como
-    /// "sin color". Tras el match global por DPCOLOR esto afecta a un puñado de variantes.</summary>
+    /// "sin color". Tras el match global por DPCOLOR esto afecta a un puñado de variantes.
+    ///
+    /// "NEUTRO" es el color que la compra usa para "no tiene color real" (el equivalente de ST en talles);
+    /// se muestra como "Único" — mismo texto que Lencería — en vez de la palabra cruda del remito.</summary>
     private static string LimpiarColor(string? desc, string? cod)
     {
         var d = (desc ?? "").Trim();
+        if (d.Equals("NEUTRO", StringComparison.OrdinalIgnoreCase)) return "Único";
         if (d.Length > 0) return d;
         var c = (cod ?? "").Trim();
         if (c.Length == 0 || int.TryParse(c, out _)) return "";

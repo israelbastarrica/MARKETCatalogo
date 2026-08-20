@@ -454,6 +454,7 @@
     aspect-ratio: 2 / 3;
     overflow: hidden;
     background: var(--mk-fondo-sutil);
+    position: relative;
 }
 
 .mk-card-foto .mk-foto {
@@ -465,6 +466,49 @@
 }
 
 .mk-card:hover .mk-foto { opacity: .85; }
+
+/* Curva de talles sobre la foto. Barra blanca que sube desde el borde inferior al pasar el mouse.
+   Oculta por defecto (transform + opacity) para poder animarla; los talles se envuelven si no entran.
+   Monocromática: fondo blanco translúcido, tinta negra. */
+.mk-card-talles {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    justify-content: center;
+    padding: .55rem .5rem;
+    background: rgba(255, 255, 255, .92);
+    border-top: 1px solid var(--mk-tinta-20);
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity .2s ease, transform .2s ease;
+    pointer-events: none;
+}
+
+.mk-card-talle {
+    font-family: var(--mk-font-texto);
+    font-size: .7rem;
+    line-height: 1;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--mk-tinta-100);
+    border: 1px solid var(--mk-tinta-40);
+    border-radius: 2px;
+    padding: .3rem .4rem;
+    white-space: nowrap;
+}
+
+/* Solo en dispositivos con puntero fino y hover real (mouse). En touch no aparece nunca:
+   no habría forma de "salir" del hover y taparía la foto. */
+@media (hover: hover) and (pointer: fine) {
+    .mk-card:hover .mk-card-talles {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
 /* Sin foto: rectángulo liso, misma proporción. Se lee como "todavía sin foto"
    sin parecer una imagen rota. */

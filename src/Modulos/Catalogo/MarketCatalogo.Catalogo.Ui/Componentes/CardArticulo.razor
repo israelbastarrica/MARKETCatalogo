@@ -29,6 +29,18 @@
                como "todavía no hay foto" sin parecer un error. Nada de iconos de imagen rota. *@
             <div class="mk-card-sinfoto" aria-label="Sin foto todavía"></div>
         }
+
+        @* Curva de talles: aparece al pasar el mouse sobre la card (solo dispositivos con hover
+           real; en touch nunca se muestra). Es un adelanto de la ficha, no un filtro. *@
+        @if (Articulo.Talles.Count > 0)
+        {
+            <div class="mk-card-talles" aria-hidden="true">
+                @foreach (var talle in Articulo.Talles)
+                {
+                    <span class="mk-card-talle">@talle</span>
+                }
+            </div>
+        }
     </div>
 
     <div class="mk-card-datos">

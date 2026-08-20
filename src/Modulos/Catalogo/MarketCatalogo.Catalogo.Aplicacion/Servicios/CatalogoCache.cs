@@ -151,6 +151,15 @@ public sealed class CatalogoCache
 
         var variantes = variantesPrecompra.Concat(variantesRemcompra).ToList();
 
+        // Curva de talles DEFINIDA (ART.CURTALL → CTALLE/DCTALLE). No es lo que se compró: es el
+        // fallback para los artículos que las compras dejaron sin talle real (todo ST/U/X/vacío).
+        // En ese caso se muestra la curva definida en vez de "Talle único" — así un artículo cargado
+        // en la compra como un solo renglón sin talle igual muestra su 2XL/3XL/4XL/5XL. Los colores
+        // siguen saliendo de las compras (que es donde están bien): esto sólo aporta talles.
+        var curvasPorCodigo = (await _repo.TraerCurvasTalleAsync(codigos, ct))
+            .GroupBy(c => c.ArtCod, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderBy(c => c.Orden).ToList(), StringComparer.OrdinalIgnoreCase);
+
         var fotoPorCodigo = fotos
             .GroupBy(f => f.ArtCod, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().Ruta, StringComparer.OrdinalIgnoreCase);
@@ -262,6 +271,22 @@ public sealed class CatalogoCache
                     .GroupBy(v => v.TalleMostrar)
                     .OrderBy(g => g.Min(v => v.TalleOrden))
                     .Select(g => g.Key).ToList();
+
+                // Fallback: si las compras dejaron el artículo sin talle real (todo ST/U/X/vacío) pero
+                // tiene una curva de talles definida, se muestra esa curva. Respeta el ORDEN de fábrica
+                // de DCTALLE (2XL, 3XL, 4XL, 5XL) y descarta cualquier talle "sin talle" que pudiera
+                // tener la curva. No toca colores ni Variantes: sólo rellena la lista de talles.
+                if (talles.Count == 0 && curvasPorCodigo.TryGetValue(a.ArtCod, out var curva))
+                {
+                    foreach (var ct2 in curva)
+                        if (Talles.EsDesconocido(ct2.Talle) && ct2.Talle.Length > 0) tallesDesconocidos.Add(ct2.Talle);
+
+                    talles = curva
+                        .Where(c => !Talles.EsSinTalle(c.Talle))
+                        .Select(c => Talles.Mostrar(c.Talle))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
 
                 colores = variantesDto
                     .Where(v => v.Color.Length > 0)

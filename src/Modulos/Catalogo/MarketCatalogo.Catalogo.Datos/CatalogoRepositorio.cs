@@ -120,6 +120,25 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         return PorLotesAsync<VarianteRow>(sql, codigos, dragon: true, ct);
     }
 
+    /// <summary>DRAGON: la curva de talles definida de cada artículo. ART.CURTALL es el código de la
+    /// curva; CTALLE es la cabecera y DCTALLE el detalle (un talle por fila, con su ORDEN de fábrica).
+    /// Se excluyen los CURTALL vacíos. NO es lo que se compró — es sólo el fallback para los artículos
+    /// que las compras dejaron sin talle (ver CatalogoCache.ConstruirAsync).</summary>
+    public Task<IReadOnlyList<CurvaTalleRow>> TraerCurvasTalleAsync(
+        IReadOnlyCollection<string> codigos, CancellationToken ct = default)
+    {
+        const string sql = """
+            SELECT ArtCod = RTRIM(A.ARTCOD),
+                   Talle  = RTRIM(D.CODTALL),
+                   Orden  = CAST(D.ORDEN AS int)
+            FROM ZooLogic.ART A WITH (NOLOCK)
+            JOIN ZooLogic.DCTALLE D WITH (NOLOCK) ON RTRIM(D.CODIGO) = RTRIM(A.CURTALL)
+            WHERE RTRIM(A.ARTCOD) IN @codigos AND RTRIM(ISNULL(A.CURTALL, '')) <> ''
+            ORDER BY RTRIM(A.ARTCOD), D.ORDEN;
+            """;
+        return PorLotesAsync<CurvaTalleRow>(sql, codigos, dragon: true, ct);
+    }
+
     /// <summary>MARKET: la ruta en disco de la foto de cada artículo.
     /// La tabla tiene VARIAS filas por código (hasta 70 medidas), así que hay que quedarse con la
     /// última por ID. Se prefiere la foto IA (<c>LinkIADisco</c>) sobre la normal (<c>LinkDriveDisco</c>):

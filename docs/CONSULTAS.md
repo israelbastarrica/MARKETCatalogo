@@ -67,11 +67,13 @@ Por eso el repositorio tiene **un método por fuente**, cada uno con su propia c
 hace **en C#** al armar el cache:
 
 ```
-  ┌── conexión "DragonDb" ──────────────────────────────┐
-  │  TraerArticulosAsync()   ART + TIPOART + CATEGART   │
-  │                          + FAMILIA + PRECIOAR       │   ~1.000 filas
-  │  TraerVariantesAsync()   COMB + DPCOLOR             │  ~14.225 filas
-  └─────────────────────────────────────────────────────┘
+  ┌── conexión "DragonDb" ──────────────────────────────────────┐
+  │  TraerArticulosAsync()           ART + TIPOART + CATEGART    │
+  │                                  + FAMILIA + PRECIOAR        │   ~1.000 filas
+  │  TraerVariantesPrecompraAsync()  PRECOMPRADET (color+talle)  │  fuente 1 (cascada)
+  │  TraerVariantesRemcompraAsync()  REMCOMPRADET (color+talle)  │  fuente 2 (cascada)
+  │  TraerCurvasTalleAsync()         ART.CURTALL → CTALLE/DCTALLE│  fallback de talles
+  └───────────────────────────────────────────────────────────────┘
   ┌── conexión "MarketDb" ──────────────────────────────┐
   │  TraerArmadosAsync()     MapeoRegistro → Ubicaciones│   ~1.441 filas
   │  TraerRutasFotoAsync()   GoogleDriveFotosArticulos  │   ~4.776 filas
@@ -220,25 +222,66 @@ WHERE ISNULL(O.OcultarManual, 0) = 0
 > aplica más filtros de publicación (entre ellos el temporal de **sólo Indumentaria**). El detalle vive en
 > [FOTOS.md](FOTOS.md) y [CATALOGO-PUBLICACION.md](CATALOGO-PUBLICACION.md).
 
-Y en el mismo batch, las variantes (~14.225 filas):
+### Color y talle: de las COMPRAS, no de `COMB`
+
+> ⚠️ El diseño original de este doc leía las variantes de `COMB` + `DPCOLOR` (~14.225 filas). **Ya no
+> es así.** `COMB` traía los colores por código y había que matchearlos contra `DPCOLOR` (por `PALCOL`
+> + `CODCOL`), lo que dejaba variantes sin nombre, y en general sus datos venían sucios. Se descartó.
+
+Hoy el color y el talle salen de lo que **realmente se compró**, en una cascada de dos fuentes por
+artículo (`CatalogoCache.ConstruirAsync`):
+
+1. **`TraerVariantesPrecompraAsync`** — `PRECOMPRADET` (órdenes de compra). El color viene como texto
+   directo del remito (`FCOTXT`), sin el problema de matcheo de `COMB`. Se excluyen las anuladas.
+2. **`TraerVariantesRemcompraAsync`** — `REMCOMPRADET` (remitos de compra). Mismo criterio. Se usa
+   **sólo** para los códigos que no aparecieron en `PRECOMPRA`.
+
+Un artículo sin nada en ninguna de las dos **no se publica** (mejor no mostrarlo que mostrarlo sin
+color/talle). Lencería es la excepción: no usa esta cascada (talle y color "Único" fijos).
 
 ```sql
-SELECT ARTCOD = RTRIM(CB.COART),
-       ColorCod  = RTRIM(CB.COCOL),
-       ColorDesc = RTRIM(ISNULL(DPC.DESCRIP, '')),
-       Talle     = RTRIM(CB.TALLE),
-       T.Orden, T.Grupo, T.Etiqueta
-FROM DRAGONFISH_CENTRAL.ZooLogic.COMB CB WITH (NOLOCK)
-JOIN      DRAGONFISH_CENTRAL.ZooLogic.ART     A   WITH (NOLOCK) ON RTRIM(A.ARTCOD) = RTRIM(CB.COART)
-LEFT JOIN DRAGONFISH_CENTRAL.ZooLogic.DPCOLOR DPC WITH (NOLOCK) ON RTRIM(DPC.CODIGO) = RTRIM(A.PALCOL)
-                                                                AND RTRIM(DPC.CODCOL) = RTRIM(CB.COCOL)
-LEFT JOIN MARKET.dbo.CatalogoTalles           T   WITH (NOLOCK) ON T.Talle = RTRIM(CB.TALLE)
-GROUP BY RTRIM(CB.COART), RTRIM(CB.COCOL), RTRIM(ISNULL(DPC.DESCRIP,'')), RTRIM(CB.TALLE),
-         T.Orden, T.Grupo, T.Etiqueta;
+-- Fuente 1 (idéntica para REMCOMPRADET). Color = texto del remito, sin join a DPCOLOR.
+SELECT ArtCod   = RTRIM(PC.FART),
+       ColorCod = RTRIM(PC.FCOLO),
+       Color    = RTRIM(ISNULL(PC.FCOTXT, '')),
+       Talle    = RTRIM(PC.FTALL)
+FROM ZooLogic.PRECOMPRADET PC WITH (NOLOCK)
+JOIN ZooLogic.PRECOMPRA    PH WITH (NOLOCK) ON PH.CODIGO = PC.CODIGO
+WHERE RTRIM(PC.FART) IN @codigos AND ISNULL(PH.ANULADO, 0) = 0
+GROUP BY RTRIM(PC.FART), RTRIM(PC.FCOLO), RTRIM(ISNULL(PC.FCOTXT, '')), RTRIM(PC.FTALL);
 ```
 
-Las dos van en **un round trip** con `QueryMultiple` de Dapper. El precio del combo
-(`ComboTotal / ComboCantidad`) y la validación de la regla `+$5.000` se calculan en C# al armar el cache.
+### Fallback de talles: la curva definida (`ART.CURTALL`)
+
+Como los talles salen de lo comprado, un artículo cargado en la compra como **un solo renglón sin
+talle** (`ST`/`U`/`X`/vacío) quedaba mostrando "Talle único" aunque físicamente tuviera una curva real.
+Ejemplo medido: `IH066.160` — su única compra está como `NEUTRO`/`ST`, pero `ART.CURTALL = '007'` define
+la curva `2XL, 3XL, 4XL, 5XL`.
+
+Por eso hay un **fallback, sólo para talles** (los colores siguen 100% de las compras): si de las compras
+un artículo sale sin ningún talle real, se busca su curva definida y se usa esa.
+
+```sql
+-- TraerCurvasTalleAsync — la curva DEFINIDA del artículo (no lo comprado).
+SELECT ArtCod = RTRIM(A.ARTCOD),
+       Talle  = RTRIM(D.CODTALL),
+       Orden  = CAST(D.ORDEN AS int)            -- DCTALLE.ORDEN es numeric → cast para Dapper
+FROM ZooLogic.ART     A WITH (NOLOCK)
+JOIN ZooLogic.DCTALLE D WITH (NOLOCK) ON RTRIM(D.CODIGO) = RTRIM(A.CURTALL)  -- CTALLE=cabecera, DCTALLE=detalle
+WHERE RTRIM(A.ARTCOD) IN @codigos AND RTRIM(ISNULL(A.CURTALL, '')) <> ''
+ORDER BY RTRIM(A.ARTCOD), D.ORDEN;
+```
+
+Precedencia final de la lista `Talles` de un artículo:
+
+```
+talles de PRECOMPRA/REMCOMPRA (sin ST/U/X/vacío)
+   └─ si queda vacía → curva de CURTALL (DCTALLE, en su ORDEN de fábrica)
+        └─ si tampoco hay curva → sin talles → la card muestra "Talle único"
+```
+
+El precio del combo (`ComboTotal / ComboCantidad`) y la validación de la regla `+$5.000` se calculan en
+C# al armar el cache.
 
 ---
 

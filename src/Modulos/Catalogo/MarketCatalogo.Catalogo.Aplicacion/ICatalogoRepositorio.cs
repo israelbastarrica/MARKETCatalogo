@@ -31,6 +31,12 @@ public interface ICatalogoRepositorio
     /// los artículos que no tuvieron ninguna orden de compra cargada.</summary>
     Task<IReadOnlyList<VarianteRow>> TraerVariantesRemcompraAsync(IReadOnlyCollection<string> codigos, CancellationToken ct = default);
 
+    /// <summary>DRAGON: la CURVA DE TALLES definida de cada artículo (ART.CURTALL → CTALLE/DCTALLE).
+    /// Es la definición teórica de qué talles puede tener el artículo, NO lo que se compró. Se usa sólo
+    /// como fallback: cuando las compras (PRECOMPRA/REMCOMPRA) trajeron el artículo sin talle real (todo
+    /// ST/U/X/vacío), se muestra esta curva en vez de "Talle único". Ver CatalogoCache.ConstruirAsync.</summary>
+    Task<IReadOnlyList<CurvaTalleRow>> TraerCurvasTalleAsync(IReadOnlyCollection<string> codigos, CancellationToken ct = default);
+
     /// <summary>MARKET: ruta en disco de la foto de cada artículo.</summary>
     Task<IReadOnlyList<FotoRow>> TraerRutasFotoAsync(CancellationToken ct = default);
 
@@ -50,6 +56,9 @@ public sealed record ArmadoRow(string ArtCod, string Local);
 public sealed record ArticuloRow(string ArtCod, string ArtDes, string Rubro, string Genero,
                                  string Familia, string Combo, decimal? PrecioSuelta);
 public sealed record VarianteRow(string ArtCod, string ColorCod, string Color, string Talle);
+// Un talle de la curva definida del artículo (DCTALLE). Orden es el ORDEN de DCTALLE, que ya viene
+// bien de fábrica (2XL antes que 3XL); no se re-ordena con Talles.cs.
+public sealed record CurvaTalleRow(string ArtCod, string Talle, int Orden);
 public sealed record FotoRow(string ArtCod, string Ruta);
 public sealed record OverrideRow(string ArtCod, string? NombreComercial, string? Marketing,
                                  int Destacado, bool OcultarManual);

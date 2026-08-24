@@ -32,5 +32,18 @@ public static class InternoEndpoint
         })
         .RequireAuthorization(PoliticasAuth.Interno)
         .DisableAntiforgery();
+
+        // Botón "Actualizar": fuerza el rebuild de la base ahora y vuelve a la grilla.
+        app.MapPost("/interno/actualizar", async (HttpContext ctx, ICatalogoInternoConsulta interno) =>
+        {
+            var form = await ctx.Request.ReadFormAsync();
+            var volver = form["volver"].ToString();
+            if (string.IsNullOrWhiteSpace(volver) || !volver.StartsWith('/') || volver.StartsWith("//"))
+                volver = "/interno";
+            await interno.RefrescarAsync();
+            return Results.Redirect(volver);
+        })
+        .RequireAuthorization(PoliticasAuth.Interno)
+        .DisableAntiforgery();
     }
 }

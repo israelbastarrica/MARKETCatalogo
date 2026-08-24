@@ -77,6 +77,13 @@
             <div class="mk-int-resultados">
                 <div class="mk-int-toolbar">
                     <span class="mk-int-total mk-rotulo">@_pagina.Total @(_pagina.Total == 1 ? "artículo" : "artículos")</span>
+
+                    <form class="mk-int-actualizar" method="post" action="/interno/actualizar">
+                        <input type="hidden" name="volver" value="@UrlInterno.Pagina(_filtros, _pagina.Pagina)" />
+                        <span class="mk-rotulo">@Antiguedad(_pagina.BaseActualizada)</span>
+                        <button type="submit" title="Reconstruir la base ahora">Actualizar</button>
+                    </form>
+
                     <div class="mk-orden">
                         <span class="mk-rotulo">Orden</span>
                         @foreach (var (val, et) in new[] { ("codigo", "Código"), ("precio-asc", "Menor precio"), ("precio-desc", "Mayor precio"), ("margen", "Menor margen"), ("nombre", "Nombre") })
@@ -193,6 +200,19 @@
         if (_filtros.Temporadas.Count > 0) yield return ("temp", string.Join(',', _filtros.Temporadas));
         if (_filtros.Publicado is bool p) yield return ("pub", p ? "si" : "no");
         if (!string.IsNullOrWhiteSpace(_filtros.Orden) && _filtros.Orden != "codigo") yield return ("orden", _filtros.Orden);
+    }
+
+    private static string Antiguedad(DateTime? actualizada)
+    {
+        if (actualizada is null) return "Sin datos";
+        var t = DateTime.UtcNow - actualizada.Value;
+        return t switch
+        {
+            { TotalMinutes: < 1 } => "Actualizado recién",
+            { TotalMinutes: < 60 } => $"Hace {(int)t.TotalMinutes} min",
+            { TotalHours: < 24 } => $"Hace {(int)t.TotalHours} h",
+            _ => $"Hace {(int)t.TotalDays} días",
+        };
     }
 
     private static string? Vacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

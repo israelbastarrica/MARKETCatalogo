@@ -94,6 +94,10 @@ public sealed class PaginaInternaDto
     public required int SoloDeposito { get; init; }
     public required int Publicados { get; init; }
 
+    /// <summary>Cuándo se reconstruyó la base por última vez (reloj en memoria del store). null = todavía
+    /// no se armó en esta instancia. Para el "datos de hace X min".</summary>
+    public DateTime? BaseActualizada { get; init; }
+
     public required IReadOnlyList<OpcionFacetaInterna> Rubros { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Prendas { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Proveedores { get; init; }

@@ -66,6 +66,8 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         await _repo.CambiarVisibilidadAsync(codigo, ocultar, publicadoSiVisible, origen, ct);
     }
 
+    public Task RefrescarAsync(CancellationToken ct = default) => _store.ReconstruirBaseAsync(ct);
+
     public async Task<PaginaInternaDto> BuscarAsync(FiltrosInterno f, CancellationToken ct = default)
     {
         _store.AsegurarBaseFresca();
@@ -133,6 +135,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             EnDeposito = todos.Count(a => a.EnDeposito),
             SoloDeposito = todos.Count(a => a.EnDeposito && !a.EnAlgunLocal),
             Publicados = todos.Count(a => a.Publicado),
+            BaseActualizada = _store.BaseActualizada,
             Rubros = Faceta(Aplicar("rubro"), a => a.Rubro, f.Rubros),
             Prendas = Faceta(Aplicar("prenda"), a => a.Prenda, f.Prendas),
             Proveedores = Faceta(Aplicar("proveedor"), a => a.Proveedor, f.Proveedores),

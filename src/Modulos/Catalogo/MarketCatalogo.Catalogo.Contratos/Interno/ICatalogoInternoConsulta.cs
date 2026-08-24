@@ -25,4 +25,8 @@ public interface ICatalogoInternoConsulta
     /// el override <c>OcultarManual</c> y refleja el cambio al instante. <paramref name="origen"/> = quién
     /// lo hizo (para la auditoría).</summary>
     Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default);
+
+    /// <summary>Fuerza la reconstrucción de la base ahora (botón "Actualizar"). Espera a que termine
+    /// (single-flight: si ya hay una en curso, espera esa).</summary>
+    Task RefrescarAsync(CancellationToken ct = default);
 }

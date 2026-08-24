@@ -1058,6 +1058,20 @@
 }
 .mk-int-total { color: var(--mk-tinta-70); }
 
+.mk-int-actualizar { display: inline-flex; align-items: center; gap: 0.6rem; }
+.mk-int-actualizar .mk-rotulo { color: var(--mk-tinta-40); }
+.mk-int-actualizar button {
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--mk-tinta-40);
+    background: var(--mk-fondo);
+    color: var(--mk-tinta-100);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.mk-int-actualizar button:hover { border-color: var(--mk-tinta-100); }
+
 .mk-int-grilla {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));

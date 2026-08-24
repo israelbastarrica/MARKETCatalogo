@@ -66,6 +66,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             JOIN MARKET.dbo.Ubicaciones        UB  WITH (NOLOCK) ON UB.ID  = MAP.IDUbicacion
             JOIN MARKET.dbo.UbicacionesTipo    UT  WITH (NOLOCK) ON UT.ID  = UB.IDTipo
             WHERE REG.Eliminado = 0 AND MAP.Eliminado = 0
+              AND RTRIM(ISNULL(REG.ARTCOD, '')) <> ''   -- posiciones de depósito sin artículo
             GROUP BY RTRIM(REG.ARTCOD), RTRIM(UB.Descripcion),
                      CASE WHEN UT.Descripcion = 'DEPOSITO' THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;
             """;

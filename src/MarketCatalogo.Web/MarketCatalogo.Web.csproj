@@ -15,6 +15,9 @@
     <ProjectReference Include="..\Modulos\Catalogo\MarketCatalogo.Catalogo.Datos\MarketCatalogo.Catalogo.Datos.csproj" />
     <ProjectReference Include="..\Modulos\Catalogo\MarketCatalogo.Catalogo.Ui\MarketCatalogo.Catalogo.Ui.csproj" />
 
+    <ProjectReference Include="..\Modulos\Auth\MarketCatalogo.Auth\MarketCatalogo.Auth.csproj" />
+    <ProjectReference Include="..\Modulos\Auth\MarketCatalogo.Auth.Ui\MarketCatalogo.Auth.Ui.csproj" />
+
     <ProjectReference Include="..\Modulos\Institucional\MarketCatalogo.Institucional.Ui\MarketCatalogo.Institucional.Ui.csproj" />
   </ItemGroup>
 

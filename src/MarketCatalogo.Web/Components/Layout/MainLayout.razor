@@ -9,6 +9,19 @@
     <header class="mk-header">
         <a class="mk-logo mk-header-logo" href="/" aria-label="MARKET - inicio">Market</a>
         <NavMenu />
+        @* Acceso del staff. Desktop: a la derecha (3ª columna de la grilla). Mobile: sólo el ícono.
+           El público NO necesita cuenta; esto es la puerta al catálogo interno. *@
+        <div class="mk-header-auth">
+            <AuthorizeView Policy="@PoliticasAuth.Interno">
+                <Authorized>
+                    <a class="mk-auth-link" href="/interno">Interno</a>
+                    <a class="mk-auth-salir" href="/auth/logout">Salir</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="mk-auth-link" href="/login">Ingresar</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
     </header>
 
     <main class="mk-main">

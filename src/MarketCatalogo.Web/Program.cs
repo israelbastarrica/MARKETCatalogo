@@ -1,3 +1,4 @@
+using MarketCatalogo.Auth.Datos;
 using MarketCatalogo.Catalogo.Datos;
 using MarketCatalogo.Web.Components;
 using MarketCatalogo.Web.Endpoints;
@@ -12,12 +13,20 @@ builder.Host.UseWindowsService();
 
 builder.Services.AddRazorComponents();
 
+// Estado de autenticación en cascada para SSR: alimenta CascadingAuthenticationState/AuthorizeView desde
+// el HttpContext.User del request (lo llena la cookie + ClaimsDeUsuario).
+builder.Services.AddCascadingAuthenticationState();
+
 // Estado de la versión publicada (al día / atrasada respecto de main), para el pie del sitio.
 builder.Services.AddSingleton<MarketCatalogo.Web.Servicios.EstadoVersion>();
 
 // Cada módulo se registra con UNA línea. El host no ve nada de adentro de Catalogo.Datos ni
 // Catalogo.Aplicacion más allá de esta llamada — sólo lo que Catalogo.Contratos expone.
 builder.Services.AgregarModuloCatalogo();
+
+// Módulo Auth: login (cookie + Google @marketarg.com) + política "Interno". El host sólo agrega el
+// middleware más abajo. El público no necesita cuenta; esto habilita la vista interna del staff.
+builder.Services.AgregarModuloAuth(builder.Configuration);
 
 var app = builder.Build();
 
@@ -27,6 +36,11 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
     app.UseHttpsRedirection();
 }
+
+// Autenticación/autorización ANTES de antiforgery y del ruteo de componentes: así los [Authorize] de
+// las páginas internas y los AuthorizeView ven la identidad del request.
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 
@@ -40,7 +54,11 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
    .AddAdditionalAssemblies(
         typeof(MarketCatalogo.Catalogo.Ui.UrlCatalogo).Assembly,
+        typeof(MarketCatalogo.Auth.Ui.Paginas.Login).Assembly,
         typeof(MarketCatalogo.Institucional.Ui.Paginas.Nosotros).Assembly);
+
+// Endpoints de login (Google / usuario+clave / logout / dev-login).
+app.MapAuth();
 
 // Thumbnails: /fotos/{codigo}_{ancho}.webp, generados bajo demanda.
 app.MapFotos();

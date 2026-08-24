@@ -1,0 +1,15 @@
+@page "/interno"
+@* Catálogo INTERNO (staff). Gateado por la política "Interno" (= logueado y aprobado). Un usuario sin
+   permiso cae en /login (LoginPath de la cookie). El literal "Interno" espeja PoliticasAuth.Interno del
+   módulo Auth; se usa como string para no acoplar Catalogo.Ui al módulo Auth (sólo se ven por contrato).
+   POR AHORA es un placeholder: la grilla interna real (filtros + ficha) se arma en la fase de UI interna. *@
+@attribute [Authorize(Policy = "Interno")]
+
+<PageTitle>Catálogo interno - MARKET</PageTitle>
+<HeadContent><meta name="robots" content="noindex" /></HeadContent>
+
+<section class="mk-interno-placeholder">
+    <h1>Catálogo interno</h1>
+    <p>Estás dentro. La grilla interna (depósito, costos, stock, ventas) se construye en la próxima fase.</p>
+    <p><a href="/catalogo">Ver el catálogo público</a> · <a href="/auth/logout">Cerrar sesión</a></p>
+</section>

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Módulo AUTH (login del catálogo). Un solo proyecto: es chico y cohesivo. Las capas internas son
+       CARPETAS (Aplicacion/, Datos/), no proyectos — "tres capas es un máximo, no un mínimo".
+       La superficie pública que ven el host y otros módulos es PoliticasAuth + IAutenticacion; nadie de
+       afuera toca su SQL. Read-only contra MARKET.dbo.UsuariosPC (mismo login que MARKETweb, portado). -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Compartido\MarketCatalogo.Compartido\MarketCatalogo.Compartido.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.13" />
+    <!-- Provider de Google (SSO @marketarg.com): NO está en el framework, es paquete aparte. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.*" />
+  </ItemGroup>
+
+  <!-- IClaimsTransformation (enriquecer la identidad con perfil/estado) vive en el framework de ASP.NET.
+       Se referencia el framework para poder implementarlo sin arrastrar todo Sdk.Web. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

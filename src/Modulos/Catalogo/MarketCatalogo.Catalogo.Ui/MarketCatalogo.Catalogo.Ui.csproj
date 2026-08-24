@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.15" />
+    <!-- [Authorize] / AuthorizeView en las páginas internas (gating por la política "Interno"). -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.15" />
   </ItemGroup>
 
 </Project>

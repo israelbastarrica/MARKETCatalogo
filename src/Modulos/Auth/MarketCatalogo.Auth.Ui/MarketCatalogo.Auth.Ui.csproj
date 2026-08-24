@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- UI del módulo Auth: la pantalla de login (Razor Class Library, descubierta por el host vía
+       AdditionalAssemblies). No referencia el módulo Auth: sólo hace POST/GET a los endpoints /auth/*
+       del host. Monocromática (Manual de Marca). -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>false</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.15" />
+  </ItemGroup>
+
+</Project>

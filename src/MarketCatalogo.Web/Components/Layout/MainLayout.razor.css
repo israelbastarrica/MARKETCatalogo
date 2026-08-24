@@ -50,6 +50,66 @@
     }
 
     .mk-header-logo { justify-self: start; }
+    /* Desktop: el acceso del staff va en la 3ª columna, a la derecha. */
+    .mk-header-auth { justify-self: end; }
+}
+
+/* --- Acceso del staff (login / interno) --------------------------------- */
+.mk-header-auth {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* "Ingresar" / "Interno": pill de texto con contorno; en hover se rellena en tinta (invierte a fondo).
+   Monocromático (negro/blanco), sin colores. Texto siempre visible (también en mobile). */
+.mk-auth-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1.15rem;
+    border: 1.5px solid var(--mk-tinta-100);
+    border-radius: 999px;
+    color: var(--mk-tinta-100);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.mk-auth-link:hover {
+    background: var(--mk-tinta-100);
+    color: var(--mk-fondo);
+}
+
+.mk-auth-salir {
+    color: var(--mk-tinta-70);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-bottom: 1px solid transparent;
+    transition: color 0.16s ease, border-color 0.16s ease;
+}
+
+.mk-auth-salir:hover {
+    color: var(--mk-tinta-100);
+    border-bottom-color: var(--mk-tinta-100);
+}
+
+/* Mobile: fijo arriba a la derecha (el logo ocupa toda la fila y va centrado), con el texto visible. */
+@media (max-width: 640px) {
+    .mk-header-auth {
+        position: absolute;
+        right: 1.1rem;
+        top: 1.15rem;
+        z-index: 11;
+        gap: 0.75rem;
+    }
+    .mk-auth-link {
+        padding: 0.4rem 0.9rem;
+        font-size: 0.8rem;
+    }
 }
 
 .mk-main {

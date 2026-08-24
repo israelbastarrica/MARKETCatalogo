@@ -1,0 +1,59 @@
+@page "/login"
+
+@* Pantalla de login del catálogo interno (SSR, sin interactividad: son formularios de página completa).
+   Dos vías: Google (@marketarg.com) y usuario/contraseña local. Ambas pegan a los endpoints /auth/* del
+   host. Monocromática (Manual de Marca). El público NO necesita cuenta: esto es sólo para staff. *@
+
+<PageTitle>Ingresar - MARKET</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+<section class="mk-login">
+    <div class="mk-login-caja">
+        <h1 class="mk-login-titulo">Ingresar</h1>
+        <p class="mk-login-sub">Acceso para el equipo de MARKET.</p>
+
+        @if (Error is not null)
+        {
+            <p class="mk-login-error" role="alert">@MensajeError(Error)</p>
+        }
+
+        <a class="mk-login-google" href="@($"/auth/login?volver={VolverSeguro}")">
+            Ingresar con Google
+        </a>
+
+        <div class="mk-login-o"><span>o</span></div>
+
+        <form class="mk-login-form" method="post" action="/auth/login-local">
+            <input type="hidden" name="volver" value="@VolverSeguro" />
+            <label class="mk-login-campo">
+                <span>Usuario</span>
+                <input name="usuario" autocomplete="username" required autofocus />
+            </label>
+            <label class="mk-login-campo">
+                <span>Contraseña</span>
+                <input name="password" type="password" autocomplete="current-password" required />
+            </label>
+            <button type="submit" class="mk-login-boton">Entrar</button>
+        </form>
+
+        <a class="mk-login-volver" href="/">Volver al catálogo</a>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery(Name = "volver")] public string? Volver { get; set; }
+
+    // Sólo se acepta un returnUrl LOCAL (arranca con "/" y no con "//"): evita redirigir a un sitio externo.
+    private string VolverSeguro =>
+        !string.IsNullOrWhiteSpace(Volver) && Volver.StartsWith('/') && !Volver.StartsWith("//") ? Volver : "/interno";
+
+    private static string MensajeError(string codigo) => codigo switch
+    {
+        "login"   => "Usuario o contraseña incorrectos.",
+        "dominio" => "Sólo se puede ingresar con una cuenta @marketarg.com.",
+        _         => "No se pudo iniciar sesión. Probá de nuevo.",
+    };
+}

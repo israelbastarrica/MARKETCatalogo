@@ -1,0 +1,133 @@
+/* Login del catálogo interno. Monocromático (Manual de Marca): negro/blanco + escala de opacidad,
+   sin colores. Poppins en el título, Open Sans en el cuerpo (heredados del host). */
+
+.mk-login {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: clamp(2rem, 8vw, 6rem) 1rem;
+    min-height: 60vh;
+}
+
+.mk-login-caja {
+    width: 100%;
+    max-width: 22rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    padding: 2rem;
+}
+
+.mk-login-titulo {
+    font-family: "Poppins", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 1.75rem;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.mk-login-sub {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.mk-login-error {
+    margin: 0;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.7);
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.04);
+}
+
+/* Botón Google = negro sólido (acción primaria). El resto, contornos. */
+.mk-login-google,
+.mk-login-boton {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid #000;
+    background: #000;
+    color: #fff;
+    box-sizing: border-box;
+}
+
+.mk-login-google:hover,
+.mk-login-boton:hover { background: rgba(0, 0, 0, 0.85); }
+
+.mk-login-o {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: rgba(0, 0, 0, 0.7);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.mk-login-o::before,
+.mk-login-o::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.mk-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.mk-login-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.mk-login-campo input {
+    padding: 0.6rem 0.7rem;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    font-size: 1rem;
+    font-family: inherit;
+    color: #000;
+    background: #fff;
+}
+
+.mk-login-campo input:focus {
+    outline: none;
+    border-color: #000;
+}
+
+.mk-login-volver {
+    text-align: center;
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.7);
+    text-decoration: underline;
+}
+
+@media (prefers-color-scheme: dark) {
+    .mk-login-caja { border-color: rgba(255, 255, 255, 0.2); }
+    .mk-login-titulo { color: #fff; }
+    .mk-login-sub,
+    .mk-login-o,
+    .mk-login-campo,
+    .mk-login-volver { color: rgba(255, 255, 255, 0.7); }
+    .mk-login-error { border-color: rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.06); color: #fff; }
+    .mk-login-o::before, .mk-login-o::after { background: rgba(255, 255, 255, 0.2); }
+    .mk-login-google, .mk-login-boton { background: #fff; color: #000; border-color: #fff; }
+    .mk-login-google:hover, .mk-login-boton:hover { background: rgba(255, 255, 255, 0.85); }
+    .mk-login-campo input { color: #fff; background: #000; border-color: rgba(255, 255, 255, 0.2); }
+    .mk-login-campo input:focus { border-color: #fff; }
+}

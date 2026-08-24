@@ -28,13 +28,17 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         if (cod.Length == 0) return null;
         var filas = await _repo.LeerBaseAsync(soloPublicados: false, ct);
         var fila = filas.FirstOrDefault(f => f.Codigo.Equals(cod, StringComparison.OrdinalIgnoreCase));
-        return fila is null ? null : Mapear(fila);
+        if (fila is null) return null;
+        // Stock a demanda (sistema central), sólo para la ficha. Si falla, la ficha se muestra sin stock.
+        StockRow? stock = null;
+        try { stock = await _repo.TraerStockAsync(cod, ct); } catch { /* ficha sin stock */ }
+        return Mapear(fila, stock);
     }
 
     public async Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default)
     {
         _store.AsegurarBaseFresca();
-        var todos = (await _repo.LeerBaseAsync(soloPublicados: false, ct)).Select(Mapear).ToList();
+        var todos = (await _repo.LeerBaseAsync(soloPublicados: false, ct)).Select(f => Mapear(f)).ToList();
         // Rubro → géneros con conteos, sobre TODO el universo (no sólo Indumentaria publicada). Nombre del
         // rubro = VALOR (así el header filtra por ?rubro={valor}); slug para la ruta indexable del público
         // no aplica acá (todos los links van a /interno). Se descartan rubro/género vacíos.
@@ -66,7 +70,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
     {
         _store.AsegurarBaseFresca();
 
-        var todos = (await _repo.LeerBaseAsync(soloPublicados: false, ct)).Select(Mapear).ToList();
+        var todos = (await _repo.LeerBaseAsync(soloPublicados: false, ct)).Select(fila => Mapear(fila)).ToList();
 
         var textoNorm = string.IsNullOrWhiteSpace(f.Texto) ? null : Texto.SinAcentos(f.Texto);
 
@@ -146,7 +150,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
                .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta, StringComparer.CurrentCultureIgnoreCase)
                .ToList();
 
-    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f)
+    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockRow? stock = null)
     {
         var combo = Combo.Parsear(f.Combo);
         var precioUnidad = combo?.PrecioUnidad ?? (f.PrecioVenta > 0 ? f.PrecioVenta : null);
@@ -183,6 +187,8 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             Marca = string.IsNullOrWhiteSpace(f.Marca) ? null : f.Marca,
             TieneFoto = f.TieneFoto,
             FotoVersion = f.FotoPrincipalVersion,
+            StockTotal = stock?.Stock,
+            EnTransito = stock?.Transito,
         };
     }
 

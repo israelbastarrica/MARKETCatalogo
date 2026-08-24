@@ -1208,6 +1208,8 @@
 .mk-if-precios dd, .mk-if-meta dd { margin: 0; font-size: 1.05rem; font-weight: 600; }
 .mk-if-margen dd { font-size: 1.35rem; }
 
+.mk-if-nota { margin: -0.5rem 0 0; color: var(--mk-tinta-40); font-size: 0.72rem; }
+
 .mk-if-chips { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .mk-if-chips .mk-rotulo { margin-right: 0.3rem; color: var(--mk-tinta-70); }
 .mk-if-chip {

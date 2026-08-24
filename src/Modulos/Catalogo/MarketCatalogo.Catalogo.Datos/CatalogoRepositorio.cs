@@ -380,6 +380,26 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         return string.IsNullOrWhiteSpace(ruta) ? null : ruta;
     }
 
+    /// <summary>DRAGON (central): stock + tránsito de un artículo. Última foto de COMB por (color,talle)
+    /// —ROW_NUMBER por FALTAFW/HALTAFW, igual que MARKETweb— y suma. A demanda (una consulta por ficha).</summary>
+    public async Task<StockRow> TraerStockAsync(string codigo, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return new StockRow(0, 0);
+        const string sql = """
+            WITH S AS (
+                SELECT COCANT, ENTRANSITO,
+                       Fila = ROW_NUMBER() OVER (PARTITION BY COART, COCOL, TALLE ORDER BY FALTAFW DESC, HALTAFW DESC)
+                FROM ZooLogic.COMB WITH (NOLOCK)
+                WHERE RTRIM(COART) = @cod
+            )
+            SELECT Stock = ISNULL(SUM(COCANT), 0), Transito = ISNULL(SUM(ENTRANSITO), 0)
+            FROM S WHERE Fila = 1;
+            """;
+        using var cn = _db.CrearDragon();
+        return await cn.QuerySingleAsync<StockRow>(new CommandDefinition(sql, new { cod }, commandTimeout: 60, cancellationToken: ct));
+    }
+
     /// <summary>MARKET: oculta/muestra un artículo del público. Upsert de OcultarManual en la tabla de
     /// overrides CatalogoArticulo (+ auditoría "Acción | origen | fecha", convención MARKET) y reflejo
     /// inmediato en Catalogo.Publicado. Es la ÚNICA escritura de la app, y sólo toca tablas propias del

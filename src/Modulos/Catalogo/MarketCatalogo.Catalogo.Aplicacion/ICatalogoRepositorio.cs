@@ -40,6 +40,12 @@ public interface ICatalogoRepositorio
     /// corresponde servirla.</summary>
     Task<string?> LeerRutaFotoAsync(string codigo, bool soloPublicado, CancellationToken ct = default);
 
+    /// <summary>DRAGON (central): stock disponible y en tránsito de un artículo, sumando la última foto de
+    /// COMB por variante (color×talle) — misma lógica que MARKETweb (ArticulosService.StockLocalAsync).
+    /// Es el stock del sistema CENTRAL; el desglose por local (Luro/Peralta) necesita las réplicas por
+    /// tienda (ítem de infra abierto). Se consulta a demanda al abrir la ficha, no en el rebuild.</summary>
+    Task<StockRow> TraerStockAsync(string codigo, CancellationToken ct = default);
+
     /// <summary>MARKET: oculta o muestra un artículo del catálogo PÚBLICO — la ÚNICA escritura de la app.
     /// Va sólo a la tabla de overrides <c>CatalogoArticulo</c> (<c>OcultarManual</c> + auditoría, upsert),
     /// nunca a Dragon ni a logística. Además refleja el cambio al instante en <c>Catalogo.Publicado</c>
@@ -123,6 +129,9 @@ public sealed record CatalogoFilaBase(
 /// <summary>Fila leída de <c>dbo.Catalogo</c> (columnas base). La consume <c>LectorCatalogo</c> para
 /// mapearla a <c>ArticuloDto</c> y armar el snapshot. Los derivados (slugs, combo parseado, locales desde
 /// los bits, talles/colores desde el CSV) se calculan en C# al leer, no se guardan.</summary>
+/// <summary>Stock (unidades disponibles) y en tránsito de un artículo, del sistema central.</summary>
+public sealed record StockRow(decimal Stock, decimal Transito);
+
 public sealed record CatalogoFilaLeida(
     string Codigo, bool Publicado, string? Slug, string? Titulo, string? Descripcion,
     string? Rubro, string? Genero, string? Prenda,

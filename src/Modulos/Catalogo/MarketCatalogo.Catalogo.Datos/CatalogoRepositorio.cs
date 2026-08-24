@@ -1,6 +1,8 @@
-﻿using Dapper;
+﻿using System.Data;
+using Dapper;
 using MarketCatalogo.Catalogo.Aplicacion;
 using MarketCatalogo.Compartido.Datos;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace MarketCatalogo.Catalogo.Datos;
@@ -49,6 +51,71 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             """;
         using var cn = _db.CrearMarket();
         return (await cn.QueryAsync<ArmadoRow>(new CommandDefinition(sql, commandTimeout: 120, cancellationToken: ct))).ToList();
+    }
+
+    /// <summary>MARKET: universo INTERNO — todo lo mapeado, incluido depósito (marcado con EsDeposito).
+    /// Mismo origen que TraerArmadosAsync pero SIN el corte de depósito: la vista interna lo necesita.</summary>
+    public async Task<IReadOnlyList<UbicacionRow>> TraerUbicacionesAsync(CancellationToken ct = default)
+    {
+        const string sql = """
+            SELECT ArtCod = RTRIM(REG.ARTCOD),
+                   Local  = RTRIM(UB.Descripcion),
+                   EsDeposito = CASE WHEN UT.Descripcion = 'DEPOSITO' THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END
+            FROM MARKET.dbo.MapeoRegistro      REG WITH (NOLOCK)
+            JOIN MARKET.dbo.Mapeo              MAP WITH (NOLOCK) ON MAP.ID = REG.IDMapeo
+            JOIN MARKET.dbo.Ubicaciones        UB  WITH (NOLOCK) ON UB.ID  = MAP.IDUbicacion
+            JOIN MARKET.dbo.UbicacionesTipo    UT  WITH (NOLOCK) ON UT.ID  = UB.IDTipo
+            WHERE REG.Eliminado = 0 AND MAP.Eliminado = 0
+            GROUP BY RTRIM(REG.ARTCOD), RTRIM(UB.Descripcion),
+                     CASE WHEN UT.Descripcion = 'DEPOSITO' THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;
+            """;
+        using var cn = _db.CrearMarket();
+        return (await cn.QueryAsync<UbicacionRow>(new CommandDefinition(sql, commandTimeout: 120, cancellationToken: ct))).ToList();
+    }
+
+    /// <summary>DRAGON: cabecera enriquecida para la tabla materializada. Suma al header público el costo
+    /// (LISTA0) y proveedor/temporada/marca. Los JOIN de maestros calcan a MARKETweb (ArticulosService)
+    /// para no divergir. Sin prefijo de base a propósito (ver SqlConnectionFactory).</summary>
+    public Task<IReadOnlyList<ArticuloBaseRow>> TraerArticulosBaseAsync(
+        IReadOnlyCollection<string> codigos, CancellationToken ct = default)
+    {
+        // Proveedor = 3 chars antes del '.' del ARTCOD (mismo criterio que MARKETweb), resuelto a nombre
+        // por PROV.CLNOM. LISTA0 = costo, LISTA1 = venta suelta; ambas con FECHAVIG<=GETDATE() para no
+        // adelantar precios futuros del proceso de "Cambiar Precios".
+        const string sql = """
+            SELECT ArtCod  = RTRIM(A.ARTCOD),
+                   ArtDes  = RTRIM(ISNULL(A.ARTDES, '')),
+                   Rubro   = RTRIM(ISNULL(TIPO.DESCRIP, '')),
+                   Genero  = RTRIM(ISNULL(CATE.DESCRIP, '')),
+                   Familia = RTRIM(ISNULL(FAM.DESCRIP, '')),
+                   Combo   = UPPER(RTRIM(ISNULL(A.CLASIFART, ''))),
+                   PrecioSuelta = PV.PDIRECTO,
+                   PrecioCompra = PC.PDIRECTO,
+                   Proveedor = RTRIM(ISNULL(PROV.CLNOM, '')),
+                   Temporada = RTRIM(ISNULL(TE.TDES, '')),
+                   Marca     = RTRIM(ISNULL(MK.DESCRIP, ''))
+            FROM ZooLogic.ART A WITH (NOLOCK)
+            LEFT JOIN ZooLogic.TIPOART  TIPO WITH (NOLOCK) ON TIPO.COD = A.TIPOARTI
+            LEFT JOIN ZooLogic.CATEGART CATE WITH (NOLOCK) ON CATE.COD = A.CATEARTI
+            LEFT JOIN ZooLogic.FAMILIA  FAM  WITH (NOLOCK) ON FAM.COD  = A.FAMILIA
+            LEFT JOIN ZooLogic.MARCAS   MK   WITH (NOLOCK) ON MK.CODIGO = A.MARCA
+            LEFT JOIN ZooLogic.TEMPORADA TE  WITH (NOLOCK) ON TE.TCOD   = A.ATEMPORADA
+            LEFT JOIN ZooLogic.PROV     PROV WITH (NOLOCK)
+                   ON PROV.CLCOD = CASE WHEN CHARINDEX('.', A.ARTCOD) >= 4
+                                        THEN SUBSTRING(A.ARTCOD, CHARINDEX('.', A.ARTCOD) - 3, 3) ELSE '' END
+            OUTER APPLY (SELECT TOP 1 P.PDIRECTO
+                         FROM ZooLogic.PRECIOAR P WITH (NOLOCK)
+                         WHERE P.ARTICULO = A.ARTCOD AND P.LISTAPRE = 'LISTA1'
+                           AND P.FECHAVIG <= GETDATE()
+                         ORDER BY P.FECHAVIG DESC, P.HMODIFW DESC) PV
+            OUTER APPLY (SELECT TOP 1 P.PDIRECTO
+                         FROM ZooLogic.PRECIOAR P WITH (NOLOCK)
+                         WHERE P.ARTICULO = A.ARTCOD AND P.LISTAPRE = 'LISTA0'
+                           AND P.FECHAVIG <= GETDATE()
+                         ORDER BY P.FECHAVIG DESC, P.HMODIFW DESC) PC
+            WHERE RTRIM(A.ARTCOD) IN @codigos;
+            """;
+        return PorLotesAsync<ArticuloBaseRow>(sql, codigos, dragon: true, ct);
     }
 
     /// <summary>DRAGON: cabecera, taxonomía, combo y precio vigente de los códigos pedidos.
@@ -199,6 +266,126 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             """;
         using var cn = _db.CrearMarket();
         return (await cn.QueryAsync<ComboTierRow>(new CommandDefinition(sql, commandTimeout: 30, cancellationToken: ct))).ToList();
+    }
+
+    /// <summary>MARKET: persiste las filas BASE en dbo.Catalogo. Estrategia: bulk-copy a una tabla
+    /// temporal + un solo MERGE (atómico) — nada de un INSERT por fila. El MERGE toca SÓLO las columnas
+    /// base; deja intactas las de ficha (stock/ventas/costo, que se llenan a demanda). Lo que ya no está
+    /// en el universo se marca Eliminado = 1 (nunca DELETE físico, convención MARKET).</summary>
+    public async Task GuardarBaseAsync(IReadOnlyList<CatalogoFilaBase> filas, CancellationToken ct = default)
+    {
+        // Sin filas no se hace nada: NO se vacía la tabla. Un universo vacío es casi siempre un fallo de
+        // la consulta de mapeo, no que se cerraron todos los locales; mejor conservar lo último bueno.
+        if (filas.Count == 0) return;
+
+        using var cn = _db.CrearMarket();
+        await cn.OpenAsync(ct);
+
+        // 1) Tabla temporal con las columnas base (viven mientras dure la conexión).
+        const string crearStage = """
+            CREATE TABLE #stage (
+                Codigo               varchar(20)   NOT NULL PRIMARY KEY,
+                Publicado            bit           NOT NULL,
+                Slug                 varchar(200)      NULL,
+                Titulo               nvarchar(200)     NULL,
+                Descripcion          nvarchar(400)     NULL,
+                Rubro                nvarchar(60)      NULL,
+                Genero               nvarchar(60)      NULL,
+                Prenda               nvarchar(60)      NULL,
+                PrecioVenta          decimal(18,2)     NULL,
+                PrecioCompra         decimal(18,2)     NULL,
+                Combo                nvarchar(50)      NULL,
+                EnLuro               bit           NOT NULL,
+                EnPeralta            bit           NOT NULL,
+                EnDeposito           bit           NOT NULL,
+                TallesCsv            nvarchar(400)     NULL,
+                ColoresCsv           nvarchar(800)     NULL,
+                TieneFoto            bit           NOT NULL,
+                FotoPrincipalVersion varchar(40)       NULL,
+                FotosJson            nvarchar(max)     NULL,
+                Proveedor            nvarchar(80)      NULL,
+                Temporada            nvarchar(80)      NULL,
+                Marca                nvarchar(80)      NULL,
+                TextoBusqueda        nvarchar(600)     NULL
+            );
+            """;
+        await cn.ExecuteAsync(new CommandDefinition(crearStage, cancellationToken: ct));
+
+        // 2) Bulk-copy de las filas a #stage.
+        using var tabla = ArmarDataTable(filas);
+        using (var bulk = new SqlBulkCopy(cn) { DestinationTableName = "#stage", BulkCopyTimeout = 120 })
+        {
+            foreach (DataColumn c in tabla.Columns) bulk.ColumnMappings.Add(c.ColumnName, c.ColumnName);
+            await bulk.WriteToServerAsync(tabla, ct);
+        }
+
+        // 3) MERGE: update base (revive Eliminado=0), insert nuevos, marca Eliminado=1 los que ya no están.
+        const string merge = """
+            MERGE dbo.Catalogo AS T
+            USING #stage AS S ON T.Codigo = S.Codigo
+            WHEN MATCHED THEN UPDATE SET
+                Eliminado = 0, Publicado = S.Publicado, Slug = S.Slug, Titulo = S.Titulo,
+                Descripcion = S.Descripcion, Rubro = S.Rubro, Genero = S.Genero, Prenda = S.Prenda,
+                PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra, Combo = S.Combo,
+                EnLuro = S.EnLuro, EnPeralta = S.EnPeralta, EnDeposito = S.EnDeposito,
+                TallesCsv = S.TallesCsv, ColoresCsv = S.ColoresCsv,
+                TieneFoto = S.TieneFoto, FotoPrincipalVersion = S.FotoPrincipalVersion, FotosJson = S.FotosJson,
+                Proveedor = S.Proveedor, Temporada = S.Temporada, Marca = S.Marca,
+                TextoBusqueda = S.TextoBusqueda
+            WHEN NOT MATCHED BY TARGET THEN INSERT
+                (Codigo, Publicado, Eliminado, Slug, Titulo, Descripcion, Rubro, Genero, Prenda,
+                 PrecioVenta, PrecioCompra, Combo, EnLuro, EnPeralta, EnDeposito, TallesCsv, ColoresCsv,
+                 TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, TextoBusqueda)
+                VALUES
+                (S.Codigo, S.Publicado, 0, S.Slug, S.Titulo, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
+                 S.PrecioVenta, S.PrecioCompra, S.Combo, S.EnLuro, S.EnPeralta, S.EnDeposito, S.TallesCsv, S.ColoresCsv,
+                 S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.TextoBusqueda)
+            WHEN NOT MATCHED BY SOURCE AND T.Eliminado = 0 THEN UPDATE SET Eliminado = 1;
+            """;
+        await cn.ExecuteAsync(new CommandDefinition(merge, commandTimeout: 120, cancellationToken: ct));
+    }
+
+    // DataTable con el mismo orden/nombres que #stage. Los nullables van como DBNull; los bits siempre
+    // con valor. SqlBulkCopy mapea por nombre (ColumnMappings), no por posición, pero se respeta igual.
+    private static DataTable ArmarDataTable(IReadOnlyList<CatalogoFilaBase> filas)
+    {
+        var t = new DataTable();
+        t.Columns.Add("Codigo", typeof(string));
+        t.Columns.Add("Publicado", typeof(bool));
+        t.Columns.Add("Slug", typeof(string));
+        t.Columns.Add("Titulo", typeof(string));
+        t.Columns.Add("Descripcion", typeof(string));
+        t.Columns.Add("Rubro", typeof(string));
+        t.Columns.Add("Genero", typeof(string));
+        t.Columns.Add("Prenda", typeof(string));
+        t.Columns.Add("PrecioVenta", typeof(decimal));
+        t.Columns.Add("PrecioCompra", typeof(decimal));
+        t.Columns.Add("Combo", typeof(string));
+        t.Columns.Add("EnLuro", typeof(bool));
+        t.Columns.Add("EnPeralta", typeof(bool));
+        t.Columns.Add("EnDeposito", typeof(bool));
+        t.Columns.Add("TallesCsv", typeof(string));
+        t.Columns.Add("ColoresCsv", typeof(string));
+        t.Columns.Add("TieneFoto", typeof(bool));
+        t.Columns.Add("FotoPrincipalVersion", typeof(string));
+        t.Columns.Add("FotosJson", typeof(string));
+        t.Columns.Add("Proveedor", typeof(string));
+        t.Columns.Add("Temporada", typeof(string));
+        t.Columns.Add("Marca", typeof(string));
+        t.Columns.Add("TextoBusqueda", typeof(string));
+
+        static object N(object? v) => v ?? DBNull.Value;
+        foreach (var f in filas)
+            t.Rows.Add(
+                f.Codigo, f.Publicado, N(f.Slug), N(f.Titulo), N(f.Descripcion),
+                N(f.Rubro), N(f.Genero), N(f.Prenda),
+                N(f.PrecioVenta), N(f.PrecioCompra), N(f.Combo),
+                f.EnLuro, f.EnPeralta, f.EnDeposito,
+                N(f.TallesCsv), N(f.ColoresCsv),
+                f.TieneFoto, N(f.FotoPrincipalVersion), N(f.FotosJson),
+                N(f.Proveedor), N(f.Temporada), N(f.Marca),
+                N(f.TextoBusqueda));
+        return t;
     }
 
     private async Task<IReadOnlyList<T>> PorLotesAsync<T>(

@@ -32,6 +32,13 @@ public static class ModuloCatalogo
         // docs/CONSULTAS.md §2.ter).
         services.AddHostedService<CatalogoWarmup>();
 
+        // --- Catálogo interno (refactor tabla-como-caché, en migración) --------------------------------
+        // CatalogoStore reconstruye la tabla materializada dbo.Catalogo (base pública + interna) con
+        // read-through + single-flight; CatalogoBaseWarmup la precalienta al arrancar. Conviven con el
+        // snapshot RAM hasta que el read-path público migre a la tabla (fase 2).
+        services.AddSingleton<CatalogoStore>();
+        services.AddHostedService<CatalogoBaseWarmup>();
+
         return services;
     }
 }

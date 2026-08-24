@@ -14,6 +14,21 @@ public interface ICatalogoRepositorio
     /// <summary>MARKET: qué artículo está armado en qué local (excluye depósito). Define el universo.</summary>
     Task<IReadOnlyList<ArmadoRow>> TraerArmadosAsync(CancellationToken ct = default);
 
+    /// <summary>MARKET: qué artículo está mapeado en qué ubicación, INCLUYENDO depósito (marcado con
+    /// <see cref="UbicacionRow.EsDeposito"/>). Es el universo del catálogo INTERNO — más amplio que
+    /// <see cref="TraerArmadosAsync"/>, que corta el depósito para el público. Lo consume el rebuild de
+    /// la tabla <c>dbo.Catalogo</c>.</summary>
+    Task<IReadOnlyList<UbicacionRow>> TraerUbicacionesAsync(CancellationToken ct = default);
+
+    /// <summary>DRAGON: cabecera enriquecida para la tabla materializada — suma al header público el
+    /// costo (LISTA0), proveedor, temporada y marca. Una fila por código.</summary>
+    Task<IReadOnlyList<ArticuloBaseRow>> TraerArticulosBaseAsync(IReadOnlyCollection<string> codigos, CancellationToken ct = default);
+
+    /// <summary>MARKET: persiste (MERGE) las filas BASE calculadas en <c>dbo.Catalogo</c>. Sólo toca las
+    /// columnas base; las de ficha (stock/ventas/costo) quedan intactas. Los códigos que ya no están en
+    /// el universo se marcan <c>Eliminado = 1</c> (nunca DELETE físico, convención MARKET).</summary>
+    Task GuardarBaseAsync(IReadOnlyList<CatalogoFilaBase> filas, CancellationToken ct = default);
+
     /// <summary>DRAGON: cabecera, taxonomía, combo y precio vigente de los códigos pedidos.</summary>
     Task<IReadOnlyList<ArticuloRow>> TraerArticulosAsync(IReadOnlyCollection<string> codigos, CancellationToken ct = default);
 
@@ -53,8 +68,16 @@ public interface ICatalogoRepositorio
 
 // Filas crudas de cada fuente. Son del módulo, no del contrato público: nadie afuera las ve.
 public sealed record ArmadoRow(string ArtCod, string Local);
+// Una ubicación mapeada del artículo. Local = nombre de la ubicación (LURO/PERALTA/…); EsDeposito
+// distingue las de tipo DEPOSITO. Un artículo puede tener varias filas (varios locales + depósito).
+public sealed record UbicacionRow(string ArtCod, string Local, bool EsDeposito);
 public sealed record ArticuloRow(string ArtCod, string ArtDes, string Rubro, string Genero,
                                  string Familia, string Combo, decimal? PrecioSuelta);
+// Cabecera enriquecida para la tabla materializada: además del header público, costo (LISTA0),
+// proveedor/temporada/marca. PrecioSuelta = LISTA1; PrecioCompra = LISTA0.
+public sealed record ArticuloBaseRow(string ArtCod, string ArtDes, string Rubro, string Genero,
+                                     string Familia, string Combo, decimal? PrecioSuelta,
+                                     decimal? PrecioCompra, string Proveedor, string Temporada, string Marca);
 public sealed record VarianteRow(string ArtCod, string ColorCod, string Color, string Talle);
 // Un talle de la curva definida del artículo (DCTALLE). Orden es el ORDEN de DCTALLE, que ya viene
 // bien de fábrica (2XL antes que 3XL); no se re-ordena con Talles.cs.
@@ -65,3 +88,16 @@ public sealed record OverrideRow(string ArtCod, string? NombreComercial, string?
 // Total es int porque así está tipada la columna en PruebaCombos: Dapper materializa records por
 // constructor y necesita el tipo exacto de la columna, si no tira InvalidOperationException al mapear.
 public sealed record ComboTierRow(int Cantidad, int Total);
+
+/// <summary>Fila BASE calculada, lista para persistir en <c>dbo.Catalogo</c> (columnas base, sin ficha).
+/// La arma <c>CatalogoStore</c> cruzando las fuentes; la escribe <c>CatalogoRepositorio.GuardarBaseAsync</c>.
+/// Nombres y tipos calzan 1:1 con las columnas base de la tabla (el MERGE mapea por nombre).</summary>
+public sealed record CatalogoFilaBase(
+    string Codigo, bool Publicado, string Slug, string Titulo, string Descripcion,
+    string Rubro, string Genero, string Prenda,
+    decimal? PrecioVenta, decimal? PrecioCompra, string? Combo,
+    bool EnLuro, bool EnPeralta, bool EnDeposito,
+    string TallesCsv, string ColoresCsv,
+    bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
+    string? Proveedor, string? Temporada, string? Marca,
+    string TextoBusqueda);

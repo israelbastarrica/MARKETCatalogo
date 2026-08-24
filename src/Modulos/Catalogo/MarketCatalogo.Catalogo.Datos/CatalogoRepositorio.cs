@@ -346,6 +346,40 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         await cn.ExecuteAsync(new CommandDefinition(merge, commandTimeout: 120, cancellationToken: ct));
     }
 
+    /// <summary>MARKET: lee las filas base de dbo.Catalogo. El público pide soloPublicados=true (subset
+    /// seguro); el interno, false (todo el universo). La tabla es chica e indexada: traer las ~569
+    /// publicadas es una lectura local barata (el modelo tabla-como-caché: la tabla ES el caché).</summary>
+    public async Task<IReadOnlyList<CatalogoFilaLeida>> LeerBaseAsync(bool soloPublicados, CancellationToken ct = default)
+    {
+        var filtro = soloPublicados ? "AND Publicado = 1" : "";
+        var sql = $"""
+            SELECT Codigo, Publicado, Slug, Titulo, Descripcion, Rubro, Genero, Prenda,
+                   PrecioVenta, PrecioCompra, Combo, EnLuro, EnPeralta, EnDeposito,
+                   TallesCsv, ColoresCsv, TieneFoto, FotoPrincipalVersion, FotosJson,
+                   Proveedor, Temporada, Marca, Anio, FechaAlta, StockTotal, TopVentas, TextoBusqueda
+            FROM MARKET.dbo.Catalogo WITH (NOLOCK)
+            WHERE Eliminado = 0 {filtro};
+            """;
+        using var cn = _db.CrearMarket();
+        return (await cn.QueryAsync<CatalogoFilaLeida>(new CommandDefinition(sql, commandTimeout: 60, cancellationToken: ct))).ToList();
+    }
+
+    /// <summary>MARKET: ruta de la foto principal de un artículo, sacada de FotosJson ($[0].link). Con
+    /// soloPublicado=true sólo la devuelve si Publicado=1 (el endpoint público no sirve fotos de artículos
+    /// que el catálogo no muestra). Es un lookup por PK: barato, sólo se dispara en cache-miss del WebP.</summary>
+    public async Task<string?> LeerRutaFotoAsync(string codigo, bool soloPublicado, CancellationToken ct = default)
+    {
+        var filtro = soloPublicado ? "AND Publicado = 1" : "";
+        var sql = $"""
+            SELECT JSON_VALUE(FotosJson, '$[0].link')
+            FROM MARKET.dbo.Catalogo WITH (NOLOCK)
+            WHERE Codigo = @codigo AND Eliminado = 0 {filtro};
+            """;
+        using var cn = _db.CrearMarket();
+        var ruta = await cn.ExecuteScalarAsync<string?>(new CommandDefinition(sql, new { codigo }, commandTimeout: 30, cancellationToken: ct));
+        return string.IsNullOrWhiteSpace(ruta) ? null : ruta;
+    }
+
     // DataTable con el mismo orden/nombres que #stage. Los nullables van como DBNull; los bits siempre
     // con valor. SqlBulkCopy mapea por nombre (ColumnMappings), no por posición, pero se respeta igual.
     private static DataTable ArmarDataTable(IReadOnlyList<CatalogoFilaBase> filas)

@@ -22,21 +22,17 @@ public static class ModuloCatalogo
         services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
         services.AddSingleton<ICatalogoRepositorio, CatalogoRepositorio>();
 
-        // Singleton a propósito: CatalogoCache es el catálogo entero en memoria, compartido por todos
-        // los requests. Un scoped tiraría el trabajo a la basura en cada request.
-        services.AddSingleton<CatalogoCache>();
+        // Modelo tabla-como-caché (read-through), sin snapshot RAM:
+        //  * CatalogoStore   reconstruye la tabla dbo.Catalogo (todo el universo) con TTL + single-flight.
+        //  * LectorCatalogo  lee el subset publicado y arma el CatalogoSnapshot en cada request.
+        //  * CatalogoService filtra/facetea/pagina sobre eso; FotosService resuelve la ruta desde la tabla.
+        services.AddSingleton<CatalogoStore>();
+        services.AddSingleton<LectorCatalogo>();
         services.AddSingleton<ICatalogoConsulta, CatalogoService>();
         services.AddSingleton<IFotosCatalogo, FotosService>();
 
-        // Precalienta al arrancar y refresca en segundo plano (guardarraíl del patrón, ver
-        // docs/CONSULTAS.md §2.ter).
-        services.AddHostedService<CatalogoWarmup>();
-
-        // --- Catálogo interno (refactor tabla-como-caché, en migración) --------------------------------
-        // CatalogoStore reconstruye la tabla materializada dbo.Catalogo (base pública + interna) con
-        // read-through + single-flight; CatalogoBaseWarmup la precalienta al arrancar. Conviven con el
-        // snapshot RAM hasta que el read-path público migre a la tabla (fase 2).
-        services.AddSingleton<CatalogoStore>();
+        // Precalienta la tabla al arrancar (cold start del read-through). No hay refresh periódico: la
+        // base se revalida on-read cuando vence el TTL.
         services.AddHostedService<CatalogoBaseWarmup>();
 
         return services;

@@ -28,14 +28,14 @@ public sealed class FotosService : IFotosCatalogo
 
     private const int CalidadWebp = 100;
 
-    private readonly CatalogoCache _cache;
+    private readonly ICatalogoRepositorio _repo;
     private readonly ILogger<FotosService> _log;
     private readonly string _dirCache;
     private readonly string? _dirOriginalesOverride;
 
-    public FotosService(CatalogoCache cache, IConfiguration cfg, ILogger<FotosService> log)
+    public FotosService(ICatalogoRepositorio repo, IConfiguration cfg, ILogger<FotosService> log)
     {
-        _cache = cache;
+        _repo = repo;
         _log = log;
         _dirCache = cfg["Fotos:DirCache"] is { Length: > 0 } d ? d.Trim() : @"D:\FotosCatalogo";
         // Si la web corre en otra máquina que mapea la carpeta en otra unidad, se reemplaza el
@@ -64,8 +64,11 @@ public sealed class FotosService : IFotosCatalogo
         var destino = Path.Combine(_dirCache, nombre);
         if (File.Exists(destino)) return new FotoResultado(destino, "image/webp");
 
-        var snap = await _cache.ObtenerAsync(ct);
-        if (!snap.RutaFotoPorCodigo.TryGetValue(cod, out var rutaOriginal)) return null;
+        // Ruta del original desde la tabla, sólo si el artículo está publicado: el endpoint público no
+        // sirve fotos de artículos que el catálogo no muestra (mismo efecto que el viejo RutaFotoPorCodigo,
+        // que sólo contenía publicados). Sólo se dispara en cache-miss del WebP (no en cada request).
+        var rutaOriginal = await _repo.LeerRutaFotoAsync(cod, soloPublicado: true, ct);
+        if (rutaOriginal is null) return null;
 
         var origen = RutasFoto.Resolver(rutaOriginal, _dirOriginalesOverride);
         if (origen is null || !File.Exists(origen)) return null;

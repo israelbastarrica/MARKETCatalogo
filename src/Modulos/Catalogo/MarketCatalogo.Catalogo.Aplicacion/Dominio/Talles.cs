@@ -125,4 +125,27 @@ public static class Talles
         var t = (talle ?? "").Trim();
         return Resolver(t).Etiqueta ?? t;
     }
+
+    // Etiqueta mostrada -> orden. Se arma una vez invirtiendo el mapa por su forma de mostrar
+    // (Etiqueta ?? código): así "S/M" o "1" (etiquetas) resuelven su orden aunque el código sea "SM"/"01".
+    // Si una etiqueta la producen varios códigos, se queda con el orden menor.
+    private static readonly Dictionary<string, int> OrdenPorEtiqueta = ConstruirOrdenPorEtiqueta();
+
+    private static Dictionary<string, int> ConstruirOrdenPorEtiqueta()
+    {
+        var d = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (cod, info) in Mapa)
+        {
+            var etiqueta = info.Etiqueta ?? cod;
+            if (etiqueta.Length == 0) continue;
+            if (!d.TryGetValue(etiqueta, out var actual) || info.Orden < actual) d[etiqueta] = info.Orden;
+        }
+        return d;
+    }
+
+    /// <summary>Orden de una etiqueta YA MOSTRADA (la que sale de <see cref="Mostrar"/>), para ordenar la
+    /// faceta de talles sin depender de reconstruir las variantes color×talle. Las etiquetas desconocidas
+    /// (p. ej. "Único" de Lencería, o un talle nuevo) caen al final.</summary>
+    public static int OrdenEtiqueta(string? etiqueta)
+        => OrdenPorEtiqueta.TryGetValue((etiqueta ?? "").Trim(), out var o) ? o : 9999;
 }

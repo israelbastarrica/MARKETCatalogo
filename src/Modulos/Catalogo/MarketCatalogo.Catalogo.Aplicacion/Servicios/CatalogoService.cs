@@ -5,20 +5,21 @@ namespace MarketCatalogo.Catalogo.Aplicacion;
 
 /// <summary>
 /// Implementa <see cref="ICatalogoConsulta"/>: filtra, cuenta facetas, ordena y pagina — todo
-/// <b>en memoria</b> sobre el snapshot del caché. Son ~981 objetos: cada filtro es un predicado sobre
-/// menos de mil items, o sea microsegundos. Por eso "qué filtros podemos ofrecer" dejó de ser una
-/// pregunta de performance y es sólo de UX.
+/// <b>en memoria</b> sobre las filas que devuelve <see cref="LectorCatalogo"/> (leídas de la tabla
+/// <c>dbo.Catalogo</c>). Son ~569 objetos: cada filtro es un predicado sobre menos de mil items, o sea
+/// microsegundos. Por eso "qué filtros podemos ofrecer" dejó de ser una pregunta de performance y es
+/// sólo de UX.
 /// </summary>
 public sealed class CatalogoService : ICatalogoConsulta
 {
-    private readonly CatalogoCache _cache;
-    public CatalogoService(CatalogoCache cache) => _cache = cache;
+    private readonly LectorCatalogo _lector;
+    public CatalogoService(LectorCatalogo lector) => _lector = lector;
 
-    public Task<CatalogoSnapshot> SnapshotAsync(CancellationToken ct = default) => _cache.ObtenerAsync(ct);
+    public Task<CatalogoSnapshot> SnapshotAsync(CancellationToken ct = default) => _lector.LeerAsync(ct);
 
     public async Task<ArticuloDto?> PorSlugAsync(string? slug, CancellationToken ct = default)
     {
-        var snap = await _cache.ObtenerAsync(ct);
+        var snap = await _lector.LeerAsync(ct);
         if (string.IsNullOrWhiteSpace(slug)) return null;
         if (snap.PorSlug.TryGetValue(slug.Trim(), out var art)) return art;
 
@@ -31,7 +32,7 @@ public sealed class CatalogoService : ICatalogoConsulta
 
     public async Task<PaginaCatalogoDto> BuscarAsync(FiltrosCatalogo f, CancellationToken ct = default)
     {
-        var snap = await _cache.ObtenerAsync(ct);
+        var snap = await _lector.LeerAsync(ct);
 
         // Base = sólo los filtros que vienen en la RUTA (rubro/género). Los de query string son
         // refinamiento y se aplican después, porque cada faceta necesita contar sin su propio filtro.
@@ -139,7 +140,7 @@ public sealed class CatalogoService : ICatalogoConsulta
                 .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta).ToList(),
 
             Talles = Aplicar("talle")
-                .SelectMany(a => a.Talles.Select(t => (Talle: t, Orden: OrdenDeTalle(a, t))))
+                .SelectMany(a => a.Talles.Select(t => (Talle: t, Orden: Talles.OrdenEtiqueta(t))))
                 .GroupBy(x => x.Talle, StringComparer.OrdinalIgnoreCase)
                 // El orden real del talle ya viene calculado por variante (TalleOrden, mapeado por el
                 // CÓDIGO en Talles). Se ordena la faceta por ese orden —el mínimo del grupo— así los
@@ -169,8 +170,4 @@ public sealed class CatalogoService : ICatalogoConsulta
             Combos = combos,
         };
     }
-
-    private static int OrdenDeTalle(ArticuloDto a, string talleMostrado)
-        => a.Variantes.Where(v => string.Equals(v.TalleMostrar, talleMostrado, StringComparison.OrdinalIgnoreCase))
-                      .Select(v => v.TalleOrden).DefaultIfEmpty(9999).Min();
 }

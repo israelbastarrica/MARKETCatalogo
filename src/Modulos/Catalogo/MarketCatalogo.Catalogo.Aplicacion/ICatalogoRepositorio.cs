@@ -29,6 +29,17 @@ public interface ICatalogoRepositorio
     /// el universo se marcan <c>Eliminado = 1</c> (nunca DELETE físico, convención MARKET).</summary>
     Task GuardarBaseAsync(IReadOnlyList<CatalogoFilaBase> filas, CancellationToken ct = default);
 
+    /// <summary>MARKET: lee las filas base de <c>dbo.Catalogo</c> para armar el catálogo. Con
+    /// <paramref name="soloPublicados"/> devuelve el subset seguro del público (Publicado = 1); sin él,
+    /// todo el universo (vista interna). Siempre excluye <c>Eliminado = 1</c>.</summary>
+    Task<IReadOnlyList<CatalogoFilaLeida>> LeerBaseAsync(bool soloPublicados, CancellationToken ct = default);
+
+    /// <summary>MARKET: la ruta en disco de la foto principal de un artículo, leída de <c>dbo.Catalogo</c>.
+    /// Con <paramref name="soloPublicado"/> sólo la devuelve si el artículo está publicado — así el endpoint
+    /// público no puede servir la foto de un artículo que el catálogo no muestra. null si no hay foto o no
+    /// corresponde servirla.</summary>
+    Task<string?> LeerRutaFotoAsync(string codigo, bool soloPublicado, CancellationToken ct = default);
+
     /// <summary>DRAGON: cabecera, taxonomía, combo y precio vigente de los códigos pedidos.</summary>
     Task<IReadOnlyList<ArticuloRow>> TraerArticulosAsync(IReadOnlyCollection<string> codigos, CancellationToken ct = default);
 
@@ -101,3 +112,16 @@ public sealed record CatalogoFilaBase(
     bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
     string? Proveedor, string? Temporada, string? Marca,
     string TextoBusqueda);
+
+/// <summary>Fila leída de <c>dbo.Catalogo</c> (columnas base). La consume <c>LectorCatalogo</c> para
+/// mapearla a <c>ArticuloDto</c> y armar el snapshot. Los derivados (slugs, combo parseado, locales desde
+/// los bits, talles/colores desde el CSV) se calculan en C# al leer, no se guardan.</summary>
+public sealed record CatalogoFilaLeida(
+    string Codigo, bool Publicado, string? Slug, string? Titulo, string? Descripcion,
+    string? Rubro, string? Genero, string? Prenda,
+    decimal? PrecioVenta, decimal? PrecioCompra, string? Combo,
+    bool EnLuro, bool EnPeralta, bool EnDeposito,
+    string? TallesCsv, string? ColoresCsv,
+    bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
+    string? Proveedor, string? Temporada, string? Marca, int? Anio, DateTime? FechaAlta,
+    decimal? StockTotal, bool TopVentas, string? TextoBusqueda);

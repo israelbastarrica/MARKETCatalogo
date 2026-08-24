@@ -26,7 +26,16 @@ public static class MenuSecciones
             ["bebe"] = ("ninos", "Niños"),
         };
 
+    /// <summary>Igual que <see cref="Construir"/> pero para el catálogo INTERNO (staff logueado): los links
+    /// van a <c>/interno?gen=…&amp;rubro=…</c> en vez de a las rutas públicas <c>/catalogo/{rubro}/{genero}</c>.
+    /// El rubro va por VALOR (así lo filtra la grilla interna) y el género por slug.</summary>
+    public static IReadOnlyList<SeccionNav> ConstruirInterno(IReadOnlyList<RubroMenu> menu)
+        => Armar(menu, interno: true);
+
     public static IReadOnlyList<SeccionNav> Construir(IReadOnlyList<RubroMenu> menu)
+        => Armar(menu, interno: false);
+
+    private static IReadOnlyList<SeccionNav> Armar(IReadOnlyList<RubroMenu> menu, bool interno)
     {
         // Aplanar a filas (género, rubro, conteo). GeneroMenu.Cantidad ya es el conteo de ese género
         // DENTRO de ese rubro, así que sirve tal cual.
@@ -56,10 +65,13 @@ public static class MenuSecciones
                         rg.Key.RubSlug,
                         Titulo(rg.Key.RubNombre),
                         rg.Sum(x => x.Cant),
-                        // Un solo género → ruta indexable; sección fusionada → filtro multi-género.
-                        esMulti
-                            ? $"/catalogo/{rg.Key.RubSlug}?gen={string.Join(",", miembros)}"
-                            : $"/catalogo/{rg.Key.RubSlug}/{miembros[0]}"))
+                        interno
+                            // Interno: siempre a la grilla interna, rubro por VALOR + género(s) por slug.
+                            ? $"/interno?gen={string.Join(",", miembros)}&rubro={Uri.EscapeDataString(rg.Key.RubNombre)}"
+                            // Público: un solo género → ruta indexable; sección fusionada → filtro multi-género.
+                            : esMulti
+                                ? $"/catalogo/{rg.Key.RubSlug}?gen={string.Join(",", miembros)}"
+                                : $"/catalogo/{rg.Key.RubSlug}/{miembros[0]}"))
                     .OrderByDescending(t => t.Cantidad).ThenBy(t => t.Nombre)
                     .ToList();
                 return new SeccionNav(grp.Key.Slug, grp.Key.Nombre, grp.Sum(x => x.Cant), tipos);

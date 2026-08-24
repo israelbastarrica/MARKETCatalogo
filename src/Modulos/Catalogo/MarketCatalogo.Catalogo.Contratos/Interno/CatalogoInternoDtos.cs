@@ -51,6 +51,8 @@ public sealed record FiltrosInterno
     public IReadOnlyList<string> Ubicaciones { get; init; } = [];
     public string? CruceDepoLocal { get; init; }
 
+    // Rubros por VALOR (ej. "Indumentaria"); Géneros por SLUG (ej. "mujer") — así el header (que trabaja
+    // con slugs) puede linkear a la grilla interna.
     public IReadOnlyList<string> Rubros { get; init; } = [];
     public IReadOnlyList<string> Generos { get; init; } = [];
     public IReadOnlyList<string> Prendas { get; init; } = [];

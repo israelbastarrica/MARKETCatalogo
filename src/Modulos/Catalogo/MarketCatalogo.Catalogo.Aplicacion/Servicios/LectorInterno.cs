@@ -1,3 +1,4 @@
+using MarketCatalogo.Catalogo.Contratos;
 using MarketCatalogo.Catalogo.Contratos.Interno;
 using MarketCatalogo.Compartido;
 
@@ -30,6 +31,37 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         return fila is null ? null : Mapear(fila);
     }
 
+    public async Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default)
+    {
+        _store.AsegurarBaseFresca();
+        var todos = (await _repo.LeerBaseAsync(soloPublicados: false, ct)).Select(Mapear).ToList();
+        // Rubro → géneros con conteos, sobre TODO el universo (no sólo Indumentaria publicada). Nombre del
+        // rubro = VALOR (así el header filtra por ?rubro={valor}); slug para la ruta indexable del público
+        // no aplica acá (todos los links van a /interno). Se descartan rubro/género vacíos.
+        return todos
+            .Where(a => !string.IsNullOrWhiteSpace(a.Rubro) && !string.IsNullOrWhiteSpace(a.Genero))
+            .GroupBy(a => a.Rubro)
+            .Select(r => new RubroMenu(
+                Texto.Slug(r.Key), r.Key, r.Count(),
+                r.GroupBy(a => a.Genero)
+                 .Select(g => new GeneroMenu(Texto.Slug(g.Key), g.Key, g.Count()))
+                 .OrderByDescending(g => g.Cantidad).ToList()))
+            .OrderByDescending(r => r.Cantidad).ToList();
+    }
+
+    public async Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default)
+    {
+        var art = await PorCodigoAsync(codigo, ct);
+        if (art is null) return;
+        // Si se muestra: ¿cumpliría las condiciones de publicación? (mismo criterio que el rebuild:
+        // Indumentaria + en algún local + tiene talles/colores). El rebuild lo recomputa definitivamente.
+        var publicadoSiVisible =
+            Texto.SinAcentos(art.Rubro) == "indumentaria"
+            && art.EnAlgunLocal
+            && (art.Talles.Count > 0 || art.Colores.Count > 0);
+        await _repo.CambiarVisibilidadAsync(codigo, ocultar, publicadoSiVisible, origen, ct);
+    }
+
     public async Task<PaginaInternaDto> BuscarAsync(FiltrosInterno f, CancellationToken ct = default)
     {
         _store.AsegurarBaseFresca();
@@ -52,6 +84,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             _ => true,
         };
         bool PasaRubro(ArticuloInternoDto a) => f.Rubros.Count == 0 || f.Rubros.Contains(a.Rubro, StringComparer.OrdinalIgnoreCase);
+        bool PasaGenero(ArticuloInternoDto a) => f.Generos.Count == 0 || f.Generos.Contains(Texto.Slug(a.Genero), StringComparer.OrdinalIgnoreCase);
         bool PasaPrenda(ArticuloInternoDto a) => f.Prendas.Count == 0 || (a.Prenda is not null && f.Prendas.Contains(a.Prenda, StringComparer.OrdinalIgnoreCase));
         bool PasaProveedor(ArticuloInternoDto a) => f.Proveedores.Count == 0 || (a.Proveedor is not null && f.Proveedores.Contains(a.Proveedor, StringComparer.OrdinalIgnoreCase));
         bool PasaMarca(ArticuloInternoDto a) => f.Marcas.Count == 0 || (a.Marca is not null && f.Marcas.Contains(a.Marca, StringComparer.OrdinalIgnoreCase));
@@ -65,7 +98,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
 
         // "excepto" deja fuera una faceta para poder contarla sin encerrar al usuario (igual que el público).
         IEnumerable<ArticuloInternoDto> Aplicar(string? excepto) => todos.Where(a =>
-            PasaUbicacion(a) && PasaCruce(a) &&
+            PasaUbicacion(a) && PasaCruce(a) && PasaGenero(a) &&
             (excepto == "rubro" || PasaRubro(a)) &&
             (excepto == "prenda" || PasaPrenda(a)) &&
             (excepto == "proveedor" || PasaProveedor(a)) &&

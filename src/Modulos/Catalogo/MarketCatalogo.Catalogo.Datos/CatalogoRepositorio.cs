@@ -380,6 +380,40 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         return string.IsNullOrWhiteSpace(ruta) ? null : ruta;
     }
 
+    /// <summary>MARKET: oculta/muestra un artículo del público. Upsert de OcultarManual en la tabla de
+    /// overrides CatalogoArticulo (+ auditoría "Acción | origen | fecha", convención MARKET) y reflejo
+    /// inmediato en Catalogo.Publicado. Es la ÚNICA escritura de la app, y sólo toca tablas propias del
+    /// catálogo — jamás Dragon ni logística.</summary>
+    public async Task CambiarVisibilidadAsync(string codigo, bool ocultar, bool publicadoSiVisible, string origen, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return;
+        var accion = ocultar ? "Ocultar del catálogo" : "Mostrar en el catálogo";
+        var auditoria = $"{accion} | {origen} | {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
+        var publicado = ocultar ? 0 : (publicadoSiVisible ? 1 : 0);
+
+        using var cn = _db.CrearMarket();
+        await cn.OpenAsync(ct);
+        using var tx = (Microsoft.Data.SqlClient.SqlTransaction)await cn.BeginTransactionAsync(ct);
+
+        // Upsert del override (crea la fila si el artículo nunca se editó a mano).
+        const string upsert = """
+            MERGE MARKET.dbo.CatalogoArticulo AS T
+            USING (SELECT @cod AS ARTCOD) AS S ON T.ARTCOD = S.ARTCOD
+            WHEN MATCHED THEN UPDATE SET OcultarManual = @ocultar, Eliminado = 0, Auditoria = @auditoria
+            WHEN NOT MATCHED THEN INSERT (ARTCOD, OcultarManual, Auditoria) VALUES (@cod, @ocultar, @auditoria);
+            """;
+        await cn.ExecuteAsync(new CommandDefinition(upsert,
+            new { cod, ocultar = ocultar ? 1 : 0, auditoria }, transaction: tx, cancellationToken: ct));
+
+        // Reflejo inmediato en la tabla materializada (el rebuild lo recomputa definitivamente después).
+        await cn.ExecuteAsync(new CommandDefinition(
+            "UPDATE MARKET.dbo.Catalogo SET Publicado = @publicado WHERE Codigo = @cod;",
+            new { publicado, cod }, transaction: tx, cancellationToken: ct));
+
+        await tx.CommitAsync(ct);
+    }
+
     // DataTable con el mismo orden/nombres que #stage. Los nullables van como DBNull; los bits siempre
     // con valor. SqlBulkCopy mapea por nombre (ColumnMappings), no por posición, pero se respeta igual.
     private static DataTable ArmarDataTable(IReadOnlyList<CatalogoFilaBase> filas)

@@ -16,6 +16,7 @@ public static class UrlInterno
         var m = new Dictionary<string, string>();
         if (f.Ubicaciones.Count > 0) m["ubic"] = string.Join(',', f.Ubicaciones);
         if (!string.IsNullOrEmpty(f.CruceDepoLocal)) m["cruce"] = f.CruceDepoLocal!;
+        if (f.Generos.Count > 0) m["gen"] = string.Join(',', f.Generos);
         if (f.Rubros.Count > 0) m["rubro"] = string.Join(',', f.Rubros);
         if (f.Prendas.Count > 0) m["prenda"] = string.Join(',', f.Prendas);
         if (f.Talles.Count > 0) m["talle"] = string.Join(',', f.Talles);

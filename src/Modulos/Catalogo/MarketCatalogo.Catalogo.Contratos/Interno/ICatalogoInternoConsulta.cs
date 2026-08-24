@@ -13,6 +13,16 @@ public interface ICatalogoInternoConsulta
     /// <summary>Una página de la grilla interna con sus facetas y totales del universo.</summary>
     Task<PaginaInternaDto> BuscarAsync(FiltrosInterno filtros, CancellationToken ct = default);
 
+    /// <summary>El menú del universo INTERNO (rubro → géneros con conteos), para el header cuando hay un
+    /// staff logueado: a diferencia del público (sólo Indumentaria publicada), acá están TODOS los rubros
+    /// (Accesorios, Lencería, Calzado…). El header lo invierte a Género → Tipos con MenuSecciones.</summary>
+    Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default);
+
     /// <summary>Un artículo interno por su código (para la ficha). null si no está en el universo.</summary>
     Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, CancellationToken ct = default);
+
+    /// <summary>Oculta o muestra un artículo del catálogo PÚBLICO (la única escritura de la app). Escribe
+    /// el override <c>OcultarManual</c> y refleja el cambio al instante. <paramref name="origen"/> = quién
+    /// lo hizo (para la auditoría).</summary>
+    Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default);
 }

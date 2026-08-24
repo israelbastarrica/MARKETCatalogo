@@ -67,6 +67,7 @@
                        href="@UrlInterno.Set(_filtros, "pub", _filtros.Publicado == false ? null : "no")">No se ve</a>
                 </div>
 
+                @FacetaBloque("Rubro", "rubro", _pagina.Rubros)
                 @FacetaBloque("Prenda", "prenda", _pagina.Prendas)
                 @FacetaBloque("Proveedor", "prov", _pagina.Proveedores)
                 @FacetaBloque("Marca", "marca", _pagina.Marcas)
@@ -122,6 +123,7 @@
 @code {
     [SupplyParameterFromQuery(Name = "ubic")] public string? Ubic { get; set; }
     [SupplyParameterFromQuery(Name = "cruce")] public string? Cruce { get; set; }
+    [SupplyParameterFromQuery(Name = "gen")] public string? Gen { get; set; }
     [SupplyParameterFromQuery(Name = "rubro")] public string? Rubro { get; set; }
     [SupplyParameterFromQuery(Name = "prenda")] public string? Prenda { get; set; }
     [SupplyParameterFromQuery(Name = "talle")] public string? Talle { get; set; }
@@ -144,6 +146,7 @@
         {
             Ubicaciones = Csv(Ubic),
             CruceDepoLocal = Vacio(Cruce),
+            Generos = Csv(Gen),
             Rubros = Csv(Rubro),
             Prendas = Csv(Prenda),
             Talles = Csv(Talle),

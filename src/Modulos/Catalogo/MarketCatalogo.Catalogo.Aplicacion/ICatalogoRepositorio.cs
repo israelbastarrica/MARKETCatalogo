@@ -40,6 +40,13 @@ public interface ICatalogoRepositorio
     /// corresponde servirla.</summary>
     Task<string?> LeerRutaFotoAsync(string codigo, bool soloPublicado, CancellationToken ct = default);
 
+    /// <summary>MARKET: oculta o muestra un artículo del catálogo PÚBLICO — la ÚNICA escritura de la app.
+    /// Va sólo a la tabla de overrides <c>CatalogoArticulo</c> (<c>OcultarManual</c> + auditoría, upsert),
+    /// nunca a Dragon ni a logística. Además refleja el cambio al instante en <c>Catalogo.Publicado</c>
+    /// (<paramref name="publicadoSiVisible"/> = si, de no estar oculto, cumpliría las condiciones de
+    /// publicación; el próximo rebuild lo recomputa definitivamente).</summary>
+    Task CambiarVisibilidadAsync(string codigo, bool ocultar, bool publicadoSiVisible, string origen, CancellationToken ct = default);
+
     /// <summary>DRAGON: cabecera, taxonomía, combo y precio vigente de los códigos pedidos.</summary>
     Task<IReadOnlyList<ArticuloRow>> TraerArticulosAsync(IReadOnlyCollection<string> codigos, CancellationToken ct = default);
 

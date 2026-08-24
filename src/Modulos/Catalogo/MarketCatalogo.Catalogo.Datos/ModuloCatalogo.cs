@@ -31,6 +31,9 @@ public static class ModuloCatalogo
         services.AddSingleton<ICatalogoConsulta, CatalogoService>();
         services.AddSingleton<IFotosCatalogo, FotosService>();
 
+        // Lectura del catálogo INTERNO (staff): mismo store, universo completo + datos de gestión.
+        services.AddSingleton<MarketCatalogo.Catalogo.Contratos.Interno.ICatalogoInternoConsulta, LectorInterno>();
+
         // Precalienta la tabla al arrancar (cold start del read-through). No hay refresh periódico: la
         // base se revalida on-read cuando vence el TTL.
         services.AddHostedService<CatalogoBaseWarmup>();

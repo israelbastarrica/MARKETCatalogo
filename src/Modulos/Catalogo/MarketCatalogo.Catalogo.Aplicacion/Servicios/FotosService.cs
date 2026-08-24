@@ -45,7 +45,8 @@ public sealed class FotosService : IFotosCatalogo
 
     /// <summary>Devuelve el thumbnail pedido, generándolo si no existe. null si el artículo no está en el
     /// catálogo, si no tiene foto, o si el original no está en disco.</summary>
-    public async Task<FotoResultado?> ObtenerAsync(string? artCod, int ancho, string? version, CancellationToken ct = default)
+    public async Task<FotoResultado?> ObtenerAsync(string? artCod, int ancho, string? version,
+        bool incluirNoPublicados = false, CancellationToken ct = default)
     {
         var cod = (artCod ?? "").Trim();
         if (cod.Length == 0 || !Anchos.Contains(ancho)) return null;
@@ -54,6 +55,12 @@ public sealed class FotosService : IFotosCatalogo
         var seguro = RutasFoto.NombreSeguro(cod);
         if (seguro.Length == 0) return null;
 
+        // Los thumbnails internos (de artículos que pueden NO estar publicados) se cachean en un subfolder
+        // aparte. Así, aunque un usuario interno genere el thumbnail de un artículo oculto, el endpoint
+        // público —que busca en _dirCache, no en interno/— nunca lo encuentra y cae al chequeo de
+        // publicado. Sin esto, la primera visita interna filtraría la foto al público vía caché.
+        var dir = incluirNoPublicados ? Path.Combine(_dirCache, "interno") : _dirCache;
+
         // La versión (token ?v= de la URL) va DENTRO del nombre del archivo cacheado. Es la clave del
         // arreglo: cuando la foto de origen cambia (p. ej. disco→IA), el token cambia y el nombre del
         // thumbnail cambia con él → el viejo no se vuelve a pedir y el nuevo se genera desde la foto
@@ -61,13 +68,12 @@ public sealed class FotosService : IFotosCatalogo
         // disco) ni de borrar la carpeta. Los thumbnails de versiones viejas quedan huérfanos.
         var ver = VersionSegura(version);
         var nombre = ver.Length > 0 ? $"{seguro}_{ancho}_{ver}.webp" : $"{seguro}_{ancho}.webp";
-        var destino = Path.Combine(_dirCache, nombre);
+        var destino = Path.Combine(dir, nombre);
         if (File.Exists(destino)) return new FotoResultado(destino, "image/webp");
 
-        // Ruta del original desde la tabla, sólo si el artículo está publicado: el endpoint público no
-        // sirve fotos de artículos que el catálogo no muestra (mismo efecto que el viejo RutaFotoPorCodigo,
-        // que sólo contenía publicados). Sólo se dispara en cache-miss del WebP (no en cada request).
-        var rutaOriginal = await _repo.LeerRutaFotoAsync(cod, soloPublicado: true, ct);
+        // Ruta del original desde la tabla. El público sólo puede resolver fotos de artículos publicados;
+        // el staff (incluirNoPublicados) también las de los no publicados. Sólo se dispara en cache-miss.
+        var rutaOriginal = await _repo.LeerRutaFotoAsync(cod, soloPublicado: !incluirNoPublicados, ct);
         if (rutaOriginal is null) return null;
 
         var origen = RutasFoto.Resolver(rutaOriginal, _dirOriginalesOverride);
@@ -75,7 +81,7 @@ public sealed class FotosService : IFotosCatalogo
 
         try
         {
-            Directory.CreateDirectory(_dirCache);
+            Directory.CreateDirectory(dir);
             GenerarWebp(origen, destino, ancho);
             // Limpieza: al generar esta versión, se borran las de este mismo artículo+ancho que quedaron
             // de fotos anteriores. Así el disco no acumula huérfanos y no hace falta un job aparte.
@@ -114,10 +120,13 @@ public sealed class FotosService : IFotosCatalogo
     {
         try
         {
+            // Se limpia en el MISMO directorio del thumbnail (público en _dirCache, interno en interno/):
+            // así el barrido de una foto interna no toca la pública y viceversa.
+            var dir = Path.GetDirectoryName(destino) ?? _dirCache;
             var prefijo = $"{seguro}_{ancho}";      // ej. "IU109.140_400"
             var legado = $"{prefijo}.webp";         // formato viejo, sin token de versión
             var actual = Path.GetFileName(destino);
-            foreach (var archivo in Directory.EnumerateFiles(_dirCache, $"{prefijo}*.webp"))
+            foreach (var archivo in Directory.EnumerateFiles(dir, $"{prefijo}*.webp"))
             {
                 var nombre = Path.GetFileName(archivo);
                 // Sólo este artículo+ancho: o el nombre viejo exacto, o "{prefijo}_{version}.webp".

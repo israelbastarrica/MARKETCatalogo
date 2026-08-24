@@ -1,3 +1,4 @@
+using MarketCatalogo.Auth.Contratos;
 using MarketCatalogo.Catalogo.Contratos;
 
 namespace MarketCatalogo.Web.Endpoints;
@@ -30,7 +31,10 @@ public static class FotosEndpoint
             // ?v= es el token de versión de la foto (fecha del original). Forma parte del nombre del
             // thumbnail cacheado, así un cambio de foto (disco→IA) genera un archivo nuevo automáticamente.
             var version = ctx.Request.Query["v"].ToString();
-            var res = await fotos.ObtenerAsync(codigo, ancho, version, ct);
+            // Staff logueado (estado = ok): puede ver también fotos de artículos NO publicados (depósito,
+            // ocultos). El público sólo las publicadas. Esos thumbnails internos se cachean aparte.
+            var interno = ctx.User?.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk) == true;
+            var res = await fotos.ObtenerAsync(codigo, ancho, version, interno, ct);
             if (res is null) return Results.NotFound();
 
             // Inmutable: el nombre del archivo identifica el contenido.

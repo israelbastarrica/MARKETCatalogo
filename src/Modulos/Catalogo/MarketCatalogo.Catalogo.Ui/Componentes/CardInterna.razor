@@ -1,0 +1,76 @@
+@using MarketCatalogo.Catalogo.Contratos.Interno
+
+@* Card del catálogo INTERNO: foto + datos de gestión (costo, margen teórico, proveedor, ubicación,
+   si está publicado). Sólo la ve el staff. La foto la sirve el endpoint /fotos con permiso interno
+   (también las de artículos no publicados). *@
+
+<div class="mk-ic @(Articulo.Publicado ? "" : "mk-ic-oculto")">
+    <div class="mk-ic-foto">
+        @if (Articulo.TieneFoto)
+        {
+            <img class="mk-foto"
+                 src="/fotos/@(Articulo.Codigo)_400.webp?v=@Articulo.FotoVersion"
+                 width="400" height="600" loading="lazy" decoding="async" alt="@Articulo.Titulo" />
+        }
+        else
+        {
+            <div class="mk-card-sinfoto" aria-label="Sin foto"></div>
+        }
+
+        <div class="mk-ic-badges">
+            @if (Articulo.EnLuro) { <span class="mk-ic-badge">Luro</span> }
+            @if (Articulo.EnPeralta) { <span class="mk-ic-badge">Peralta</span> }
+            @if (Articulo.EnDeposito) { <span class="mk-ic-badge mk-ic-badge-depo">Depósito</span> }
+        </div>
+
+        @if (!Articulo.Publicado)
+        {
+            <span class="mk-ic-oculto-tag" title="No se muestra en el catálogo público">Oculto</span>
+        }
+    </div>
+
+    <div class="mk-ic-datos">
+        <h3 class="mk-ic-titulo">@Articulo.Titulo</h3>
+        <p class="mk-ic-cod mk-rotulo">@Articulo.Codigo</p>
+
+        <div class="mk-ic-precios">
+            @if (Articulo.ComboTexto is not null)
+            {
+                <span class="mk-ic-combo">@Articulo.ComboTexto</span>
+            }
+            @if (Articulo.PrecioUnidadCombo is decimal pu)
+            {
+                <span class="mk-ic-venta">@Plata(pu) c/u</span>
+            }
+            else if (Articulo.PrecioVenta is decimal pv)
+            {
+                <span class="mk-ic-venta">@Plata(pv)</span>
+            }
+        </div>
+
+        <dl class="mk-ic-gestion">
+            <div><dt>Costo</dt><dd>@(Articulo.PrecioCompra is decimal c ? Plata(c) : "—")</dd></div>
+            <div><dt>Margen</dt><dd>@(Articulo.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
+        </dl>
+
+        @if (Meta().Any())
+        {
+            <p class="mk-ic-meta mk-rotulo">@string.Join(" · ", Meta())</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required ArticuloInternoDto Articulo { get; set; }
+
+    private IEnumerable<string> Meta()
+    {
+        if (!string.IsNullOrWhiteSpace(Articulo.Proveedor)) yield return Articulo.Proveedor!;
+        if (!string.IsNullOrWhiteSpace(Articulo.Marca)) yield return Articulo.Marca!;
+        if (!string.IsNullOrWhiteSpace(Articulo.Temporada)) yield return Articulo.Temporada!;
+    }
+
+    // Moneda argentina sin decimales ni símbolo (misma decisión de marca que el público).
+    private static string Plata(decimal monto)
+        => monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+}

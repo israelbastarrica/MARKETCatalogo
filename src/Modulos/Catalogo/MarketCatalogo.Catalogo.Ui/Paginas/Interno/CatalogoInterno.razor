@@ -1,15 +1,201 @@
 @page "/interno"
-@* Catálogo INTERNO (staff). Gateado por la política "Interno" (= logueado y aprobado). Un usuario sin
-   permiso cae en /login (LoginPath de la cookie). El literal "Interno" espeja PoliticasAuth.Interno del
-   módulo Auth; se usa como string para no acoplar Catalogo.Ui al módulo Auth (sólo se ven por contrato).
-   POR AHORA es un placeholder: la grilla interna real (filtros + ficha) se arma en la fase de UI interna. *@
+@using MarketCatalogo.Catalogo.Contratos.Interno
+@using MarketCatalogo.Catalogo.Ui
+@using MarketCatalogo.Catalogo.Ui.Componentes
+
+@* Catálogo INTERNO (staff). Gateado por la política "Interno" (= logueado y aprobado); un usuario sin
+   permiso cae en /login. Universo completo (incluye depósito y lo no publicado). Muestra datos de gestión
+   que el público no ve: costo, margen teórico, proveedor/marca/temporada, ubicación y si está publicado.
+   SSR puro (sin JS): todo el estado en el query string, igual que el catálogo público. *@
 @attribute [Authorize(Policy = "Interno")]
+@inject ICatalogoInternoConsulta Interno
 
 <PageTitle>Catálogo interno - MARKET</PageTitle>
 <HeadContent><meta name="robots" content="noindex" /></HeadContent>
 
-<section class="mk-interno-placeholder">
-    <h1>Catálogo interno</h1>
-    <p>Estás dentro. La grilla interna (depósito, costos, stock, ventas) se construye en la próxima fase.</p>
-    <p><a href="/catalogo">Ver el catálogo público</a> · <a href="/auth/logout">Cerrar sesión</a></p>
-</section>
+<div class="mk-int" id="mk-int-top">
+
+    <header class="mk-int-cab">
+        <h1>Catálogo interno</h1>
+        @if (_pagina is not null)
+        {
+            <p class="mk-int-totales mk-rotulo">
+                <span>@_pagina.TotalUniverso en total</span>
+                <span>@_pagina.Publicados publicados</span>
+                <span>@_pagina.EnDeposito en depósito</span>
+                <span>@_pagina.SoloDeposito sólo depósito</span>
+            </p>
+        }
+    </header>
+
+    @if (_pagina is null)
+    {
+        <p class="mk-vacio">No se pudo cargar el catálogo interno. Reintentá en unos minutos.</p>
+    }
+    else
+    {
+        <div class="mk-int-cuerpo">
+
+            <aside class="mk-int-filtros">
+                @* Búsqueda (form GET: mantiene el resto de los filtros con hidden). *@
+                <form class="mk-int-buscar" method="get" action="/interno">
+                    @foreach (var (k, v) in CamposOcultos("q")) { <input type="hidden" name="@k" value="@v" /> }
+                    <input name="q" value="@_filtros.Texto" placeholder="Código, nombre, proveedor…" />
+                    <button type="submit">Buscar</button>
+                </form>
+
+                <div class="mk-int-grupo">
+                    <h2 class="mk-rotulo">Ubicación</h2>
+                    @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta"), ("deposito", "Depósito") })
+                    {
+                        <a class="mk-int-tick @(UrlInterno.CsvContiene(_filtros.Ubicaciones, val) ? "activa" : "")"
+                           href="@UrlInterno.Alternar(_filtros, "ubic", val)"><span class="mk-int-box"></span>@et</a>
+                    }
+                    <div class="mk-int-sub">
+                        <a class="mk-int-radio @(_filtros.CruceDepoLocal == "solo-deposito" ? "activa" : "")"
+                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "solo-deposito" ? null : "solo-deposito")">En depósito sin local</a>
+                        <a class="mk-int-radio @(_filtros.CruceDepoLocal == "en-local" ? "activa" : "")"
+                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "en-local" ? null : "en-local")">En algún local</a>
+                    </div>
+                </div>
+
+                <div class="mk-int-grupo">
+                    <h2 class="mk-rotulo">Publicación</h2>
+                    <a class="mk-int-radio @(_filtros.Publicado == true ? "activa" : "")"
+                       href="@UrlInterno.Set(_filtros, "pub", _filtros.Publicado == true ? null : "si")">Se ve en el público</a>
+                    <a class="mk-int-radio @(_filtros.Publicado == false ? "activa" : "")"
+                       href="@UrlInterno.Set(_filtros, "pub", _filtros.Publicado == false ? null : "no")">No se ve</a>
+                </div>
+
+                @FacetaBloque("Prenda", "prenda", _pagina.Prendas)
+                @FacetaBloque("Proveedor", "prov", _pagina.Proveedores)
+                @FacetaBloque("Marca", "marca", _pagina.Marcas)
+                @FacetaBloque("Temporada", "temp", _pagina.Temporadas)
+            </aside>
+
+            <div class="mk-int-resultados">
+                <div class="mk-int-toolbar">
+                    <span class="mk-int-total mk-rotulo">@_pagina.Total @(_pagina.Total == 1 ? "artículo" : "artículos")</span>
+                    <div class="mk-orden">
+                        <span class="mk-rotulo">Orden</span>
+                        @foreach (var (val, et) in new[] { ("codigo", "Código"), ("precio-asc", "Menor precio"), ("precio-desc", "Mayor precio"), ("margen", "Menor margen"), ("nombre", "Nombre") })
+                        {
+                            <a class="mk-orden-opcion @(_filtros.Orden == val ? "activa" : "")"
+                               href="@UrlInterno.Set(_filtros, "orden", val)">@et</a>
+                        }
+                    </div>
+                </div>
+
+                @if (_pagina.Items.Count == 0)
+                {
+                    <p class="mk-vacio">No hay artículos con esos filtros.</p>
+                }
+                else
+                {
+                    <div class="mk-int-grilla">
+                        @foreach (var a in _pagina.Items)
+                        {
+                            <CardInterna Articulo="a" />
+                        }
+                    </div>
+
+                    @if (_pagina.Paginas > 1)
+                    {
+                        <nav class="mk-paginacion" aria-label="Páginas">
+                            @if (_pagina.Pagina > 1)
+                            {
+                                <a href="@UrlInterno.Pagina(_filtros, _pagina.Pagina - 1)">Anterior</a>
+                            }
+                            <span class="mk-rotulo">Página @_pagina.Pagina de @_pagina.Paginas</span>
+                            @if (_pagina.Pagina < _pagina.Paginas)
+                            {
+                                <a href="@UrlInterno.Pagina(_filtros, _pagina.Pagina + 1)">Siguiente</a>
+                            }
+                        </nav>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ubic")] public string? Ubic { get; set; }
+    [SupplyParameterFromQuery(Name = "cruce")] public string? Cruce { get; set; }
+    [SupplyParameterFromQuery(Name = "rubro")] public string? Rubro { get; set; }
+    [SupplyParameterFromQuery(Name = "prenda")] public string? Prenda { get; set; }
+    [SupplyParameterFromQuery(Name = "talle")] public string? Talle { get; set; }
+    [SupplyParameterFromQuery(Name = "color")] public string? Color { get; set; }
+    [SupplyParameterFromQuery(Name = "prov")] public string? Prov { get; set; }
+    [SupplyParameterFromQuery(Name = "marca")] public string? Marca { get; set; }
+    [SupplyParameterFromQuery(Name = "temp")] public string? Temp { get; set; }
+    [SupplyParameterFromQuery(Name = "pub")] public string? Pub { get; set; }
+    [SupplyParameterFromQuery(Name = "margenMax")] public decimal? MargenMax { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "orden")] public string? Orden { get; set; }
+    [SupplyParameterFromQuery(Name = "pag")] public int? Pag { get; set; }
+
+    private FiltrosInterno _filtros = new();
+    private PaginaInternaDto? _pagina;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _filtros = new FiltrosInterno
+        {
+            Ubicaciones = Csv(Ubic),
+            CruceDepoLocal = Vacio(Cruce),
+            Rubros = Csv(Rubro),
+            Prendas = Csv(Prenda),
+            Talles = Csv(Talle),
+            Colores = Csv(Color),
+            Proveedores = Csv(Prov),
+            Marcas = Csv(Marca),
+            Temporadas = Csv(Temp),
+            Publicado = Pub is null ? null : Pub.Equals("si", StringComparison.OrdinalIgnoreCase) ? true
+                       : Pub.Equals("no", StringComparison.OrdinalIgnoreCase) ? false : null,
+            MargenMax = MargenMax,
+            Texto = Vacio(Q),
+            Orden = string.IsNullOrWhiteSpace(Orden) ? "codigo" : Orden!.Trim(),
+            Pagina = Pag is > 0 ? Pag.Value : 1,
+        };
+
+        try { _pagina = await Interno.BuscarAsync(_filtros); }
+        catch { _pagina = null; }
+    }
+
+    private RenderFragment FacetaBloque(string titulo, string clave, IReadOnlyList<OpcionFacetaInterna> ops) => __builder =>
+    {
+        if (ops.Count == 0) return;
+        <div class="mk-int-grupo">
+            <h2 class="mk-rotulo">@titulo</h2>
+            <div class="mk-int-faceta">
+                @foreach (var o in ops.Take(12))
+                {
+                    <a class="mk-int-tick @(o.Activa ? "activa" : "")" href="@UrlInterno.Alternar(_filtros, clave, o.Valor)">
+                        <span class="mk-int-box"></span>@o.Etiqueta <span class="mk-int-cant">@o.Cantidad</span>
+                    </a>
+                }
+            </div>
+        </div>;
+    };
+
+    // Campos ocultos para el form de búsqueda: preservan los filtros activos menos el que se está editando.
+    private IEnumerable<(string, string)> CamposOcultos(string excepto)
+    {
+        if (excepto != "ubic" && _filtros.Ubicaciones.Count > 0) yield return ("ubic", string.Join(',', _filtros.Ubicaciones));
+        if (!string.IsNullOrEmpty(_filtros.CruceDepoLocal)) yield return ("cruce", _filtros.CruceDepoLocal!);
+        if (_filtros.Prendas.Count > 0) yield return ("prenda", string.Join(',', _filtros.Prendas));
+        if (_filtros.Proveedores.Count > 0) yield return ("prov", string.Join(',', _filtros.Proveedores));
+        if (_filtros.Marcas.Count > 0) yield return ("marca", string.Join(',', _filtros.Marcas));
+        if (_filtros.Temporadas.Count > 0) yield return ("temp", string.Join(',', _filtros.Temporadas));
+        if (_filtros.Publicado is bool p) yield return ("pub", p ? "si" : "no");
+        if (!string.IsNullOrWhiteSpace(_filtros.Orden) && _filtros.Orden != "codigo") yield return ("orden", _filtros.Orden);
+    }
+
+    private static string? Vacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    private static IReadOnlyList<string> Csv(string? csv) =>
+        string.IsNullOrWhiteSpace(csv) ? []
+        : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+}

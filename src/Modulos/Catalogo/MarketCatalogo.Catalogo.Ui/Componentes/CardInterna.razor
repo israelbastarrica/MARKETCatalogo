@@ -4,7 +4,7 @@
    si está publicado). Sólo la ve el staff. La foto la sirve el endpoint /fotos con permiso interno
    (también las de artículos no publicados). *@
 
-<div class="mk-ic @(Articulo.Publicado ? "" : "mk-ic-oculto")">
+<a class="mk-ic @(Articulo.Publicado ? "" : "mk-ic-oculto")" href="/interno/producto/@Articulo.Codigo" data-enhance-nav="false">
     <div class="mk-ic-foto">
         @if (Articulo.TieneFoto)
         {
@@ -58,7 +58,7 @@
             <p class="mk-ic-meta mk-rotulo">@string.Join(" · ", Meta())</p>
         }
     </div>
-</div>
+</a>
 
 @code {
     [Parameter, EditorRequired] public required ArticuloInternoDto Articulo { get; set; }

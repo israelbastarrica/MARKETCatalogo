@@ -1,0 +1,112 @@
+@page "/interno/producto/{codigo}"
+@using MarketCatalogo.Catalogo.Contratos.Interno
+@attribute [Authorize(Policy = "Interno")]
+@inject ICatalogoInternoConsulta Interno
+
+@* Ficha interna de un artículo (staff). Muestra todos los datos de gestión y permite ocultar/mostrar el
+   artículo del catálogo público (la única escritura de la app, vía POST a /interno/visibilidad). SSR. *@
+
+<PageTitle>@(_a?.Titulo ?? Codigo) - Interno</PageTitle>
+<HeadContent><meta name="robots" content="noindex" /></HeadContent>
+
+@if (_a is null)
+{
+    <div class="mk-if">
+        <p class="mk-vacio">No se encontró el artículo <strong>@Codigo</strong> en el universo interno.</p>
+        <p><a href="/interno">Volver al catálogo interno</a></p>
+    </div>
+}
+else
+{
+    <div class="mk-if">
+        <nav class="mk-migas mk-rotulo" aria-label="Ubicación">
+            <a href="/interno">Catálogo interno</a>
+            <span aria-hidden="true">›</span>
+            <span>@_a.Codigo</span>
+        </nav>
+
+        <div class="mk-if-cuerpo">
+            <div class="mk-if-foto">
+                @if (_a.TieneFoto)
+                {
+                    <img src="/fotos/@(_a.Codigo)_1200.webp?v=@_a.FotoVersion" alt="@_a.Titulo" />
+                }
+                else
+                {
+                    <div class="mk-card-sinfoto" aria-label="Sin foto"></div>
+                }
+                <div class="mk-if-badges">
+                    @if (_a.EnLuro) { <span class="mk-ic-badge">Luro</span> }
+                    @if (_a.EnPeralta) { <span class="mk-ic-badge">Peralta</span> }
+                    @if (_a.EnDeposito) { <span class="mk-ic-badge mk-ic-badge-depo">Depósito</span> }
+                </div>
+            </div>
+
+            <div class="mk-if-datos">
+                <h1>@_a.Titulo</h1>
+                <p class="mk-if-cod mk-rotulo">@_a.Codigo · @_a.Rubro @(_a.Prenda is not null ? $"· {_a.Prenda}" : "") · @_a.Genero</p>
+                @if (!string.IsNullOrWhiteSpace(_a.Descripcion))
+                {
+                    <p class="mk-if-desc">@_a.Descripcion</p>
+                }
+
+                <dl class="mk-if-precios">
+                    @if (_a.ComboTexto is not null) { <div><dt>Combo</dt><dd>@_a.ComboTexto</dd></div> }
+                    @if (_a.PrecioUnidadCombo is decimal pu) { <div><dt>Precio unidad (combo)</dt><dd>@Plata(pu)</dd></div> }
+                    @if (_a.PrecioVenta is decimal pv) { <div><dt>Venta suelta (LISTA1)</dt><dd>@Plata(pv)</dd></div> }
+                    <div><dt>Costo (LISTA0)</dt><dd>@(_a.PrecioCompra is decimal c ? Plata(c) : "—")</dd></div>
+                    <div class="mk-if-margen"><dt>Margen teórico</dt><dd>@(_a.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
+                </dl>
+
+                <dl class="mk-if-meta">
+                    <div><dt>Proveedor</dt><dd>@(_a.Proveedor ?? "—")</dd></div>
+                    <div><dt>Marca</dt><dd>@(_a.Marca ?? "—")</dd></div>
+                    <div><dt>Temporada</dt><dd>@(_a.Temporada ?? "—")</dd></div>
+                </dl>
+
+                @if (_a.Talles.Count > 0)
+                {
+                    <div class="mk-if-chips"><span class="mk-rotulo">Talles</span>
+                        @foreach (var t in _a.Talles) { <span class="mk-if-chip">@t</span> }
+                    </div>
+                }
+                @if (_a.Colores.Count > 0)
+                {
+                    <div class="mk-if-chips"><span class="mk-rotulo">Colores</span>
+                        @foreach (var col in _a.Colores) { <span class="mk-if-chip">@col</span> }
+                    </div>
+                }
+
+                @* Visibilidad pública + acción (la única escritura). *@
+                <div class="mk-if-visib @(_a.Publicado ? "es-visible" : "es-oculto")">
+                    <div>
+                        <span class="mk-rotulo">En el catálogo público</span>
+                        <strong>@(_a.Publicado ? "Sí, se muestra" : "No se muestra")</strong>
+                    </div>
+                    <form method="post" action="/interno/visibilidad">
+                        <input type="hidden" name="codigo" value="@_a.Codigo" />
+                        <input type="hidden" name="volver" value="/interno/producto/@_a.Codigo" />
+                        <input type="hidden" name="accion" value="@(_a.Publicado ? "ocultar" : "mostrar")" />
+                        <button type="submit" class="mk-if-boton">
+                            @(_a.Publicado ? "Ocultar del público" : "Mostrar en el público")
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Codigo { get; set; }
+    private ArticuloInternoDto? _a;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try { _a = await Interno.PorCodigoAsync(Codigo); }
+        catch { _a = null; }
+    }
+
+    private static string Plata(decimal monto)
+        => monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+}

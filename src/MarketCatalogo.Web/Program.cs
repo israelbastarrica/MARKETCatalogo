@@ -60,6 +60,9 @@ app.MapRazorComponents<App>()
 // Endpoints de login (Google / usuario+clave / logout / dev-login).
 app.MapAuth();
 
+// Acciones del catálogo interno (ocultar/mostrar del público). Gateado por la política "Interno".
+app.MapInterno();
+
 // Thumbnails: /fotos/{codigo}_{ancho}.webp, generados bajo demanda.
 app.MapFotos();
 

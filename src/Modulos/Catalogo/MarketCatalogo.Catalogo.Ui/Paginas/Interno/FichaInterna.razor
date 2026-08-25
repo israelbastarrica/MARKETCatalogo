@@ -58,14 +58,33 @@ else
                     <div class="mk-if-margen"><dt>Margen teórico</dt><dd>@(_a.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
                 </dl>
 
+                @if (_a.StockTotal is not null)
+                {
+                    <table class="mk-if-stock">
+                        <thead>
+                            <tr><th>Origen</th><th>Stock</th><th>En tránsito</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Luro</td><td>@Unid(_a.StockLuro)</td><td>@Unid(_a.TransitoLuro)</td></tr>
+                            <tr><td>Peralta</td><td>@Unid(_a.StockPeralta)</td><td>@Unid(_a.TransitoPeralta)</td></tr>
+                            <tr><td>Depósito (central)</td><td>@Unid(_a.StockCentral)</td><td>@Unid(_a.TransitoCentral)</td></tr>
+                        </tbody>
+                        <tfoot>
+                            <tr><th>Total</th><td>@Unid(_a.StockTotal)</td><td>@Unid(_a.EnTransito)</td></tr>
+                        </tfoot>
+                    </table>
+                }
+                else
+                {
+                    <p class="mk-if-nota mk-rotulo">No se pudo consultar el stock en este momento.</p>
+                }
+
                 <dl class="mk-if-meta">
-                    <div><dt>Stock (central)</dt><dd>@(_a.StockTotal is decimal s ? $"{s:0.##}" : "—")</dd></div>
-                    <div><dt>En tránsito</dt><dd>@(_a.EnTransito is decimal tr && tr > 0 ? $"{tr:0.##}" : "—")</dd></div>
                     <div><dt>Proveedor</dt><dd>@(_a.Proveedor ?? "—")</dd></div>
                     <div><dt>Marca</dt><dd>@(_a.Marca ?? "—")</dd></div>
                     <div><dt>Temporada</dt><dd>@(_a.Temporada ?? "—")</dd></div>
                 </dl>
-                <p class="mk-if-nota mk-rotulo">Stock y tránsito del sistema central. El desglose por local (Luro/Peralta) requiere las réplicas por tienda.</p>
+                <p class="mk-if-nota mk-rotulo">Stock a la última replicación de cada tienda (Luro/Peralta) y del sistema central.</p>
 
                 @if (_a.Talles.Count > 0)
                 {
@@ -112,4 +131,7 @@ else
 
     private static string Plata(decimal monto)
         => monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
+
+    // Unidades: "—" cuando es 0 o null (no ensucia la tabla con ceros), el número si hay algo.
+    private static string Unid(decimal? v) => v is decimal x && x != 0 ? x.ToString("0.##") : "—";
 }

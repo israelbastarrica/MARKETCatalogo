@@ -41,10 +41,17 @@ public sealed class ArticuloInternoDto
     public bool TieneFoto { get; init; }
     public string? FotoVersion { get; init; }
 
-    // Stock (sistema central), sólo en la ficha (a demanda). null = no se consultó (grilla). El desglose
-    // por local (Luro/Peralta) necesita las réplicas por tienda — ítem de infra abierto.
+    // Stock, sólo en la ficha (a demanda; null = no se consultó, como en la grilla). Desglosado por origen
+    // (Luro / Peralta / central-depósito), leído de cada réplica por separado. StockTotal/EnTransito son la
+    // suma de los tres.
     public decimal? StockTotal { get; init; }
     public decimal? EnTransito { get; init; }
+    public decimal? StockLuro { get; init; }
+    public decimal? TransitoLuro { get; init; }
+    public decimal? StockPeralta { get; init; }
+    public decimal? TransitoPeralta { get; init; }
+    public decimal? StockCentral { get; init; }
+    public decimal? TransitoCentral { get; init; }
 }
 
 /// <summary>Filtros de la grilla interna. Todo multi-selección es unión (OR dentro de la faceta). Estado

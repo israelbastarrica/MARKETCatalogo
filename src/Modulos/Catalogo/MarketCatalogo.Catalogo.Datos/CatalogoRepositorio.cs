@@ -380,24 +380,54 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         return string.IsNullOrWhiteSpace(ruta) ? null : ruta;
     }
 
-    /// <summary>DRAGON (central): stock + tránsito de un artículo. Última foto de COMB por (color,talle)
-    /// —ROW_NUMBER por FALTAFW/HALTAFW, igual que MARKETweb— y suma. A demanda (una consulta por ficha).</summary>
-    public async Task<StockRow> TraerStockAsync(string codigo, CancellationToken ct = default)
+    // Stock + tránsito de un artículo en UNA réplica: última foto de COMB por (color,talle) —ROW_NUMBER
+    // por FALTAFW/HALTAFW, igual que MARKETweb— y suma. La misma query corre contra cada base (Luro/
+    // Peralta/Central); lo único que cambia es la conexión.
+    private const string SqlStockComb = """
+        WITH S AS (
+            SELECT COCANT, ENTRANSITO,
+                   Fila = ROW_NUMBER() OVER (PARTITION BY COART, COCOL, TALLE ORDER BY FALTAFW DESC, HALTAFW DESC)
+            FROM ZooLogic.COMB WITH (NOLOCK)
+            WHERE RTRIM(COART) = @cod
+        )
+        SELECT Stock = ISNULL(SUM(COCANT), 0), Transito = ISNULL(SUM(ENTRANSITO), 0)
+        FROM S WHERE Fila = 1;
+        """;
+
+    /// <summary>Stock + tránsito de un artículo desglosado por origen (Luro / Peralta / central-depósito).
+    /// Consulta las tres réplicas EN PARALELO, cada una por su conexión (sin OPENQUERY). Si alguna réplica
+    /// no responde, ese origen queda en 0 —logueado— y la ficha igual se arma con las demás.</summary>
+    public async Task<StockDetalleRow> TraerStockDetalleAsync(string codigo, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
-        if (cod.Length == 0) return new StockRow(0, 0);
-        const string sql = """
-            WITH S AS (
-                SELECT COCANT, ENTRANSITO,
-                       Fila = ROW_NUMBER() OVER (PARTITION BY COART, COCOL, TALLE ORDER BY FALTAFW DESC, HALTAFW DESC)
-                FROM ZooLogic.COMB WITH (NOLOCK)
-                WHERE RTRIM(COART) = @cod
-            )
-            SELECT Stock = ISNULL(SUM(COCANT), 0), Transito = ISNULL(SUM(ENTRANSITO), 0)
-            FROM S WHERE Fila = 1;
-            """;
-        using var cn = _db.CrearDragon();
-        return await cn.QuerySingleAsync<StockRow>(new CommandDefinition(sql, new { cod }, commandTimeout: 60, cancellationToken: ct));
+        if (cod.Length == 0) return new StockDetalleRow(0, 0, 0, 0, 0, 0);
+
+        var luro = LeerStockAsync(_db.CrearLuro, cod, "LURO", ct);
+        var peralta = LeerStockAsync(_db.CrearPeralta, cod, "PERALTA", ct);
+        var central = LeerStockAsync(_db.CrearDragon, cod, "CENTRAL", ct);
+        await Task.WhenAll(luro, peralta, central);
+
+        return new StockDetalleRow(
+            luro.Result.Stock, luro.Result.Transito,
+            peralta.Result.Stock, peralta.Result.Transito,
+            central.Result.Stock, central.Result.Transito);
+    }
+
+    // Corre la query de stock contra la réplica que devuelve la fábrica. Aísla el fallo por origen: si la
+    // réplica está caída o el login no la alcanza, devuelve 0 en vez de tumbar la ficha entera.
+    private async Task<StockRow> LeerStockAsync(Func<SqlConnection> abrir, string cod, string origen, CancellationToken ct)
+    {
+        try
+        {
+            using var cn = abrir();
+            return await cn.QuerySingleAsync<StockRow>(
+                new CommandDefinition(SqlStockComb, new { cod }, commandTimeout: 60, cancellationToken: ct));
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "No se pudo leer el stock de {Codigo} en {Origen}; se toma 0.", cod, origen);
+            return new StockRow(0, 0);
+        }
     }
 
     /// <summary>MARKET: oculta/muestra un artículo del público. Upsert de OcultarManual en la tabla de

@@ -29,9 +29,9 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         var filas = await _repo.LeerBaseAsync(soloPublicados: false, ct);
         var fila = filas.FirstOrDefault(f => f.Codigo.Equals(cod, StringComparison.OrdinalIgnoreCase));
         if (fila is null) return null;
-        // Stock a demanda (sistema central), sólo para la ficha. Si falla, la ficha se muestra sin stock.
-        StockRow? stock = null;
-        try { stock = await _repo.TraerStockAsync(cod, ct); } catch { /* ficha sin stock */ }
+        // Stock a demanda desglosado por local, sólo para la ficha. Si falla, la ficha se muestra sin stock.
+        StockDetalleRow? stock = null;
+        try { stock = await _repo.TraerStockDetalleAsync(cod, ct); } catch { /* ficha sin stock */ }
         return Mapear(fila, stock);
     }
 
@@ -153,7 +153,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
                .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta, StringComparer.CurrentCultureIgnoreCase)
                .ToList();
 
-    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockRow? stock = null)
+    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null)
     {
         var combo = Combo.Parsear(f.Combo);
         var precioUnidad = combo?.PrecioUnidad ?? (f.PrecioVenta > 0 ? f.PrecioVenta : null);
@@ -190,8 +190,14 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             Marca = string.IsNullOrWhiteSpace(f.Marca) ? null : f.Marca,
             TieneFoto = f.TieneFoto,
             FotoVersion = f.FotoPrincipalVersion,
-            StockTotal = stock?.Stock,
-            EnTransito = stock?.Transito,
+            StockTotal = stock?.Total,
+            EnTransito = stock?.TransitoTotal,
+            StockLuro = stock?.Luro,
+            TransitoLuro = stock?.TransitoLuro,
+            StockPeralta = stock?.Peralta,
+            TransitoPeralta = stock?.TransitoPeralta,
+            StockCentral = stock?.Central,
+            TransitoCentral = stock?.TransitoCentral,
         };
     }
 

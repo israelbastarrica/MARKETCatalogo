@@ -16,9 +16,13 @@ namespace MarketCatalogo.Compartido.Datos;
 public sealed class SqlConnectionFactory : ISqlConnectionFactory
 {
     private const string BaseDragonPorDefecto = "DRAGONFISH_CENTRAL";
+    private const string BaseLuroPorDefecto = "DRAGONFISH_LURO";
+    private const string BasePeraltaPorDefecto = "DRAGONFISH_PERALTA";
 
     private readonly string _market;
     private readonly string _dragon;
+    private readonly string _luro;
+    private readonly string _peralta;
 
     public SqlConnectionFactory(IConfiguration cfg)
     {
@@ -26,20 +30,27 @@ public sealed class SqlConnectionFactory : ISqlConnectionFactory
             ?? throw new InvalidOperationException(
                 "Falta la cadena de conexión 'MarketDb'. Definirla con dotnet user-secrets.");
 
-        var dragonExplicita = cfg.GetConnectionString("DragonDb");
-        if (!string.IsNullOrWhiteSpace(dragonExplicita))
-        {
-            _dragon = dragonExplicita;
-        }
-        else
-        {
-            var baseDragon = cfg["Catalogo:BaseDragon"];
-            if (string.IsNullOrWhiteSpace(baseDragon)) baseDragon = BaseDragonPorDefecto;
-            _dragon = new SqlConnectionStringBuilder(_market) { InitialCatalog = baseDragon.Trim() }
-                .ConnectionString;
-        }
+        _dragon = Derivar(cfg, "DragonDb", "Catalogo:BaseDragon", BaseDragonPorDefecto);
+        _luro = Derivar(cfg, "DragonLuroDb", "Catalogo:BaseLuro", BaseLuroPorDefecto);
+        _peralta = Derivar(cfg, "DragonPeraltaDb", "Catalogo:BasePeralta", BasePeraltaPorDefecto);
+    }
+
+    // Una cadena explícita (ConnectionStrings:<claveExplicita>) gana; si no, se DERIVA de MarketDb
+    // cambiando la base (Initial Catalog) por la de config (<claveBase>) o el default. Así hoy alcanza una
+    // sola cadena para las cuatro bases (mismo servidor), pero cada una puede apuntarse por separado el día
+    // que una se mude a otro server o a la nube — sin tocar una sola query.
+    private string Derivar(IConfiguration cfg, string claveExplicita, string claveBase, string baseDefecto)
+    {
+        var explicita = cfg.GetConnectionString(claveExplicita);
+        if (!string.IsNullOrWhiteSpace(explicita)) return explicita;
+
+        var baseNombre = cfg[claveBase];
+        if (string.IsNullOrWhiteSpace(baseNombre)) baseNombre = baseDefecto;
+        return new SqlConnectionStringBuilder(_market) { InitialCatalog = baseNombre.Trim() }.ConnectionString;
     }
 
     public SqlConnection CrearMarket() => new(_market);
     public SqlConnection CrearDragon() => new(_dragon);
+    public SqlConnection CrearLuro() => new(_luro);
+    public SqlConnection CrearPeralta() => new(_peralta);
 }

@@ -19,4 +19,13 @@ public interface ISqlConnectionFactory
 
     /// <summary>Base DRAGONFISH_CENTRAL (Zoologic): artículos, categorías, precios y combinaciones.</summary>
     SqlConnection CrearDragon();
+
+    /// <summary>Réplica DRAGONFISH_LURO (Zoologic): el Dragonfish del local Luro, replicado por CDC en el
+    /// mismo servidor que MARKET. Se usa para el stock por tienda de la ficha interna. Se deriva de la misma
+    /// cadena que las otras cambiando la base — sin OPENQUERY ni linked servers, para que mudar una tienda a
+    /// la nube sea sólo cambiar config.</summary>
+    SqlConnection CrearLuro();
+
+    /// <summary>Réplica DRAGONFISH_PERALTA (Zoologic): ídem <see cref="CrearLuro"/> para el local Peralta.</summary>
+    SqlConnection CrearPeralta();
 }

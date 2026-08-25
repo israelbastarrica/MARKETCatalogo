@@ -1224,6 +1224,23 @@
 
 .mk-if-nota { margin: -0.5rem 0 0; color: var(--mk-tinta-40); font-size: 0.72rem; }
 
+/* Tabla de stock por origen (Luro / Peralta / depósito) — monocromática, como el resto de la ficha. */
+.mk-if-stock {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 0;
+    border-top: 1px solid var(--mk-tinta-20);
+}
+.mk-if-stock th, .mk-if-stock td { padding: 0.5rem 0.4rem; text-align: right; }
+.mk-if-stock th:first-child, .mk-if-stock td:first-child { text-align: left; }
+.mk-if-stock thead th {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--mk-tinta-40); font-weight: 600; border-bottom: 1px solid var(--mk-tinta-20);
+}
+.mk-if-stock tbody td { font-size: 1rem; border-bottom: 1px solid var(--mk-tinta-20); }
+.mk-if-stock tbody td:not(:first-child) { font-weight: 600; }
+.mk-if-stock tfoot th, .mk-if-stock tfoot td { font-size: 1.05rem; font-weight: 700; padding-top: 0.6rem; }
+
 .mk-if-chips { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .mk-if-chips .mk-rotulo { margin-right: 0.3rem; color: var(--mk-tinta-70); }
 .mk-if-chip {

@@ -1,6 +1,7 @@
 using MarketCatalogo.Catalogo.Contratos;
 using MarketCatalogo.Catalogo.Contratos.Interno;
 using MarketCatalogo.Compartido;
+using Microsoft.Extensions.Configuration;
 
 namespace MarketCatalogo.Catalogo.Aplicacion;
 
@@ -13,17 +14,19 @@ namespace MarketCatalogo.Catalogo.Aplicacion;
 /// </summary>
 public sealed class LectorInterno : ICatalogoInternoConsulta
 {
-    // Ventana de ventas realizadas de la ficha. Fija por ahora (ítem del plan: "8 semanas, confirmar");
-    // el día que se quiera configurable, se lee de IConfiguration acá.
-    private const int SemanasVentas = 8;
+    // Ventana de ventas realizadas de la ficha, en semanas. Config: Catalogo:SemanasVentas (default 8),
+    // acotada a 1..52. El día que se quiera cambiar, se toca appsettings sin recompilar.
+    private readonly int _semanasVentas;
 
     private readonly ICatalogoRepositorio _repo;
     private readonly CatalogoStore _store;
 
-    public LectorInterno(ICatalogoRepositorio repo, CatalogoStore store)
+    public LectorInterno(ICatalogoRepositorio repo, CatalogoStore store, IConfiguration cfg)
     {
         _repo = repo;
         _store = store;
+        var semanas = int.TryParse(cfg["Catalogo:SemanasVentas"], out var s) ? s : 8;
+        _semanasVentas = Math.Clamp(semanas, 1, 52);
     }
 
     // Corre una consulta a demanda de la ficha sin dejar que su fallo tumbe la página: null si falla.
@@ -43,7 +46,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         // Stock (por local) y ventas realizadas de la ventana, a demanda y en paralelo, sólo para la ficha.
         // Cada uno tolera su propio fallo: la ficha se muestra con lo que haya.
         var stockT = TraerSeguro(() => _repo.TraerStockDetalleAsync(cod, ct));
-        var ventasT = TraerSeguro(() => _repo.TraerVentasPeriodoAsync(cod, SemanasVentas * 7, ct));
+        var ventasT = TraerSeguro(() => _repo.TraerVentasPeriodoAsync(cod, _semanasVentas * 7, ct));
         await Task.WhenAll(stockT, ventasT);
         return Mapear(fila, stockT.Result, ventasT.Result);
     }

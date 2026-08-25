@@ -28,7 +28,6 @@ public static class PoliticasAuth
 {
     /// <summary>Única política: ver el catálogo interno = estar logueado y aprobado (estado = ok).</summary>
     public const string Interno = "Interno";
-
     public const string ClaimEstado = "estado";
     public const string ClaimPerfil = "perfil";
     public const string ClaimPc = "pc";

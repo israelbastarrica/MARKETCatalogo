@@ -430,6 +430,106 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         }
     }
 
+    // Líneas de venta de UNA tienda, agregadas por día. FART = código en el detalle; FCANT/MNTPTOT firmados
+    // por SIGNOMOV (devoluciones restan); mismos filtros que MARKETweb (ANULADO=0, FLETRA<>'R', se excluyen
+    // los códigos Z*/1*). Sin prefijo de base: la conexión (Luro o Peralta) define de qué réplica lee.
+    private const string SqlVentasDia = """
+        SELECT Dia = CAST(C.FFCH AS date),
+               Unidades = SUM(D.FCANT * C.SIGNOMOV),
+               Facturado = SUM(D.MNTPTOT * C.SIGNOMOV)
+        FROM ZooLogic.COMPROBANTEV     C WITH (NOLOCK)
+        JOIN ZooLogic.COMPROBANTEVDET  D WITH (NOLOCK) ON C.CODIGO = D.CODIGO
+        WHERE RTRIM(D.FART) = @cod
+          AND C.ANULADO = 0 AND C.FLETRA <> 'R'
+          AND C.FFCH >= @desde AND C.FFCH < @hasta
+          AND LEFT(RTRIM(D.FART), 1) NOT IN ('Z', '1')
+        GROUP BY CAST(C.FFCH AS date);
+        """;
+
+    // Historial de la lista de COSTO (LISTA0) del artículo, en CENTRAL. Pocas filas por artículo. Con esto
+    // se reconstruye en C# el costo vigente a la fecha de cada venta (costo histórico, no el de hoy).
+    private const string SqlCostoHist = """
+        SELECT FechaVig = P.FECHAVIG, HoraMod = CONVERT(varchar(20), P.HMODIFW), PDirecto = P.PDIRECTO
+        FROM ZooLogic.PRECIOAR P WITH (NOLOCK)
+        WHERE RTRIM(P.ARTICULO) = @cod AND P.LISTAPRE = 'LISTA0'
+        ORDER BY P.FECHAVIG, HoraMod;
+        """;
+
+    public async Task<VentasPeriodoRow> TraerVentasPeriodoAsync(string codigo, int dias, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        var ventana = dias > 0 ? dias : 56;
+        var hasta = DateTime.Today.AddDays(1);          // exclusivo → incluye todo el día de hoy
+        var desde = DateTime.Today.AddDays(-ventana);
+        if (cod.Length == 0) return new VentasPeriodoRow(ventana, 0, 0, 0, 0, 0, null);
+
+        var pars = new { cod, desde, hasta };
+        var luroT = LeerVentasDiaAsync(_db.CrearLuro, cod, "LURO", pars, ct);
+        var peraltaT = LeerVentasDiaAsync(_db.CrearPeralta, cod, "PERALTA", pars, ct);
+        var costoT = LeerCostoHistAsync(cod, ct);
+        await Task.WhenAll(luroT, peraltaT, costoT);
+
+        var costos = costoT.Result;                     // ordenado por (FechaVig, HoraMod) asc
+        // Fallback (PA): primer costo "de verdad" (>100). Igual criterio que el OUTER APPLY PA de MARKETweb.
+        var fallback = costos.FirstOrDefault(c => c.PDirecto > 100)?.PDirecto ?? 0m;
+
+        decimal CostoDelDia(DateTime dia, decimal unidades)
+        {
+            // Costo vigente a la fecha: última vigencia con FechaVig <= día (desempate por HoraMod).
+            var vig = costos.Where(c => c.FechaVig.Date <= dia.Date)
+                            .OrderBy(c => c.FechaVig).ThenBy(c => c.HoraMod, StringComparer.Ordinal)
+                            .LastOrDefault();
+            var costoUnit = vig is null || vig.PDirecto is 0m or 1m ? fallback : vig.PDirecto;
+            return costoUnit * unidades;
+        }
+
+        var luro = luroT.Result;
+        var peralta = peraltaT.Result;
+        var vendidoLuro = luro.Sum(d => d.Unidades);
+        var vendidoPeralta = peralta.Sum(d => d.Unidades);
+        var facturado = luro.Sum(d => d.Facturado) + peralta.Sum(d => d.Facturado);
+        var costo = luro.Sum(d => CostoDelDia(d.Dia, d.Unidades)) + peralta.Sum(d => CostoDelDia(d.Dia, d.Unidades));
+
+        DateTime? ultima = luro.Concat(peralta).Select(d => (DateTime?)d.Dia).DefaultIfEmpty(null).Max();
+
+        return new VentasPeriodoRow(ventana, vendidoLuro + vendidoPeralta, vendidoLuro, vendidoPeralta,
+            facturado, costo, ultima);
+    }
+
+    // Ventas por día de una tienda; tolerante: si la réplica no responde, esa tienda queda sin ventas.
+    private async Task<IReadOnlyList<VentaDiaRow>> LeerVentasDiaAsync(
+        Func<SqlConnection> abrir, string cod, string origen, object pars, CancellationToken ct)
+    {
+        try
+        {
+            using var cn = abrir();
+            var filas = await cn.QueryAsync<VentaDiaRow>(
+                new CommandDefinition(SqlVentasDia, pars, commandTimeout: 120, cancellationToken: ct));
+            return filas.ToList();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "No se pudieron leer las ventas de {Codigo} en {Origen}; se toma sin ventas.", cod, origen);
+            return Array.Empty<VentaDiaRow>();
+        }
+    }
+
+    private async Task<IReadOnlyList<PrecioHistRow>> LeerCostoHistAsync(string cod, CancellationToken ct)
+    {
+        try
+        {
+            using var cn = _db.CrearDragon();
+            var filas = await cn.QueryAsync<PrecioHistRow>(
+                new CommandDefinition(SqlCostoHist, new { cod }, commandTimeout: 60, cancellationToken: ct));
+            return filas.ToList();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "No se pudo leer el historial de costo de {Codigo}; el margen realizado sale sin costo.", cod);
+            return Array.Empty<PrecioHistRow>();
+        }
+    }
+
     /// <summary>MARKET: oculta/muestra un artículo del público. Upsert de OcultarManual en la tabla de
     /// overrides CatalogoArticulo (+ auditoría "Acción | origen | fecha", convención MARKET) y reflejo
     /// inmediato en Catalogo.Publicado. Es la ÚNICA escritura de la app, y sólo toca tablas propias del

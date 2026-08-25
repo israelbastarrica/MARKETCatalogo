@@ -13,6 +13,10 @@ namespace MarketCatalogo.Catalogo.Aplicacion;
 /// </summary>
 public sealed class LectorInterno : ICatalogoInternoConsulta
 {
+    // Ventana de ventas realizadas de la ficha. Fija por ahora (ítem del plan: "8 semanas, confirmar");
+    // el día que se quiera configurable, se lee de IConfiguration acá.
+    private const int SemanasVentas = 8;
+
     private readonly ICatalogoRepositorio _repo;
     private readonly CatalogoStore _store;
 
@@ -22,6 +26,13 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         _store = store;
     }
 
+    // Corre una consulta a demanda de la ficha sin dejar que su fallo tumbe la página: null si falla.
+    private static async Task<T?> TraerSeguro<T>(Func<Task<T>> consulta) where T : class
+    {
+        try { return await consulta(); }
+        catch { return null; }
+    }
+
     public async Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
@@ -29,10 +40,12 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         var filas = await _repo.LeerBaseAsync(soloPublicados: false, ct);
         var fila = filas.FirstOrDefault(f => f.Codigo.Equals(cod, StringComparison.OrdinalIgnoreCase));
         if (fila is null) return null;
-        // Stock a demanda desglosado por local, sólo para la ficha. Si falla, la ficha se muestra sin stock.
-        StockDetalleRow? stock = null;
-        try { stock = await _repo.TraerStockDetalleAsync(cod, ct); } catch { /* ficha sin stock */ }
-        return Mapear(fila, stock);
+        // Stock (por local) y ventas realizadas de la ventana, a demanda y en paralelo, sólo para la ficha.
+        // Cada uno tolera su propio fallo: la ficha se muestra con lo que haya.
+        var stockT = TraerSeguro(() => _repo.TraerStockDetalleAsync(cod, ct));
+        var ventasT = TraerSeguro(() => _repo.TraerVentasPeriodoAsync(cod, SemanasVentas * 7, ct));
+        await Task.WhenAll(stockT, ventasT);
+        return Mapear(fila, stockT.Result, ventasT.Result);
     }
 
     public async Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default)
@@ -153,7 +166,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
                .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta, StringComparer.CurrentCultureIgnoreCase)
                .ToList();
 
-    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null)
+    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null, VentasPeriodoRow? ventas = null)
     {
         var combo = Combo.Parsear(f.Combo);
         var precioUnidad = combo?.PrecioUnidad ?? (f.PrecioVenta > 0 ? f.PrecioVenta : null);
@@ -198,6 +211,15 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             TransitoPeralta = stock?.TransitoPeralta,
             StockCentral = stock?.Central,
             TransitoCentral = stock?.TransitoCentral,
+            VentasDias = ventas?.Dias,
+            Vendido = ventas?.Vendido,
+            VendidoLuro = ventas?.VendidoLuro,
+            VendidoPeralta = ventas?.VendidoPeralta,
+            Facturado = ventas?.Facturado,
+            CostoPeriodo = ventas?.Costo,
+            MargenRealPesos = ventas?.MargenPesos,
+            MargenRealPct = ventas?.MargenPct,
+            UltimaVenta = ventas?.UltimaVenta,
         };
     }
 

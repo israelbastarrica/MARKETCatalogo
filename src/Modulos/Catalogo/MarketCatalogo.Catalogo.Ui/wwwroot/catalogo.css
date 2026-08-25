@@ -1241,6 +1241,11 @@
 .mk-if-stock tbody td:not(:first-child) { font-weight: 600; }
 .mk-if-stock tfoot th, .mk-if-stock tfoot td { font-size: 1.05rem; font-weight: 700; padding-top: 0.6rem; }
 
+/* Bloque de ventas realizadas de la ficha. */
+.mk-if-ventas { margin-top: 1rem; }
+.mk-if-ventas > .mk-rotulo { display: block; color: var(--mk-tinta-70); margin-bottom: -0.25rem; }
+.mk-if-ventas .mk-if-meta { border-top: none; padding-top: 0.5rem; }
+
 .mk-if-chips { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .mk-if-chips .mk-rotulo { margin-right: 0.3rem; color: var(--mk-tinta-70); }
 .mk-if-chip {

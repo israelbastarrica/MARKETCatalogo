@@ -79,12 +79,35 @@ else
                     <p class="mk-if-nota mk-rotulo">No se pudo consultar el stock en este momento.</p>
                 }
 
+                @if (_a.VentasDias is int dias)
+                {
+                    <div class="mk-if-ventas">
+                        <span class="mk-rotulo">Ventas · últimas @(dias / 7) semanas</span>
+                        @if (_a.HuboVentas)
+                        {
+                            <dl class="mk-if-meta">
+                                <div><dt>Vendido</dt><dd>@Unid(_a.Vendido) u.</dd></div>
+                                <div><dt>Luro · Peralta</dt><dd>@Unid(_a.VendidoLuro) · @Unid(_a.VendidoPeralta)</dd></div>
+                                <div><dt>Facturado</dt><dd>@(_a.Facturado is decimal fa ? Plata(fa) : "—")</dd></div>
+                                <div><dt>Costo del período</dt><dd>@(_a.CostoPeriodo is decimal co ? Plata(co) : "—")</dd></div>
+                                <div><dt>Margen realizado</dt><dd>@(_a.MargenRealPesos is decimal mp ? Plata(mp) : "—")</dd></div>
+                                <div class="mk-if-margen"><dt>Margen real %</dt><dd>@(_a.MargenRealPct is decimal mpc ? $"{mpc:0.#}%" : "—")</dd></div>
+                                @if (_a.UltimaVenta is DateTime uv) { <div><dt>Última venta</dt><dd>@uv.ToString("dd/MM/yyyy")</dd></div> }
+                            </dl>
+                        }
+                        else
+                        {
+                            <p class="mk-if-nota mk-rotulo">Sin ventas en el período.</p>
+                        }
+                    </div>
+                }
+
                 <dl class="mk-if-meta">
                     <div><dt>Proveedor</dt><dd>@(_a.Proveedor ?? "—")</dd></div>
                     <div><dt>Marca</dt><dd>@(_a.Marca ?? "—")</dd></div>
                     <div><dt>Temporada</dt><dd>@(_a.Temporada ?? "—")</dd></div>
                 </dl>
-                <p class="mk-if-nota mk-rotulo">Stock a la última replicación de cada tienda (Luro/Peralta) y del sistema central.</p>
+                <p class="mk-if-nota mk-rotulo">Stock a la última replicación de cada tienda. Ventas y margen realizado con costo histórico (LISTA0) a la fecha de cada venta.</p>
 
                 @if (_a.Talles.Count > 0)
                 {

@@ -48,6 +48,14 @@ public interface ICatalogoRepositorio
     /// por una tienda caída). A demanda al abrir la ficha, no en el rebuild.</summary>
     Task<StockDetalleRow> TraerStockDetalleAsync(string codigo, CancellationToken ct = default);
 
+    /// <summary>Ventas realizadas de un artículo en los últimos <paramref name="dias"/> días, con margen
+    /// REALIZADO (facturado − costo histórico). Replica la lógica de MARKETweb (StockVentasService) pero
+    /// PORTABLE: lee las líneas de venta de cada réplica de tienda por su propia conexión
+    /// (<c>COMPROBANTEV</c>/<c>COMPROBANTEVDET</c> de <c>DRAGONFISH_LURO</c>/<c>_PERALTA</c>), trae el
+    /// historial de costo <c>LISTA0</c> de CENTRAL por separado, y cruza el costo vigente a la fecha de
+    /// cada venta en C# — sin OPENQUERY ni JOIN cross-DB. A demanda al abrir la ficha.</summary>
+    Task<VentasPeriodoRow> TraerVentasPeriodoAsync(string codigo, int dias, CancellationToken ct = default);
+
     /// <summary>MARKET: oculta o muestra un artículo del catálogo PÚBLICO — la ÚNICA escritura de la app.
     /// Va sólo a la tabla de overrides <c>CatalogoArticulo</c> (<c>OcultarManual</c> + auditoría, upsert),
     /// nunca a Dragon ni a logística. Además refleja el cambio al instante en <c>Catalogo.Publicado</c>
@@ -143,6 +151,25 @@ public sealed record StockDetalleRow(
 {
     public decimal Total => Luro + Peralta + Central;
     public decimal TransitoTotal => TransitoLuro + TransitoPeralta + TransitoCentral;
+}
+
+/// <summary>Ventas de un artículo en UNA tienda, agregadas por DÍA (para cruzar el costo vigente a esa
+/// fecha). Unidades y facturado ya vienen firmados por SIGNOMOV (las devoluciones restan).</summary>
+public sealed record VentaDiaRow(DateTime Dia, decimal Unidades, decimal Facturado);
+
+/// <summary>Una vigencia de precio de la lista de costo (LISTA0) de un artículo: desde qué fecha/hora rige
+/// y cuánto. Se usa para reconstruir el costo histórico al día de cada venta.</summary>
+public sealed record PrecioHistRow(DateTime FechaVig, string? HoraMod, decimal PDirecto);
+
+/// <summary>Ventas realizadas de un artículo en la ventana, con costo histórico y margen realizado.
+/// Unidades/facturado firmados por SIGNOMOV; costo = Σ(costo vigente a la fecha × unidades del día).</summary>
+public sealed record VentasPeriodoRow(
+    int Dias, decimal Vendido, decimal VendidoLuro, decimal VendidoPeralta,
+    decimal Facturado, decimal Costo, DateTime? UltimaVenta)
+{
+    public bool HuboVentas => Vendido != 0 || Facturado != 0;
+    public decimal MargenPesos => Facturado - Costo;
+    public decimal? MargenPct => Facturado != 0 ? Math.Round((Facturado - Costo) / Facturado * 100, 1) : null;
 }
 
 public sealed record CatalogoFilaLeida(

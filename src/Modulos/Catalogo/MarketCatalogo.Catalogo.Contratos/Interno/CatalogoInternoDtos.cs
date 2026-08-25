@@ -52,6 +52,19 @@ public sealed class ArticuloInternoDto
     public decimal? TransitoPeralta { get; init; }
     public decimal? StockCentral { get; init; }
     public decimal? TransitoCentral { get; init; }
+
+    // Ventas realizadas de la ventana (últimas N semanas), sólo en la ficha. null = no se consultó.
+    // Facturado y costo firmados (las devoluciones restan); el margen realizado se deriva de ambos.
+    public int? VentasDias { get; init; }
+    public decimal? Vendido { get; init; }
+    public decimal? VendidoLuro { get; init; }
+    public decimal? VendidoPeralta { get; init; }
+    public decimal? Facturado { get; init; }
+    public decimal? CostoPeriodo { get; init; }
+    public decimal? MargenRealPesos { get; init; }
+    public decimal? MargenRealPct { get; init; }
+    public DateTime? UltimaVenta { get; init; }
+    public bool HuboVentas => Vendido is decimal v && v != 0;
 }
 
 /// <summary>Filtros de la grilla interna. Todo multi-selección es unión (OR dentro de la faceta). Estado

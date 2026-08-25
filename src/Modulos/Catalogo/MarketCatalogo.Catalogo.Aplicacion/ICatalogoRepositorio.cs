@@ -50,10 +50,10 @@ public interface ICatalogoRepositorio
     Task<FichaDatosRow> TraerFichaStockVentasAsync(string codigo, int dias, CancellationToken ct = default);
 
     /// <summary>MARKET: oculta o muestra un artículo del catálogo PÚBLICO — la ÚNICA escritura de la app.
-    /// Va sólo a la tabla de overrides <c>CatalogoArticulo</c> (<c>OcultarManual</c> + auditoría, upsert),
-    /// nunca a Dragon ni a logística. Además refleja el cambio al instante en <c>Catalogo.Publicado</c>
-    /// (<paramref name="publicadoSiVisible"/> = si, de no estar oculto, cumpliría las condiciones de
-    /// publicación; el próximo rebuild lo recomputa definitivamente).</summary>
+    /// Escribe <c>OcultarManual</c> + auditoría directamente en <c>dbo.Catalogo</c> (una sola tabla) y
+    /// refleja el cambio al instante en <c>Publicado</c> (<paramref name="publicadoSiVisible"/> = si, de
+    /// no estar oculto, cumpliría las condiciones de publicación). El rebuild PRESERVA <c>OcultarManual</c>
+    /// (no lo pisa) y recomputa <c>Publicado</c> = base AND NOT OcultarManual. Nunca toca Dragon ni logística.</summary>
     Task CambiarVisibilidadAsync(string codigo, bool ocultar, bool publicadoSiVisible, string origen, CancellationToken ct = default);
 
     /// <summary>DRAGON: cabecera, taxonomía, combo y precio vigente de los códigos pedidos.</summary>
@@ -82,9 +82,6 @@ public interface ICatalogoRepositorio
     /// <summary>MARKET: ruta en disco de la foto de cada artículo.</summary>
     Task<IReadOnlyList<FotoRow>> TraerRutasFotoAsync(CancellationToken ct = default);
 
-    /// <summary>MARKET: overrides editoriales. Devuelve vacío si la tabla todavía no existe.</summary>
-    Task<IReadOnlyList<OverrideRow>> TraerOverridesAsync(CancellationToken ct = default);
-
     /// <summary>MARKET: los tramos oficiales de combo (cuántas unidades y a qué precio total), de la
     /// grilla de márgenes (PruebaCombos). Es la fuente de qué cantidades y qué precios ofrece el filtro
     /// de combo — no se derivan agrupando lo que hay armado en este momento, sino de la tabla que define
@@ -110,17 +107,16 @@ public sealed record VarianteRow(string ArtCod, string ColorCod, string Color, s
 // bien de fábrica (2XL antes que 3XL); no se re-ordena con Talles.cs.
 public sealed record CurvaTalleRow(string ArtCod, string Talle, int Orden);
 public sealed record FotoRow(string ArtCod, string Ruta);
-public sealed record OverrideRow(string ArtCod, string? NombreComercial, string? Marketing,
-                                 int Destacado, bool OcultarManual);
 // Total es int porque así está tipada la columna en PruebaCombos: Dapper materializa records por
 // constructor y necesita el tipo exacto de la columna, si no tira InvalidOperationException al mapear.
 public sealed record ComboTierRow(int Cantidad, int Total);
 
 /// <summary>Fila BASE calculada, lista para persistir en <c>dbo.Catalogo</c> (columnas base, sin ficha).
 /// La arma <c>CatalogoStore</c> cruzando las fuentes; la escribe <c>CatalogoRepositorio.GuardarBaseAsync</c>.
-/// Nombres y tipos calzan 1:1 con las columnas base de la tabla (el MERGE mapea por nombre).</summary>
+/// <c>PublicadoBase</c> = cumple los criterios objetivos de publicación IGNORANDO el ocultar-manual; el
+/// MERGE lo combina con la columna <c>OcultarManual</c> (que preserva) para el <c>Publicado</c> final.</summary>
 public sealed record CatalogoFilaBase(
-    string Codigo, bool Publicado, string Slug, string Descripcion,
+    string Codigo, bool PublicadoBase, string Slug, string Descripcion,
     string Rubro, string Genero, string Prenda,
     decimal? PrecioVenta, decimal? PrecioCompra, string? Combo,
     bool EnLuro, bool EnPeralta, bool EnDeposito,

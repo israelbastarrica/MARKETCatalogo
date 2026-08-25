@@ -12,8 +12,8 @@ namespace MarketCatalogo.Catalogo.Aplicacion;
 /// es mucho trabajo. Esto es el camino del medio: expandir las abreviaturas conocidas, sacar los códigos
 /// internos y capitalizar. Ver docs/PLAN.md §2.bis.
 ///
-/// Es BEST EFFORT a propósito: los tokens que no conoce pasan capitalizados. Cuando un título queda mal,
-/// la salida es cargar <c>CatalogoArticulo.NombreComercial</c>, que siempre gana.
+/// Es BEST EFFORT a propósito: los tokens que no conoce pasan capitalizados. Es la única fuente del nombre
+/// de vidriera (el override manual <c>NombreComercial</c> se retiró al pasar a una sola tabla).
 /// </summary>
 public static partial class TituloArticulo
 {

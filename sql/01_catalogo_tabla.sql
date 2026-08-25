@@ -39,10 +39,19 @@ BEGIN
         -- ===== BASE — se recalcula para TODOS en el rebuild global =====
         -- Publicación / estado
         Publicado            bit           NOT NULL CONSTRAINT DF_Catalogo_Publicado DEFAULT (0),
-                                                       -- filtro público: Indumentaria + en algún local +
-                                                       -- tiene foto + NO oculto manual. Materializado e indexado.
+                                                       -- filtro público (materializado e indexado). DERIVADO:
+                                                       -- = base objetiva (Indumentaria + en algún local +
+                                                       -- tiene variantes) AND NOT OcultarManual. Lo recalcula
+                                                       -- el MERGE en cada rebuild; no se edita a mano salvo el
+                                                       -- reflejo inmediato del botón ocultar/mostrar.
         Eliminado            bit           NOT NULL CONSTRAINT DF_Catalogo_Eliminado DEFAULT (0),
                                                        -- soft-delete del MERGE (NOT MATCHED BY SOURCE).
+
+        -- Decisión humana: bajar/subir un artículo del público a mano. Es la ÚNICA escritura de la app.
+        -- El rebuild la PRESERVA (el MERGE no pisa estas dos columnas) y usa OcultarManual para recomputar
+        -- Publicado. Antes vivía en una tabla aparte (CatalogoArticulo); se unificó acá: una sola tabla.
+        OcultarManual        bit           NOT NULL CONSTRAINT DF_Catalogo_Ocultar DEFAULT (0),
+        Auditoria            nvarchar(200)     NULL,   -- 'Acción | origen | fecha' del ocultar/mostrar
 
         -- Presentación
         Slug                 varchar(200)      NULL,   -- URL canónica: /producto/{slug}

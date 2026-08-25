@@ -96,11 +96,12 @@ public sealed class CatalogoStore
         await _repo.GuardarBaseAsync(filas, ct);
         reloj.Stop();
 
-        var publicados = filas.Count(f => f.Publicado);
+        // Cuenta la base publicable (antes de aplicar el ocultar-manual, que el MERGE combina en la tabla).
+        var publicables = filas.Count(f => f.PublicadoBase);
         var soloDepo = filas.Count(f => f.EnDeposito && !f.EnLuro && !f.EnPeralta);
         _log.LogInformation(
-            "Base del catálogo reconstruida en {Ms} ms: {Total} artículos ({Publicados} publicados, " +
-            "{SoloDepo} sólo-depósito).", reloj.ElapsedMilliseconds, filas.Count, publicados, soloDepo);
+            "Base del catálogo reconstruida en {Ms} ms: {Total} artículos ({Publicables} publicables, " +
+            "{SoloDepo} sólo-depósito).", reloj.ElapsedMilliseconds, filas.Count, publicables, soloDepo);
     }
 
     /// <summary>Arma las filas BASE cruzando las fuentes en C#. Espeja el cruce de
@@ -120,7 +121,6 @@ public sealed class CatalogoStore
         // 2) Otras fuentes (cada Dragon por su conexión).
         var articulos = await _repo.TraerArticulosBaseAsync(codigos, ct);
         var fotos = await _repo.TraerRutasFotoAsync(ct);
-        var overrides = await _repo.TraerOverridesAsync(ct);
 
         // Color/talle: cascada PRECOMPRA -> REMCOMPRA (idéntica al público).
         var variantesPrecompra = await _repo.TraerVariantesPrecompraAsync(codigos, ct);
@@ -139,9 +139,6 @@ public sealed class CatalogoStore
         var fotoPorCodigo = fotos
             .GroupBy(f => f.ArtCod, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().Ruta, StringComparer.OrdinalIgnoreCase);
-        var overridePorCodigo = overrides
-            .GroupBy(o => o.ArtCod, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var variantesPorCodigo = variantes
             .GroupBy(v => v.ArtCod, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -163,16 +160,13 @@ public sealed class CatalogoStore
             var enPeralta = ubis.Any(u => !u.EsDeposito && u.Local.Equals("PERALTA", StringComparison.OrdinalIgnoreCase));
             var enAlgunLocal = enLuro || enPeralta;
 
-            overridePorCodigo.TryGetValue(a.ArtCod, out var ovr);
-
             var artDes = Texto.RepararEnie(a.ArtDes);
             var rubro = Texto.RepararEnie(a.Rubro);
             var genero = Texto.RepararEnie(a.Genero);
             var familia = Texto.RepararEnie(a.Familia);
 
-            var titulo = string.IsNullOrWhiteSpace(ovr?.NombreComercial)
-                ? TituloArticulo.Derivar(artDes, familia)
-                : ovr!.NombreComercial!.Trim();
+            // Nombre de vidriera: siempre derivado de ARTDES (una sola tabla; ya no hay override manual).
+            var titulo = TituloArticulo.Derivar(artDes, familia);
 
             var ruta = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
             var tieneFoto = !string.IsNullOrWhiteSpace(ruta);
@@ -228,18 +222,19 @@ public sealed class CatalogoStore
 
             var combo = Combo.Parsear(a.Combo);
 
-            // Publicado = criterio del catálogo PÚBLICO, preservando paridad con el sitio actual:
-            //   Indumentaria + taxonomía válida + en algún local + (tiene variantes o es Lencería) +
-            //   NO oculto manual. (La foto NO es requisito: hoy el sitio publica artículos sin foto.)
-            var publicado =
+            // PublicadoBase = criterio OBJETIVO del catálogo público (paridad con el sitio actual):
+            //   Indumentaria + taxonomía válida + en algún local + (tiene variantes o es Lencería).
+            //   (La foto NO es requisito: hoy el sitio publica artículos sin foto.) El ocultar-manual NO
+            //   entra acá: el MERGE combina esto con la columna OcultarManual (que preserva) para el
+            //   Publicado final. Así el rebuild no pisa la decisión humana.
+            var publicadoBase =
                 Texto.SinAcentos(rubro) == "indumentaria"
                 && enAlgunLocal
-                && (tieneVariantes || esLenceria)
-                && !(ovr?.OcultarManual == true);
+                && (tieneVariantes || esLenceria);
 
             filas.Add(new CatalogoFilaBase(
                 Codigo: a.ArtCod,
-                Publicado: publicado,
+                PublicadoBase: publicadoBase,
                 Slug: Texto.SlugProducto(titulo, a.ArtCod),
                 Descripcion: titulo,
                 Rubro: rubro,

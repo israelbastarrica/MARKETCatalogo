@@ -64,11 +64,12 @@ and nothing outside a module reaches past its `Contratos` project.
 ### Data flow — two databases, merged in C#, never joined in SQL
 
 The catalog reads live from two SQL Server databases every refresh cycle — nothing is replicated
-except two small tables (`sql/01_catalogo_schema.sql`):
+except the materialized `dbo.Catalogo` table (`sql/02_catalogo_tabla.sql`):
 
 - **MARKET**: `MapeoRegistro`/`Mapeo`/`Ubicaciones` (which article is stocked where), `PruebaCombos`
-  (combo pricing), `GoogleDriveFotosArticulos` (photo paths), `CatalogoArticulo` (editorial overrides
-  — sparse, empty by default, wrapped in try/catch so the site works without it).
+  (combo pricing), `GoogleDriveFotosArticulos` (photo paths). The catalog materializes into a single
+  table `dbo.Catalogo`; the manual hide decision (`OcultarManual` + audit) lives in that same table and
+  the rebuild MERGE preserves it (there is no longer a separate `CatalogoArticulo` overrides table).
 - **DRAGONFISH_CENTRAL** (`ZooLogic`, aliased "Dragon"): `ART`/`TIPOART`/`CATEARTI`/`FAMILIA`/
   `PRECIOAR` (header, taxonomy, live price), `PRECOMPRADET`/`REMCOMPRADET` (color/talle variants,
   cascading fallback between the two sources).

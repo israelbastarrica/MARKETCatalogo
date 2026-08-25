@@ -233,27 +233,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         return (await cn.QueryAsync<FotoRow>(new CommandDefinition(sql, commandTimeout: 120, cancellationToken: ct))).ToList();
     }
 
-    /// <summary>MARKET: overrides editoriales. La tabla puede no existir todavía (el catálogo funciona
-    /// igual sin ella, sólo con títulos derivados), así que un error acá no rompe el sitio.</summary>
-    public async Task<IReadOnlyList<OverrideRow>> TraerOverridesAsync(CancellationToken ct = default)
-    {
-        const string sql = """
-            SELECT ArtCod = RTRIM(ARTCOD), NombreComercial, Marketing = DescripcionMarketing,
-                   Destacado, OcultarManual
-            FROM MARKET.dbo.CatalogoArticulo WITH (NOLOCK)
-            WHERE Eliminado = 0;
-            """;
-        try
-        {
-            using var cn = _db.CrearMarket();
-            return (await cn.QueryAsync<OverrideRow>(new CommandDefinition(sql, commandTimeout: 30, cancellationToken: ct))).ToList();
-        }
-        catch (Exception ex)
-        {
-            _log.LogInformation(ex, "CatalogoArticulo no disponible; se sigue sin overrides editoriales.");
-            return Array.Empty<OverrideRow>();
-        }
-    }
 
     /// <summary>MARKET: los tramos oficiales de combo (unidades y precio total), de la grilla de
     /// márgenes. Tabla chica (unas pocas decenas de filas): se trae entera, sin lotes.</summary>
@@ -286,7 +265,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         const string crearStage = """
             CREATE TABLE #stage (
                 Codigo               varchar(20)   NOT NULL PRIMARY KEY,
-                Publicado            bit           NOT NULL,
+                PublicadoBase        bit           NOT NULL,
                 Slug                 varchar(200)      NULL,
                 Descripcion          nvarchar(400)     NULL,
                 Rubro                nvarchar(60)      NULL,
@@ -320,11 +299,15 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         }
 
         // 3) MERGE: update base (revive Eliminado=0), insert nuevos, marca Eliminado=1 los que ya no están.
+        //    OcultarManual y Auditoria NO se tocan en el update: son la decisión humana, la preserva. El
+        //    Publicado final = base objetiva (S.PublicadoBase) AND NOT ocultar-manual (columna de la tabla).
         const string merge = """
             MERGE dbo.Catalogo AS T
             USING #stage AS S ON T.Codigo = S.Codigo
             WHEN MATCHED THEN UPDATE SET
-                Eliminado = 0, Publicado = S.Publicado, Slug = S.Slug,
+                Eliminado = 0,
+                Publicado = CASE WHEN T.OcultarManual = 1 THEN 0 ELSE S.PublicadoBase END,
+                Slug = S.Slug,
                 Descripcion = S.Descripcion, Rubro = S.Rubro, Genero = S.Genero, Prenda = S.Prenda,
                 PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra, Combo = S.Combo,
                 EnLuro = S.EnLuro, EnPeralta = S.EnPeralta, EnDeposito = S.EnDeposito,
@@ -337,7 +320,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                  PrecioVenta, PrecioCompra, Combo, EnLuro, EnPeralta, EnDeposito, TallesCsv, ColoresCsv,
                  TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, TextoBusqueda)
                 VALUES
-                (S.Codigo, S.Publicado, 0, S.Slug, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
+                (S.Codigo, S.PublicadoBase, 0, S.Slug, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
                  S.PrecioVenta, S.PrecioCompra, S.Combo, S.EnLuro, S.EnPeralta, S.EnDeposito, S.TallesCsv, S.ColoresCsv,
                  S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.TextoBusqueda)
             WHEN NOT MATCHED BY SOURCE AND T.Eliminado = 0 THEN UPDATE SET Eliminado = 1;
@@ -510,10 +493,10 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         }
     }
 
-    /// <summary>MARKET: oculta/muestra un artículo del público. Upsert de OcultarManual en la tabla de
-    /// overrides CatalogoArticulo (+ auditoría "Acción | origen | fecha", convención MARKET) y reflejo
-    /// inmediato en Catalogo.Publicado. Es la ÚNICA escritura de la app, y sólo toca tablas propias del
-    /// catálogo — jamás Dragon ni logística.</summary>
+    /// <summary>MARKET: oculta/muestra un artículo del público. Una sola escritura sobre <c>dbo.Catalogo</c>
+    /// (una sola tabla): setea <c>OcultarManual</c> + auditoría ("Acción | origen | fecha", convención
+    /// MARKET) y refleja <c>Publicado</c> al instante. El rebuild preserva <c>OcultarManual</c> y recomputa
+    /// <c>Publicado</c>. Es la ÚNICA escritura de la app — jamás toca Dragon ni logística.</summary>
     public async Task CambiarVisibilidadAsync(string codigo, bool ocultar, bool publicadoSiVisible, string origen, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
@@ -523,25 +506,12 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         var publicado = ocultar ? 0 : (publicadoSiVisible ? 1 : 0);
 
         using var cn = _db.CrearMarket();
-        await cn.OpenAsync(ct);
-        using var tx = (Microsoft.Data.SqlClient.SqlTransaction)await cn.BeginTransactionAsync(ct);
-
-        // Upsert del override (crea la fila si el artículo nunca se editó a mano).
-        const string upsert = """
-            MERGE MARKET.dbo.CatalogoArticulo AS T
-            USING (SELECT @cod AS ARTCOD) AS S ON T.ARTCOD = S.ARTCOD
-            WHEN MATCHED THEN UPDATE SET OcultarManual = @ocultar, Eliminado = 0, Auditoria = @auditoria
-            WHEN NOT MATCHED THEN INSERT (ARTCOD, OcultarManual, Auditoria) VALUES (@cod, @ocultar, @auditoria);
-            """;
-        await cn.ExecuteAsync(new CommandDefinition(upsert,
-            new { cod, ocultar = ocultar ? 1 : 0, auditoria }, transaction: tx, cancellationToken: ct));
-
-        // Reflejo inmediato en la tabla materializada (el rebuild lo recomputa definitivamente después).
-        await cn.ExecuteAsync(new CommandDefinition(
-            "UPDATE MARKET.dbo.Catalogo SET Publicado = @publicado WHERE Codigo = @cod;",
-            new { publicado, cod }, transaction: tx, cancellationToken: ct));
-
-        await tx.CommitAsync(ct);
+        await cn.ExecuteAsync(new CommandDefinition("""
+            UPDATE MARKET.dbo.Catalogo
+               SET OcultarManual = @ocultar, Auditoria = @auditoria, Publicado = @publicado
+             WHERE Codigo = @cod;
+            """,
+            new { cod, ocultar = ocultar ? 1 : 0, auditoria, publicado }, commandTimeout: 30, cancellationToken: ct));
     }
 
     // DataTable con el mismo orden/nombres que #stage. Los nullables van como DBNull; los bits siempre
@@ -550,7 +520,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
     {
         var t = new DataTable();
         t.Columns.Add("Codigo", typeof(string));
-        t.Columns.Add("Publicado", typeof(bool));
+        t.Columns.Add("PublicadoBase", typeof(bool));
         t.Columns.Add("Slug", typeof(string));
         t.Columns.Add("Descripcion", typeof(string));
         t.Columns.Add("Rubro", typeof(string));
@@ -575,7 +545,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         static object N(object? v) => v ?? DBNull.Value;
         foreach (var f in filas)
             t.Rows.Add(
-                f.Codigo, f.Publicado, N(f.Slug), N(f.Descripcion),
+                f.Codigo, f.PublicadoBase, N(f.Slug), N(f.Descripcion),
                 N(f.Rubro), N(f.Genero), N(f.Prenda),
                 N(f.PrecioVenta), N(f.PrecioCompra), N(f.Combo),
                 f.EnLuro, f.EnPeralta, f.EnDeposito,

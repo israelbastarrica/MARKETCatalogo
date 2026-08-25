@@ -40,21 +40,14 @@ public interface ICatalogoRepositorio
     /// corresponde servirla.</summary>
     Task<string?> LeerRutaFotoAsync(string codigo, bool soloPublicado, CancellationToken ct = default);
 
-    /// <summary>Stock disponible y en tránsito de un artículo, DESGLOSADO por origen: Luro, Peralta y
-    /// central/depósito. Cada uno sale de la última foto de COMB por variante (color×talle) de SU réplica
-    /// (<c>DRAGONFISH_LURO</c>/<c>DRAGONFISH_PERALTA</c>/<c>DRAGONFISH_CENTRAL</c>) — una conexión por
-    /// fuente, cruce en C#, sin OPENQUERY. Misma lógica que MARKETweb (ArticulosService.StockLocalAsync).
-    /// Si una réplica no responde, ese origen queda en 0 y los demás igual se devuelven (la ficha no cae
-    /// por una tienda caída). A demanda al abrir la ficha, no en el rebuild.</summary>
-    Task<StockDetalleRow> TraerStockDetalleAsync(string codigo, CancellationToken ct = default);
-
-    /// <summary>Ventas realizadas de un artículo en los últimos <paramref name="dias"/> días, con margen
-    /// REALIZADO (facturado − costo histórico). Replica la lógica de MARKETweb (StockVentasService) pero
-    /// PORTABLE: lee las líneas de venta de cada réplica de tienda por su propia conexión
-    /// (<c>COMPROBANTEV</c>/<c>COMPROBANTEVDET</c> de <c>DRAGONFISH_LURO</c>/<c>_PERALTA</c>), trae el
-    /// historial de costo <c>LISTA0</c> de CENTRAL por separado, y cruza el costo vigente a la fecha de
-    /// cada venta en C# — sin OPENQUERY ni JOIN cross-DB. A demanda al abrir la ficha.</summary>
-    Task<VentasPeriodoRow> TraerVentasPeriodoAsync(string codigo, int dias, CancellationToken ct = default);
+    /// <summary>Datos de gestión de la ficha: stock por origen (Luro/Peralta/central-depósito) + ventas
+    /// realizadas de los últimos <paramref name="dias"/> días con margen REALIZADO (facturado − costo
+    /// histórico). Usa UNA conexión por réplica (pico de 3, no 6): cada tienda resuelve SU stock (COMB) y
+    /// SUS ventas (<c>COMPROBANTEV</c>/<c>COMPROBANTEVDET</c>) en la misma conexión; central resuelve su
+    /// stock y el historial de costo <c>LISTA0</c>. El costo vigente a la fecha de cada venta se cruza en
+    /// C# (mismo criterio que MARKETweb). Las tres réplicas van en paralelo y cada una tolera su fallo —
+    /// sin OPENQUERY ni JOIN cross-DB. A demanda al abrir la ficha, no en el rebuild.</summary>
+    Task<FichaDatosRow> TraerFichaStockVentasAsync(string codigo, int dias, CancellationToken ct = default);
 
     /// <summary>MARKET: oculta o muestra un artículo del catálogo PÚBLICO — la ÚNICA escritura de la app.
     /// Va sólo a la tabla de overrides <c>CatalogoArticulo</c> (<c>OcultarManual</c> + auditoría, upsert),
@@ -171,6 +164,10 @@ public sealed record VentasPeriodoRow(
     public decimal MargenPesos => Facturado - Costo;
     public decimal? MargenPct => Facturado != 0 ? Math.Round((Facturado - Costo) / Facturado * 100, 1) : null;
 }
+
+/// <summary>Todo lo que la ficha interna pide a demanda: stock por origen + ventas realizadas. Se arma con
+/// una consulta por réplica (stock + ventas/costo juntos en la misma conexión).</summary>
+public sealed record FichaDatosRow(StockDetalleRow Stock, VentasPeriodoRow Ventas);
 
 public sealed record CatalogoFilaLeida(
     string Codigo, bool Publicado, string? Slug, string? Titulo, string? Descripcion,

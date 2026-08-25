@@ -43,12 +43,10 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         var filas = await _repo.LeerBaseAsync(soloPublicados: false, ct);
         var fila = filas.FirstOrDefault(f => f.Codigo.Equals(cod, StringComparison.OrdinalIgnoreCase));
         if (fila is null) return null;
-        // Stock (por local) y ventas realizadas de la ventana, a demanda y en paralelo, sólo para la ficha.
-        // Cada uno tolera su propio fallo: la ficha se muestra con lo que haya.
-        var stockT = TraerSeguro(() => _repo.TraerStockDetalleAsync(cod, ct));
-        var ventasT = TraerSeguro(() => _repo.TraerVentasPeriodoAsync(cod, _semanasVentas * 7, ct));
-        await Task.WhenAll(stockT, ventasT);
-        return Mapear(fila, stockT.Result, ventasT.Result);
+        // Stock (por local) y ventas realizadas de la ventana, a demanda, sólo para la ficha. Una consulta
+        // por réplica (stock + ventas juntos); si falla, la ficha se muestra sin esos datos.
+        var datos = await TraerSeguro(() => _repo.TraerFichaStockVentasAsync(cod, _semanasVentas * 7, ct));
+        return Mapear(fila, datos?.Stock, datos?.Ventas);
     }
 
     public async Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default)

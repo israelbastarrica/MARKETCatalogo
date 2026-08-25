@@ -394,42 +394,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         FROM S WHERE Fila = 1;
         """;
 
-    /// <summary>Stock + tránsito de un artículo desglosado por origen (Luro / Peralta / central-depósito).
-    /// Consulta las tres réplicas EN PARALELO, cada una por su conexión (sin OPENQUERY). Si alguna réplica
-    /// no responde, ese origen queda en 0 —logueado— y la ficha igual se arma con las demás.</summary>
-    public async Task<StockDetalleRow> TraerStockDetalleAsync(string codigo, CancellationToken ct = default)
-    {
-        var cod = (codigo ?? "").Trim();
-        if (cod.Length == 0) return new StockDetalleRow(0, 0, 0, 0, 0, 0);
-
-        var luro = LeerStockAsync(_db.CrearLuro, cod, "LURO", ct);
-        var peralta = LeerStockAsync(_db.CrearPeralta, cod, "PERALTA", ct);
-        var central = LeerStockAsync(_db.CrearDragon, cod, "CENTRAL", ct);
-        await Task.WhenAll(luro, peralta, central);
-
-        return new StockDetalleRow(
-            luro.Result.Stock, luro.Result.Transito,
-            peralta.Result.Stock, peralta.Result.Transito,
-            central.Result.Stock, central.Result.Transito);
-    }
-
-    // Corre la query de stock contra la réplica que devuelve la fábrica. Aísla el fallo por origen: si la
-    // réplica está caída o el login no la alcanza, devuelve 0 en vez de tumbar la ficha entera.
-    private async Task<StockRow> LeerStockAsync(Func<SqlConnection> abrir, string cod, string origen, CancellationToken ct)
-    {
-        try
-        {
-            using var cn = abrir();
-            return await cn.QuerySingleAsync<StockRow>(
-                new CommandDefinition(SqlStockComb, new { cod }, commandTimeout: 60, cancellationToken: ct));
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(ex, "No se pudo leer el stock de {Codigo} en {Origen}; se toma 0.", cod, origen);
-            return new StockRow(0, 0);
-        }
-    }
-
     // Líneas de venta de UNA tienda, agregadas por día. FART = código en el detalle; FCANT/MNTPTOT firmados
     // por SIGNOMOV (devoluciones restan); mismos filtros que MARKETweb (ANULADO=0, FLETRA<>'R', se excluyen
     // los códigos Z*/1*). Sin prefijo de base: la conexión (Luro o Peralta) define de qué réplica lee.
@@ -455,24 +419,35 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         ORDER BY P.FECHAVIG, HoraMod;
         """;
 
-    public async Task<VentasPeriodoRow> TraerVentasPeriodoAsync(string codigo, int dias, CancellationToken ct = default)
+    public async Task<FichaDatosRow> TraerFichaStockVentasAsync(string codigo, int dias, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
         var ventana = dias > 0 ? dias : 56;
         var hasta = DateTime.Today.AddDays(1);          // exclusivo → incluye todo el día de hoy
         var desde = DateTime.Today.AddDays(-ventana);
-        if (cod.Length == 0) return new VentasPeriodoRow(ventana, 0, 0, 0, 0, 0, null);
+        var stockVacio = new StockDetalleRow(0, 0, 0, 0, 0, 0);
+        var ventasVacio = new VentasPeriodoRow(ventana, 0, 0, 0, 0, 0, null);
+        if (cod.Length == 0) return new FichaDatosRow(stockVacio, ventasVacio);
 
+        // Una conexión por réplica (pico de 3): cada tienda resuelve stock + ventas juntos; central, stock +
+        // costo. Las tres en paralelo, cada una tolera su fallo.
         var pars = new { cod, desde, hasta };
-        var luroT = LeerVentasDiaAsync(_db.CrearLuro, cod, "LURO", pars, ct);
-        var peraltaT = LeerVentasDiaAsync(_db.CrearPeralta, cod, "PERALTA", pars, ct);
-        var costoT = LeerCostoHistAsync(cod, ct);
-        await Task.WhenAll(luroT, peraltaT, costoT);
+        var luroT = LeerTiendaAsync(_db.CrearLuro, cod, "LURO", pars, ct);
+        var peraltaT = LeerTiendaAsync(_db.CrearPeralta, cod, "PERALTA", pars, ct);
+        var centralT = LeerCentralAsync(cod, pars, ct);
+        await Task.WhenAll(luroT, peraltaT, centralT);
 
-        var costos = costoT.Result;                     // ordenado por (FechaVig, HoraMod) asc
+        var (stkLuro, ventasLuro) = luroT.Result;
+        var (stkPeralta, ventasPeralta) = peraltaT.Result;
+        var (stkCentral, costos) = centralT.Result;
+
+        var stock = new StockDetalleRow(
+            stkLuro.Stock, stkLuro.Transito,
+            stkPeralta.Stock, stkPeralta.Transito,
+            stkCentral.Stock, stkCentral.Transito);
+
         // Fallback (PA): primer costo "de verdad" (>100). Igual criterio que el OUTER APPLY PA de MARKETweb.
         var fallback = costos.FirstOrDefault(c => c.PDirecto > 100)?.PDirecto ?? 0m;
-
         decimal CostoDelDia(DateTime dia, decimal unidades)
         {
             // Costo vigente a la fecha: última vigencia con FechaVig <= día (desempate por HoraMod).
@@ -483,50 +458,56 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             return costoUnit * unidades;
         }
 
-        var luro = luroT.Result;
-        var peralta = peraltaT.Result;
-        var vendidoLuro = luro.Sum(d => d.Unidades);
-        var vendidoPeralta = peralta.Sum(d => d.Unidades);
-        var facturado = luro.Sum(d => d.Facturado) + peralta.Sum(d => d.Facturado);
-        var costo = luro.Sum(d => CostoDelDia(d.Dia, d.Unidades)) + peralta.Sum(d => CostoDelDia(d.Dia, d.Unidades));
+        var vendidoLuro = ventasLuro.Sum(d => d.Unidades);
+        var vendidoPeralta = ventasPeralta.Sum(d => d.Unidades);
+        var facturado = ventasLuro.Sum(d => d.Facturado) + ventasPeralta.Sum(d => d.Facturado);
+        var costo = ventasLuro.Sum(d => CostoDelDia(d.Dia, d.Unidades))
+                  + ventasPeralta.Sum(d => CostoDelDia(d.Dia, d.Unidades));
+        DateTime? ultima = ventasLuro.Concat(ventasPeralta).Select(d => (DateTime?)d.Dia).DefaultIfEmpty(null).Max();
 
-        DateTime? ultima = luro.Concat(peralta).Select(d => (DateTime?)d.Dia).DefaultIfEmpty(null).Max();
-
-        return new VentasPeriodoRow(ventana, vendidoLuro + vendidoPeralta, vendidoLuro, vendidoPeralta,
+        var ventas = new VentasPeriodoRow(ventana, vendidoLuro + vendidoPeralta, vendidoLuro, vendidoPeralta,
             facturado, costo, ultima);
+        return new FichaDatosRow(stock, ventas);
     }
 
-    // Ventas por día de una tienda; tolerante: si la réplica no responde, esa tienda queda sin ventas.
-    private async Task<IReadOnlyList<VentaDiaRow>> LeerVentasDiaAsync(
+    // Una tienda (Luro/Peralta) por UNA conexión: stock (COMB) + ventas por día en un solo QueryMultiple.
+    // Tolerante: si la réplica no responde, la tienda queda sin stock ni ventas y la ficha se arma igual.
+    private async Task<(StockRow Stock, IReadOnlyList<VentaDiaRow> Ventas)> LeerTiendaAsync(
         Func<SqlConnection> abrir, string cod, string origen, object pars, CancellationToken ct)
     {
         try
         {
             using var cn = abrir();
-            var filas = await cn.QueryAsync<VentaDiaRow>(
-                new CommandDefinition(SqlVentasDia, pars, commandTimeout: 120, cancellationToken: ct));
-            return filas.ToList();
+            using var multi = await cn.QueryMultipleAsync(new CommandDefinition(
+                SqlStockComb + "\n" + SqlVentasDia, pars, commandTimeout: 120, cancellationToken: ct));
+            var stock = await multi.ReadSingleAsync<StockRow>();
+            var ventas = (await multi.ReadAsync<VentaDiaRow>()).ToList();
+            return (stock, ventas);
         }
         catch (Exception ex)
         {
-            _log.LogWarning(ex, "No se pudieron leer las ventas de {Codigo} en {Origen}; se toma sin ventas.", cod, origen);
-            return Array.Empty<VentaDiaRow>();
+            _log.LogWarning(ex, "No se pudo leer stock/ventas de {Codigo} en {Origen}; se toma sin datos.", cod, origen);
+            return (new StockRow(0, 0), Array.Empty<VentaDiaRow>());
         }
     }
 
-    private async Task<IReadOnlyList<PrecioHistRow>> LeerCostoHistAsync(string cod, CancellationToken ct)
+    // Central por UNA conexión: stock central (COMB) + historial de costo LISTA0 en un solo QueryMultiple.
+    private async Task<(StockRow Stock, IReadOnlyList<PrecioHistRow> Costos)> LeerCentralAsync(
+        string cod, object pars, CancellationToken ct)
     {
         try
         {
             using var cn = _db.CrearDragon();
-            var filas = await cn.QueryAsync<PrecioHistRow>(
-                new CommandDefinition(SqlCostoHist, new { cod }, commandTimeout: 60, cancellationToken: ct));
-            return filas.ToList();
+            using var multi = await cn.QueryMultipleAsync(new CommandDefinition(
+                SqlStockComb + "\n" + SqlCostoHist, pars, commandTimeout: 120, cancellationToken: ct));
+            var stock = await multi.ReadSingleAsync<StockRow>();
+            var costos = (await multi.ReadAsync<PrecioHistRow>()).ToList();
+            return (stock, costos);
         }
         catch (Exception ex)
         {
-            _log.LogWarning(ex, "No se pudo leer el historial de costo de {Codigo}; el margen realizado sale sin costo.", cod);
-            return Array.Empty<PrecioHistRow>();
+            _log.LogWarning(ex, "No se pudo leer stock/costo central de {Codigo}; el margen sale sin costo.", cod);
+            return (new StockRow(0, 0), Array.Empty<PrecioHistRow>());
         }
     }
 

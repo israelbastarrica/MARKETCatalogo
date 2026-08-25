@@ -74,9 +74,9 @@ public sealed class CatalogoService : ICatalogoConsulta
 
         var ordenados = f.Orden switch
         {
-            "precio-asc"  => filtrados.OrderBy(a => a.PrecioUnidadCombo ?? decimal.MaxValue).ThenBy(a => a.Titulo),
-            "precio-desc" => filtrados.OrderByDescending(a => a.PrecioUnidadCombo ?? decimal.MinValue).ThenBy(a => a.Titulo),
-            "nombre"      => filtrados.OrderBy(a => a.Titulo, StringComparer.CurrentCultureIgnoreCase).ThenBy(a => a.ArtCod),
+            "precio-asc"  => filtrados.OrderBy(a => a.PrecioUnidadCombo ?? decimal.MaxValue).ThenBy(a => a.Descripcion),
+            "precio-desc" => filtrados.OrderByDescending(a => a.PrecioUnidadCombo ?? decimal.MinValue).ThenBy(a => a.Descripcion),
+            "nombre"      => filtrados.OrderBy(a => a.Descripcion, StringComparer.CurrentCultureIgnoreCase).ThenBy(a => a.ArtCod),
             // Destacados primero, después los que tienen foto (una grilla que arranca con placeholders
             // se ve peor), y al final por código para que el orden sea estable entre corridas.
             _ => filtrados.OrderByDescending(a => a.Destacado)

@@ -21,7 +21,7 @@
                  sizes="(max-width: 640px) 50vw, 300px"
                  width="400" height="600"
                  loading="lazy" decoding="async"
-                 alt="@Articulo.Titulo" />
+                 alt="@Articulo.Descripcion" />
         }
         else
         {
@@ -50,7 +50,7 @@
     </div>
 
     <div class="mk-card-datos">
-        <h3 class="mk-card-titulo">@Articulo.Titulo</h3>
+        <h3 class="mk-card-titulo">@Articulo.Descripcion</h3>
 
         @if (Articulo.ComboTexto is not null)
         {

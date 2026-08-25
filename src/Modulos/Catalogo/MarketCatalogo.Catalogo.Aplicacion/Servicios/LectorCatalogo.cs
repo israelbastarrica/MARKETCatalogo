@@ -77,10 +77,9 @@ public sealed class LectorCatalogo
         return new ArticuloDto
         {
             ArtCod = f.Codigo,
-            Titulo = f.Titulo ?? f.Codigo,
-            Descripcion = f.Descripcion ?? "",
+            Descripcion = f.Descripcion ?? f.Codigo,
             Marketing = null,
-            Slug = f.Slug ?? Texto.SlugProducto(f.Titulo ?? f.Codigo, f.Codigo),
+            Slug = f.Slug ?? Texto.SlugProducto(f.Descripcion ?? f.Codigo, f.Codigo),
             Rubro = rubro,
             RubroSlug = Texto.Slug(rubro),
             Genero = genero,

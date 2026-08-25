@@ -6,7 +6,7 @@
 @* Ficha interna de un artículo (staff). Muestra todos los datos de gestión y permite ocultar/mostrar el
    artículo del catálogo público (la única escritura de la app, vía POST a /interno/visibilidad). SSR. *@
 
-<PageTitle>@(_a?.Titulo ?? Codigo) - Interno</PageTitle>
+<PageTitle>@(_a?.Descripcion ?? Codigo) - Interno</PageTitle>
 <HeadContent><meta name="robots" content="noindex" /></HeadContent>
 
 @if (_a is null)
@@ -29,7 +29,7 @@ else
             <div class="mk-if-foto">
                 @if (_a.TieneFoto)
                 {
-                    <img src="/fotos/@(_a.Codigo)_1200.webp?v=@_a.FotoVersion" alt="@_a.Titulo" />
+                    <img src="/fotos/@(_a.Codigo)_1200.webp?v=@_a.FotoVersion" alt="@_a.Descripcion" />
                 }
                 else
                 {
@@ -43,12 +43,8 @@ else
             </div>
 
             <div class="mk-if-datos">
-                <h1>@_a.Titulo</h1>
+                <h1>@_a.Descripcion</h1>
                 <p class="mk-if-cod mk-rotulo">@_a.Codigo · @_a.Rubro @(_a.Prenda is not null ? $"· {_a.Prenda}" : "") · @_a.Genero</p>
-                @if (!string.IsNullOrWhiteSpace(_a.Descripcion))
-                {
-                    <p class="mk-if-desc">@_a.Descripcion</p>
-                }
 
                 <dl class="mk-if-precios">
                     @if (_a.ComboTexto is not null) { <div><dt>Combo</dt><dd>@_a.ComboTexto</dd></div> }

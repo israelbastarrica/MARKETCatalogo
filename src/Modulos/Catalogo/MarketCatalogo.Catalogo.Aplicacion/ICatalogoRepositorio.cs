@@ -120,7 +120,7 @@ public sealed record ComboTierRow(int Cantidad, int Total);
 /// La arma <c>CatalogoStore</c> cruzando las fuentes; la escribe <c>CatalogoRepositorio.GuardarBaseAsync</c>.
 /// Nombres y tipos calzan 1:1 con las columnas base de la tabla (el MERGE mapea por nombre).</summary>
 public sealed record CatalogoFilaBase(
-    string Codigo, bool Publicado, string Slug, string Titulo, string Descripcion,
+    string Codigo, bool Publicado, string Slug, string Descripcion,
     string Rubro, string Genero, string Prenda,
     decimal? PrecioVenta, decimal? PrecioCompra, string? Combo,
     bool EnLuro, bool EnPeralta, bool EnDeposito,
@@ -170,7 +170,7 @@ public sealed record VentasPeriodoRow(
 public sealed record FichaDatosRow(StockDetalleRow Stock, VentasPeriodoRow Ventas);
 
 public sealed record CatalogoFilaLeida(
-    string Codigo, bool Publicado, string? Slug, string? Titulo, string? Descripcion,
+    string Codigo, bool Publicado, string? Slug, string? Descripcion,
     string? Rubro, string? Genero, string? Prenda,
     decimal? PrecioVenta, decimal? PrecioCompra, string? Combo,
     bool EnLuro, bool EnPeralta, bool EnDeposito,

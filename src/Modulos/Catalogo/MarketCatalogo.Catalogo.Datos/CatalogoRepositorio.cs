@@ -288,7 +288,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Codigo               varchar(20)   NOT NULL PRIMARY KEY,
                 Publicado            bit           NOT NULL,
                 Slug                 varchar(200)      NULL,
-                Titulo               nvarchar(200)     NULL,
                 Descripcion          nvarchar(400)     NULL,
                 Rubro                nvarchar(60)      NULL,
                 Genero               nvarchar(60)      NULL,
@@ -325,7 +324,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             MERGE dbo.Catalogo AS T
             USING #stage AS S ON T.Codigo = S.Codigo
             WHEN MATCHED THEN UPDATE SET
-                Eliminado = 0, Publicado = S.Publicado, Slug = S.Slug, Titulo = S.Titulo,
+                Eliminado = 0, Publicado = S.Publicado, Slug = S.Slug,
                 Descripcion = S.Descripcion, Rubro = S.Rubro, Genero = S.Genero, Prenda = S.Prenda,
                 PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra, Combo = S.Combo,
                 EnLuro = S.EnLuro, EnPeralta = S.EnPeralta, EnDeposito = S.EnDeposito,
@@ -334,11 +333,11 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Proveedor = S.Proveedor, Temporada = S.Temporada, Marca = S.Marca,
                 TextoBusqueda = S.TextoBusqueda
             WHEN NOT MATCHED BY TARGET THEN INSERT
-                (Codigo, Publicado, Eliminado, Slug, Titulo, Descripcion, Rubro, Genero, Prenda,
+                (Codigo, Publicado, Eliminado, Slug, Descripcion, Rubro, Genero, Prenda,
                  PrecioVenta, PrecioCompra, Combo, EnLuro, EnPeralta, EnDeposito, TallesCsv, ColoresCsv,
                  TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, TextoBusqueda)
                 VALUES
-                (S.Codigo, S.Publicado, 0, S.Slug, S.Titulo, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
+                (S.Codigo, S.Publicado, 0, S.Slug, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
                  S.PrecioVenta, S.PrecioCompra, S.Combo, S.EnLuro, S.EnPeralta, S.EnDeposito, S.TallesCsv, S.ColoresCsv,
                  S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.TextoBusqueda)
             WHEN NOT MATCHED BY SOURCE AND T.Eliminado = 0 THEN UPDATE SET Eliminado = 1;
@@ -353,7 +352,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
     {
         var filtro = soloPublicados ? "AND Publicado = 1" : "";
         var sql = $"""
-            SELECT Codigo, Publicado, Slug, Titulo, Descripcion, Rubro, Genero, Prenda,
+            SELECT Codigo, Publicado, Slug, Descripcion, Rubro, Genero, Prenda,
                    PrecioVenta, PrecioCompra, Combo, EnLuro, EnPeralta, EnDeposito,
                    TallesCsv, ColoresCsv, TieneFoto, FotoPrincipalVersion, FotosJson,
                    Proveedor, Temporada, Marca, Anio, FechaAlta, StockTotal, TopVentas, TextoBusqueda
@@ -553,7 +552,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         t.Columns.Add("Codigo", typeof(string));
         t.Columns.Add("Publicado", typeof(bool));
         t.Columns.Add("Slug", typeof(string));
-        t.Columns.Add("Titulo", typeof(string));
         t.Columns.Add("Descripcion", typeof(string));
         t.Columns.Add("Rubro", typeof(string));
         t.Columns.Add("Genero", typeof(string));
@@ -577,7 +575,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         static object N(object? v) => v ?? DBNull.Value;
         foreach (var f in filas)
             t.Rows.Add(
-                f.Codigo, f.Publicado, N(f.Slug), N(f.Titulo), N(f.Descripcion),
+                f.Codigo, f.Publicado, N(f.Slug), N(f.Descripcion),
                 N(f.Rubro), N(f.Genero), N(f.Prenda),
                 N(f.PrecioVenta), N(f.PrecioCompra), N(f.Combo),
                 f.EnLuro, f.EnPeralta, f.EnDeposito,

@@ -114,7 +114,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         bool PasaPublicado(ArticuloInternoDto a) => f.Publicado is null || a.Publicado == f.Publicado.Value;
         bool PasaMargen(ArticuloInternoDto a) => f.MargenMax is null || (a.MargenTeorico is not null && a.MargenTeorico <= f.MargenMax);
         bool PasaTexto(ArticuloInternoDto a) => textoNorm is null
-            || Texto.SinAcentos($"{a.Titulo} {a.Descripcion} {a.Codigo} {a.Prenda} {a.Proveedor} {a.Marca}").Contains(textoNorm, StringComparison.Ordinal);
+            || Texto.SinAcentos($"{a.Descripcion} {a.Codigo} {a.Prenda} {a.Proveedor} {a.Marca}").Contains(textoNorm, StringComparison.Ordinal);
 
         // "excepto" deja fuera una faceta para poder contarla sin encerrar al usuario (igual que el público).
         IEnumerable<ArticuloInternoDto> Aplicar(string? excepto) => todos.Where(a =>
@@ -133,7 +133,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             "precio-asc" => filtrados.OrderBy(a => a.PrecioUnidadCombo ?? a.PrecioVenta ?? decimal.MaxValue).ThenBy(a => a.Codigo),
             "precio-desc" => filtrados.OrderByDescending(a => a.PrecioUnidadCombo ?? a.PrecioVenta ?? decimal.MinValue).ThenBy(a => a.Codigo),
             "margen" => filtrados.OrderBy(a => a.MargenTeorico ?? decimal.MaxValue).ThenBy(a => a.Codigo),
-            "nombre" => filtrados.OrderBy(a => a.Titulo, StringComparer.CurrentCultureIgnoreCase).ThenBy(a => a.Codigo),
+            "nombre" => filtrados.OrderBy(a => a.Descripcion, StringComparer.CurrentCultureIgnoreCase).ThenBy(a => a.Codigo),
             _ => filtrados.OrderBy(a => a.Codigo, StringComparer.OrdinalIgnoreCase),
         };
 
@@ -180,8 +180,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         return new ArticuloInternoDto
         {
             Codigo = f.Codigo,
-            Titulo = f.Titulo ?? f.Codigo,
-            Descripcion = f.Descripcion ?? "",
+            Descripcion = f.Descripcion ?? f.Codigo,
             Slug = f.Slug ?? "",
             Rubro = f.Rubro ?? "",
             Genero = f.Genero ?? "",

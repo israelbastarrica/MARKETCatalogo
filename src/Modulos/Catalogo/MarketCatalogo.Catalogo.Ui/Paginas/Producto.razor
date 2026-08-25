@@ -19,12 +19,12 @@
 }
 else
 {
-    <PageTitle>@_art.Titulo - MARKET</PageTitle>
+    <PageTitle>@_art.Descripcion - MARKET</PageTitle>
     <HeadContent>
         <meta name="description" content="@MetaDescripcion" />
         <link rel="canonical" href="@($"/producto/{_art.Slug}")" />
         <meta property="og:type" content="product" />
-        <meta property="og:title" content="@_art.Titulo" />
+        <meta property="og:title" content="@_art.Descripcion" />
         <meta property="og:description" content="@MetaDescripcion" />
         @if (_art.TieneFoto)
         {
@@ -43,7 +43,7 @@ else
                      src="/fotos/@(_art.ArtCod)_1200.webp?v=@_art.FotoVersion"
                      data-zoom="/fotos/@(_art.ArtCod)_1200.webp?v=@_art.FotoVersion"
                      width="1200" height="1800"
-                     alt="@_art.Titulo" />
+                     alt="@_art.Descripcion" />
             }
             else
             {
@@ -58,7 +58,7 @@ else
                 <a href="/catalogo/@_art.RubroSlug/@_art.GeneroSlug">@_art.Genero</a>
             </nav>
 
-            <h1>@_art.Titulo</h1>
+            <h1>@_art.Descripcion</h1>
 
             @if (_art.Familia is not null)
             {
@@ -136,7 +136,7 @@ else
         get
         {
             if (_art is null) return "";
-            var partes = new List<string> { _art.Titulo };
+            var partes = new List<string> { _art.Descripcion };
             if (_art.ComboTexto is not null) partes.Add(_art.ComboTexto);
             if (_art.Talles.Count > 0) partes.Add("Talles " + string.Join(", ", _art.Talles));
             if (_art.Locales.Count > 0) partes.Add("Disponible en " + string.Join(" y ", _art.Locales));

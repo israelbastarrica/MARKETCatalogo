@@ -46,8 +46,9 @@ BEGIN
 
         -- Presentación
         Slug                 varchar(200)      NULL,   -- URL canónica: /producto/{slug}
-        Titulo               nvarchar(200)     NULL,   -- nombre comercial (override) o derivado de ARTDES
-        Descripcion          nvarchar(400)     NULL,   -- ART.ARTDES cruda (vista interna)
+        Descripcion          nvarchar(400)     NULL,   -- nombre de vidriera: override manual o derivado de
+                                                       -- ARTDES. Único campo de nombre (el ARTDES crudo ya
+                                                       -- no se guarda; sólo alimenta TextoBusqueda).
 
         -- Taxonomía (descripción directa, un valor — para filtros)
         Rubro                nvarchar(60)      NULL,   -- TIPOART.DESCRIP  (ej 'Indumentaria')

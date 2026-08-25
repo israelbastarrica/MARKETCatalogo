@@ -5,7 +5,8 @@ namespace MarketCatalogo.Catalogo.Contratos.Interno;
 public sealed class ArticuloInternoDto
 {
     public required string Codigo { get; init; }
-    public required string Titulo { get; init; }
+    /// <summary>Nombre de vidriera (override o derivado de ARTDES). Campo único de nombre (antes Titulo +
+    /// Descripcion). El ARTDES crudo ya no se expone; sólo alimenta la búsqueda.</summary>
     public required string Descripcion { get; init; }
     public required string Slug { get; init; }
 

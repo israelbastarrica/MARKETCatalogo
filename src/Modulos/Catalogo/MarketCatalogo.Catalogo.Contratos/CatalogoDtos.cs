@@ -6,10 +6,9 @@ public sealed class ArticuloDto
 {
     public required string ArtCod { get; init; }
 
-    /// <summary>Lo que ve el público: el override manual si existe, si no el título derivado de ARTDES.</summary>
-    public required string Titulo { get; init; }
-
-    /// <summary>ART.ARTDES crudo. Se conserva para búsqueda y para la ficha ("código de fábrica").</summary>
+    /// <summary>El nombre de vidriera del artículo: el override manual si existe, si no el derivado de
+    /// ARTDES. Es el único texto de nombre (antes había Titulo + Descripcion; se unificaron en éste). El
+    /// ARTDES crudo ya no se expone: sólo alimenta la búsqueda (TextoBusqueda).</summary>
     public required string Descripcion { get; init; }
 
     public string? Marketing { get; init; }

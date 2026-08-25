@@ -10,7 +10,7 @@
         {
             <img class="mk-foto"
                  src="/fotos/@(Articulo.Codigo)_400.webp?v=@Articulo.FotoVersion"
-                 width="400" height="600" loading="lazy" decoding="async" alt="@Articulo.Titulo" />
+                 width="400" height="600" loading="lazy" decoding="async" alt="@Articulo.Descripcion" />
         }
         else
         {
@@ -30,7 +30,7 @@
     </div>
 
     <div class="mk-ic-datos">
-        <h3 class="mk-ic-titulo">@Articulo.Titulo</h3>
+        <h3 class="mk-ic-titulo">@Articulo.Descripcion</h3>
         <p class="mk-ic-cod mk-rotulo">@Articulo.Codigo</p>
 
         <div class="mk-ic-precios">

@@ -1,59 +1,115 @@
 @page "/login"
 
-@* Pantalla de login del catálogo interno (SSR, sin interactividad: son formularios de página completa).
-   Dos vías: Google (@marketarg.com) y usuario/contraseña local. Ambas pegan a los endpoints /auth/* del
-   host. Monocromática (Manual de Marca). El público NO necesita cuenta: esto es sólo para staff. *@
+@* Login del catálogo interno.
+   SSR puro: los formularios navegan directamente a los endpoints del host. *@
 
 <PageTitle>Ingresar - MARKET</PageTitle>
+
 <HeadContent>
     <meta name="robots" content="noindex" />
 </HeadContent>
 
 <section class="mk-login">
     <div class="mk-login-caja">
-        <h1 class="mk-login-titulo">Ingresar</h1>
-        <p class="mk-login-sub">Acceso para el equipo de MARKET.</p>
+
+        <div class="mk-login-head">
+            <h1>Ingresar</h1>
+            <p>Acceso exclusivo para el equipo de MARKET.</p>
+        </div>
 
         @if (Error is not null)
         {
-            <p class="mk-login-error" role="alert">@MensajeError(Error)</p>
+            <p class="mk-login-error" role="alert">
+                @MensajeError(Error)
+            </p>
         }
 
-        <a class="mk-login-google" href="@($"/auth/login?volver={VolverSeguro}")">
-            Ingresar con Google
+        <a class="mk-login-google"
+           href="@($"/auth/login?volver={VolverSeguro}")">
+
+            <svg class="mk-google-icon"
+                 viewBox="0 0 24 24"
+                 aria-hidden="true"
+                 focusable="false">
+                <path fill="#4285F4"
+                      d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.22a4.46 4.46 0 0 1-1.94 2.93v2.43h3.14c1.84-1.69 2.93-4.18 2.93-7.39z" />
+                <path fill="#34A853"
+                      d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.43c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.51A9.74 9.74 0 0 0 12 21.75z" />
+                <path fill="#FBBC05"
+                      d="M6.54 13.85A5.85 5.85 0 0 1 6.23 12c0-.64.11-1.26.31-1.85V7.64H3.3A9.75 9.75 0 0 0 2.25 12c0 1.57.38 3.05 1.05 4.36l3.24-2.51z" />
+                <path fill="#EA4335"
+                      d="M12 6.12c1.43 0 2.71.49 3.72 1.46l2.79-2.79C16.84 3.2 14.63 2.25 12 2.25a9.74 9.74 0 0 0-8.7 5.39l3.24 2.51C7.31 7.84 9.46 6.12 12 6.12z" />
+            </svg>
+
+            <span>Continuar con Google</span>
         </a>
 
-        <div class="mk-login-o"><span>o</span></div>
+        <div class="mk-login-o">
+            <span>o continuar con usuario</span>
+        </div>
 
-        <form class="mk-login-form" method="post" action="/auth/login-local">
-            <input type="hidden" name="volver" value="@VolverSeguro" />
+        <form class="mk-login-form"
+              method="post"
+              action="/auth/login-local">
+
+            <input type="hidden"
+                   name="volver"
+                   value="@VolverSeguro" />
+
             <label class="mk-login-campo">
                 <span>Usuario</span>
-                <input name="usuario" autocomplete="username" required autofocus />
+                <input name="usuario"
+                       autocomplete="username"
+                       required
+                       autofocus />
             </label>
+
             <label class="mk-login-campo">
                 <span>Contraseña</span>
-                <input name="password" type="password" autocomplete="current-password" required />
+                <input name="password"
+                       type="password"
+                       autocomplete="current-password"
+                       required />
             </label>
-            <button type="submit" class="mk-login-boton">Entrar</button>
+
+            <button type="submit"
+                    class="mk-login-boton">
+                Ingresar
+            </button>
         </form>
 
-        <a class="mk-login-volver" href="/">Volver al catálogo</a>
+        <a class="mk-login-volver" href="/">
+            ← Volver al catálogo
+        </a>
+
     </div>
 </section>
 
 @code {
-    [SupplyParameterFromQuery] public string? Error { get; set; }
-    [SupplyParameterFromQuery(Name = "volver")] public string? Volver { get; set; }
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
 
-    // Sólo se acepta un returnUrl LOCAL (arranca con "/" y no con "//"): evita redirigir a un sitio externo.
+    [SupplyParameterFromQuery(Name = "volver")]
+    public string? Volver { get; set; }
+
+    // Sólo acepta URLs locales.
+    // Evita redirecciones hacia sitios externos.
     private string VolverSeguro =>
-        !string.IsNullOrWhiteSpace(Volver) && Volver.StartsWith('/') && !Volver.StartsWith("//") ? Volver : "/interno";
+        !string.IsNullOrWhiteSpace(Volver)
+        && Volver.StartsWith('/')
+        && !Volver.StartsWith("//")
+            ? Volver
+            : "/interno";
 
     private static string MensajeError(string codigo) => codigo switch
     {
-        "login"   => "Usuario o contraseña incorrectos.",
-        "dominio" => "Sólo se puede ingresar con una cuenta @marketarg.com.",
-        _         => "No se pudo iniciar sesión. Probá de nuevo.",
+        "login" =>
+            "Usuario o contraseña incorrectos.",
+
+        "dominio" =>
+            "Sólo se puede ingresar con una cuenta @marketarg.com.",
+
+        _ =>
+            "No se pudo iniciar sesión. Probá de nuevo."
     };
 }

@@ -24,6 +24,7 @@ public static class UrlInterno
         if (f.Proveedores.Count > 0) m["prov"] = string.Join(',', f.Proveedores);
         if (f.Marcas.Count > 0) m["marca"] = string.Join(',', f.Marcas);
         if (f.Temporadas.Count > 0) m["temp"] = string.Join(',', f.Temporadas);
+        if (f.ComboDetalles.Count > 0) m["combo"] = string.Join(',', f.ComboDetalles);
         if (f.Publicado is bool p) m["pub"] = p ? "si" : "no";
         if (f.MargenMax is decimal mm) m["margenMax"] = mm.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (!string.IsNullOrWhiteSpace(f.Texto)) m["q"] = f.Texto!;
@@ -82,4 +83,43 @@ public static class UrlInterno
 
     public static bool CsvContiene(IReadOnlyList<string> lista, string valor)
         => lista.Contains(valor, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>URL sin ningún filtro (limpiar todo) — vuelve a /interno.</summary>
+    public static string Limpiar() => Base;
+
+    /// <summary>Filtros activos como chips: etiqueta + URL que quita ese filtro. Mismo patrón que el
+    /// público (mk-chips), para el drawer/mobile y también en desktop.</summary>
+    public static IEnumerable<(string Etiqueta, string UrlQuitar)> Chips(FiltrosInterno f)
+    {
+        foreach (var v in f.Ubicaciones) yield return (EtiquetaUbicacion(v), Alternar(f, "ubic", v));
+        if (f.CruceDepoLocal == "solo-deposito") yield return ("En depósito sin local", Set(f, "cruce", null));
+        if (f.CruceDepoLocal == "en-local") yield return ("En algún local", Set(f, "cruce", null));
+        if (f.Publicado == true) yield return ("Se ve en el público", Set(f, "pub", null));
+        if (f.Publicado == false) yield return ("No se ve", Set(f, "pub", null));
+        foreach (var v in f.Rubros) yield return (v, Alternar(f, "rubro", v));
+        foreach (var v in f.Prendas) yield return (v, Alternar(f, "prenda", v));
+        foreach (var v in f.Proveedores) yield return (v, Alternar(f, "prov", v));
+        foreach (var v in f.Marcas) yield return (v, Alternar(f, "marca", v));
+        foreach (var v in f.Temporadas) yield return (v, Alternar(f, "temp", v));
+        foreach (var v in f.ComboDetalles) yield return (EtiquetaCombo(v), Alternar(f, "combo", v));
+        if (f.MargenMax is decimal mm) yield return ($"Margen ≤ {mm:0.#}%", Set(f, "margenMax", null));
+        if (!string.IsNullOrWhiteSpace(f.Texto)) yield return ($"“{f.Texto!.Trim()}”", Set(f, "q", null));
+    }
+
+    private static string EtiquetaUbicacion(string v) => v.ToLowerInvariant() switch
+    {
+        "luro" => "Luro",
+        "peralta" => "Peralta",
+        "deposito" => "Depósito",
+        _ => v,
+    };
+
+    // "2-15000" -> "2x15.000" (mismo formato que el público). Si no parsea, muestra el valor crudo.
+    private static string EtiquetaCombo(string v)
+    {
+        var partes = v.Split('-', 2);
+        if (partes.Length == 2 && int.TryParse(partes[0], out var cant) && int.TryParse(partes[1], out var total))
+            return $"{cant}x{total:#,0}".Replace(",", ".");
+        return v;
+    }
 }

@@ -92,11 +92,14 @@ BEGIN
 
         -- Búsqueda / métricas base
         TextoBusqueda        nvarchar(600)     NULL,   -- normalizado (sin acentos) para ?q=
-        StockTotal           decimal(18,2)     NULL,   -- para el filtro "con stock" (materializado en base)
+        StockTotal           decimal(18,2)     NULL,   -- RESERVADA (ver nota FICHA) — futuro filtro "con stock"
         TopVentas            bit           NOT NULL CONSTRAINT DF_Catalogo_TopVentas DEFAULT (0),
-                                                       -- Top N por unidades 30 días (config); filtro + badge
+                                                       -- RESERVADA — futuro filtro/badge Top ventas
 
-        -- ===== FICHA — a demanda por artículo, TTL por fila. NULL = nunca cargada. =====
+        -- ===== FICHA — RESERVADAS. Hoy la ficha calcula stock/ventas EN VIVO contra las réplicas al
+        -- abrirla (no se persisten), así que estas columnas quedan en NULL a propósito. Están para el día
+        -- que se quiera FILTRAR/ORDENAR la grilla por stock o ventas: ahí un job las llena (read-through
+        -- con TTL por fila, columna FichaActualizada) y recién entonces se leen. No dropear. =====
         Facturado            decimal(18,2)     NULL,   -- $ vendido en la ventana (precios reales c/desc)
         CostoPeriodo         decimal(18,2)     NULL,   -- COGS de lo vendido (costo histórico)
         StockLuro            decimal(18,2)     NULL,

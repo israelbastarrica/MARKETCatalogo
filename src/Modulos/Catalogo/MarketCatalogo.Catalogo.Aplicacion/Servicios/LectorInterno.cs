@@ -111,6 +111,9 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         bool PasaTemporada(ArticuloInternoDto a) => f.Temporadas.Count == 0 || (a.Temporada is not null && f.Temporadas.Contains(a.Temporada, StringComparer.OrdinalIgnoreCase));
         bool PasaTalle(ArticuloInternoDto a) => f.Talles.Count == 0 || a.Talles.Any(t => f.Talles.Contains(t, StringComparer.OrdinalIgnoreCase));
         bool PasaColor(ArticuloInternoDto a) => f.Colores.Count == 0 || a.Colores.Any(c => f.Colores.Contains(c, StringComparer.OrdinalIgnoreCase));
+        bool PasaCombo(ArticuloInternoDto a) => f.ComboDetalles.Count == 0
+            || (a.ComboCantidad is not null && a.ComboTotal is not null
+                && f.ComboDetalles.Contains($"{a.ComboCantidad}-{(int)a.ComboTotal.Value}"));
         bool PasaPublicado(ArticuloInternoDto a) => f.Publicado is null || a.Publicado == f.Publicado.Value;
         bool PasaMargen(ArticuloInternoDto a) => f.MargenMax is null || (a.MargenTeorico is not null && a.MargenTeorico <= f.MargenMax);
         bool PasaTexto(ArticuloInternoDto a) => textoNorm is null
@@ -124,9 +127,39 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             (excepto == "proveedor" || PasaProveedor(a)) &&
             (excepto == "marca" || PasaMarca(a)) &&
             (excepto == "temporada" || PasaTemporada(a)) &&
+            (excepto == "combo" || PasaCombo(a)) &&
             PasaTalle(a) && PasaColor(a) && PasaPublicado(a) && PasaMargen(a) && PasaTexto(a));
 
         var filtrados = Aplicar(null).ToList();
+
+        // Faceta de combo, dos niveles (mismo criterio que el público): los GRUPOS (cantidad) y TRAMOS
+        // (precio) salen de la grilla oficial de márgenes (PruebaCombos), no de agrupar lo armado; el
+        // conteo de cada tramo sí sale de los artículos filtrados.
+        var comboTiers = await _repo.TraerComboTiersAsync(ct);
+        var conteoPorTramo = Aplicar("combo")
+            .Where(a => a.ComboCantidad is > 0 && a.ComboTotal is > 0)
+            .GroupBy(a => (Cantidad: a.ComboCantidad!.Value, Total: (int)a.ComboTotal!.Value))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var combos = comboTiers
+            .GroupBy(t => t.Cantidad)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var detalles = g
+                    .Select(t =>
+                    {
+                        var valor = $"{g.Key}-{t.Total}";
+                        var cantidad = conteoPorTramo.GetValueOrDefault((g.Key, t.Total));
+                        return new OpcionFaceta(valor, Combo.Mostrar(g.Key, t.Total), cantidad, f.ComboDetalles.Contains(valor));
+                    })
+                    .Where(d => d.Cantidad > 0)
+                    .ToList();
+                return new OpcionFacetaCombo(g.Key, $"Combo de {g.Key}",
+                    detalles.Sum(d => d.Cantidad), detalles.Any(d => d.Activa), detalles);
+            })
+            .Where(gc => gc.Detalles.Count > 0)
+            .ToList();
 
         var ordenados = f.Orden switch
         {
@@ -155,6 +188,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             Proveedores = Faceta(Aplicar("proveedor"), a => a.Proveedor, f.Proveedores),
             Marcas = Faceta(Aplicar("marca"), a => a.Marca, f.Marcas),
             Temporadas = Faceta(Aplicar("temporada"), a => a.Temporada, f.Temporadas),
+            Combos = combos,
         };
     }
 

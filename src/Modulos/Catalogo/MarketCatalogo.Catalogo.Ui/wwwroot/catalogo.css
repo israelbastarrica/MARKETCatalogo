@@ -9,8 +9,11 @@
    Paleta y normas: monocromático, la foto es el único color (ver DISENO.md).
    ============================================================================ */
 
-/* Contenedor de las páginas del módulo: ancho completo de la pantalla, con aire
-   a los lados (el header/footer son full-bleed y ponen su propio padding). */
+
+/* ==========================================================================
+   CATÁLOGO PÚBLICO
+   ========================================================================== */
+
 .mk-catalogo,
 .mk-producto {
     width: 100%;
@@ -18,9 +21,14 @@
     padding: 2.5rem 2rem 0;
 }
 
-/* --- Catálogo: cabecera -------------------------------------------------- */
 
-.mk-catalogo-cabecera { margin-bottom: 2rem; }
+/* --------------------------------------------------------------------------
+   CABECERA
+   -------------------------------------------------------------------------- */
+
+.mk-catalogo-cabecera {
+    margin-bottom: 2rem;
+}
 
 .mk-catalogo-cabecera h1 {
     font-size: clamp(2rem, 5vw, 3rem);
@@ -33,7 +41,10 @@
     color: var(--mk-tinta-70);
 }
 
-/* --- Catálogo: cuerpo (filtros | resultados) ----------------------------- */
+
+/* --------------------------------------------------------------------------
+   CUERPO: FILTROS + RESULTADOS
+   -------------------------------------------------------------------------- */
 
 .mk-catalogo-cuerpo {
     display: grid;
@@ -42,10 +53,11 @@
     align-items: start;
 }
 
-/* El panel de filtros queda pegado al hacer scroll: la grilla es larga. Necesita su propio
-   límite de alto + scroll (igual que ya hacía la versión mobile en @media abajo): si no,
-   con Prenda+Talle+Color+Combo abiertos el panel entero se pasa del viewport y Combo, al
-   final, sólo se alcanza scrolleando la página entera hasta el fondo de la grilla. */
+
+/* --------------------------------------------------------------------------
+   FILTROS
+   -------------------------------------------------------------------------- */
+
 .mk-filtros {
     position: sticky;
     top: var(--mk-header-alto);
@@ -54,31 +66,24 @@
     gap: 2rem;
     max-height: calc(100vh - var(--mk-header-alto) - 2rem);
     overflow-y: auto;
-    /* Por spec, si overflow-y no es "visible" y overflow-x no se toca, el navegador computa
-       overflow-x como "auto" también — quedaba paneable de costado sin necesidad. Se anula explícito. */
     overflow-x: hidden;
-    /* Sin esto, al llegar al borde del scroll del panel el gesto seguía pasándole el scroll a la
-       página entera (los productos se movían solos) — "scroll chaining". Se corta acá. */
     overscroll-behavior-y: contain;
-    /* Sigue siendo scrolleable (rueda, touch, teclado); lo único que se saca es la barra visible,
-       que al lado de las barras propias de cada faceta (mk-faceta-lista) quedaba amontonado. */
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
 
-.mk-filtros::-webkit-scrollbar { display: none; }
+.mk-filtros::-webkit-scrollbar {
+    display: none;
+}
 
-/* --- Facetas ------------------------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   FACETAS
+   -------------------------------------------------------------------------- */
 
 .mk-faceta-titulo {
     margin: 0 0 .75rem;
     line-height: 1.5rem;
-    /* El alto total (línea 1.5rem + 1.6rem de padding + borde = 50.6px) iguala al de .mk-toolbar,
-       así el BORDE de abajo de "Prenda" queda a la misma altura que el de la toolbar (medido con
-       getBoundingClientRect: la toolbar da 50.59px por sus checkboxes+texto).
-       El padding va repartido arriba y abajo (.8rem = la mitad de 1.6rem) para que el TEXTO quede
-       CENTRADO en esa caja, igual que Sucursal/Combo están centrados en la suya (align-items:center).
-       Antes iba todo abajo y "Prenda" quedaba pegado arriba, ~13px más alto que Sucursal. */
     padding: .8rem 0;
     border-bottom: 1px solid var(--mk-tinta-20);
 }
@@ -90,11 +95,10 @@
     display: flex;
     flex-direction: column;
     gap: .1rem;
-    /* Las facetas largas (color) no empujan la página entera: scrollean solas. */
     max-height: 15rem;
     overflow-y: auto;
-    overflow-x: hidden;   /* si no, overflow-y:auto habilita también el paneo de costado */
-    overscroll-behavior-y: contain;   /* que no le pase el scroll a .mk-filtros ni a la página */
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
 }
 
 .mk-faceta-opcion {
@@ -105,9 +109,7 @@
     text-decoration: none;
     color: var(--mk-tinta-100);
     font-size: .95rem;
-    /* Arrastrar empezando sobre un <a> puede disparar el "arrastrar el link" nativo del navegador,
-       o directo seleccionar el texto, en vez de scrollear (se nota sobre todo en touch/emulación
-       mobile) — se desactivan los dos; el link se sigue abriendo con un click/tap normal. */
+
     -webkit-user-drag: none;
     user-drag: none;
     -webkit-user-select: none;
@@ -115,10 +117,14 @@
     touch-action: pan-y;
 }
 
-.mk-faceta-opcion:hover { color: var(--mk-tinta-100); }
-.mk-faceta-opcion:hover .mk-faceta-nombre { text-decoration: underline; }
+.mk-faceta-opcion:hover {
+    color: var(--mk-tinta-100);
+}
 
-/* La "marca" es un cuadradito estilo checkbox, en la paleta (sin color). */
+.mk-faceta-opcion:hover .mk-faceta-nombre {
+    text-decoration: underline;
+}
+
 .mk-faceta-marca {
     flex: 0 0 auto;
     width: .85rem;
@@ -127,20 +133,40 @@
     background: var(--mk-fondo);
 }
 
-.mk-faceta-opcion.activa .mk-faceta-marca { background: var(--mk-acento); border-color: var(--mk-acento); }
-.mk-faceta-opcion.activa .mk-faceta-nombre { font-weight: 600; }
+.mk-faceta-opcion.activa .mk-faceta-marca {
+    background: var(--mk-acento);
+    border-color: var(--mk-acento);
+}
 
-.mk-faceta-nombre { flex: 1; }
-.mk-faceta-cantidad { color: var(--mk-tinta-40); font-size: .8rem; }
+.mk-faceta-opcion.activa .mk-faceta-nombre {
+    font-weight: 600;
+}
 
-/* Los colores vienen en mayúscula de Dragon (NEGRO, ARENA…); se muestran con sólo la
-   primera letra en mayúscula (NEGRO → Negro): minúscula todo + ::first-letter en mayúscula. */
-.mk-faceta-color .mk-faceta-nombre { text-transform: lowercase; }
-.mk-faceta-color .mk-faceta-nombre::first-letter { text-transform: uppercase; }
+.mk-faceta-nombre {
+    flex: 1;
+}
 
-/* --- Faceta de combo (dos niveles: cantidad + precio, ver ComboDropdown.razor) -- */
+.mk-faceta-cantidad {
+    color: var(--mk-tinta-40);
+    font-size: .8rem;
+}
 
-.mk-faceta-combo-grupos > li { list-style: none; }
+.mk-faceta-color .mk-faceta-nombre {
+    text-transform: lowercase;
+}
+
+.mk-faceta-color .mk-faceta-nombre::first-letter {
+    text-transform: uppercase;
+}
+
+
+/* --------------------------------------------------------------------------
+   FACETA COMBO
+   -------------------------------------------------------------------------- */
+
+.mk-faceta-combo-grupos > li {
+    list-style: none;
+}
 
 .mk-faceta-combo-grupos details > summary {
     display: flex;
@@ -152,10 +178,13 @@
     list-style: none;
 }
 
-/* Chrome/Safari dibujan su propio triángulo aparte del ::marker; se reemplaza por el mismo signo
-   "›" que ya usa el drill-down de secciones, así los dos looks de disclosure quedan iguales. */
-.mk-faceta-combo-grupos summary::-webkit-details-marker { display: none; }
-.mk-faceta-combo-grupos summary::marker { content: ""; }
+.mk-faceta-combo-grupos summary::-webkit-details-marker {
+    display: none;
+}
+
+.mk-faceta-combo-grupos summary::marker {
+    content: "";
+}
 
 .mk-faceta-combo-grupos summary::after {
     content: '›';
@@ -165,7 +194,9 @@
     transition: transform .15s ease;
 }
 
-.mk-faceta-combo-grupos details[open] > summary::after { transform: rotate(-90deg); }
+.mk-faceta-combo-grupos details[open] > summary::after {
+    transform: rotate(-90deg);
+}
 
 .mk-faceta-combo-detalles {
     list-style: none;
@@ -176,16 +207,15 @@
     gap: .1rem;
 }
 
-/* --- Combo, dropdown de la toolbar (ver ComboDropdown.razor) -------------
-   Combo vive SIEMPRE acá, en la toolbar sticky — en mobile y en desktop, nunca en el drawer de
-   filtros: es el más usado de los dos, así que se mantiene siempre a mano en vez de un tap más
-   adentro del panel. --- */
+
+/* --------------------------------------------------------------------------
+   COMBO DROPDOWN
+   -------------------------------------------------------------------------- */
 
 .mk-combo-dropdown {
     position: relative;
 }
 
-/* Checkbox oculto que guarda abierto/cerrado: mismo patrón sr-only que .mk-filtros-check. */
 .mk-combo-toggle-check {
     position: absolute;
     width: 1px;
@@ -215,7 +245,9 @@
     transition: transform .15s ease;
 }
 
-.mk-combo-toggle-check:checked ~ .mk-combo-dropdown-boton::after { transform: rotate(-90deg); }
+.mk-combo-toggle-check:checked ~ .mk-combo-dropdown-boton::after {
+    transform: rotate(-90deg);
+}
 
 .mk-combo-dropdown-contador {
     display: inline-flex;
@@ -230,10 +262,9 @@
     font-size: .75rem;
 }
 
-/* Fondo invisible a pantalla completa mientras está abierto: tocar cualquier punto afuera del
-   panel cae acá y cierra el dropdown (es un <label for> del mismo checkbox). Oculto por defecto
-   para no atrapar clicks cuando el dropdown está cerrado. */
-.mk-combo-dropdown-backdrop { display: none; }
+.mk-combo-dropdown-backdrop {
+    display: none;
+}
 
 .mk-combo-toggle-check:checked ~ .mk-combo-dropdown-backdrop {
     display: block;
@@ -243,9 +274,6 @@
     cursor: default;
 }
 
-/* El panel cae flotando debajo del botón, mismo criterio que el mega-menú del header
-   (position:relative en el trigger + position:absolute acá): no empuja el resto de la toolbar.
-   Oculto por defecto — sólo se muestra con el checkbox tildado. */
 .mk-combo-dropdown-panel {
     display: none;
     position: absolute;
@@ -262,25 +290,14 @@
     box-shadow: 0 12px 32px rgba(0, 0, 0, .12);
 }
 
-.mk-combo-toggle-check:checked ~ .mk-combo-dropdown-panel { display: block; }
-
-/* En mobile el botón "Combo" puede quedar centrado en la barra (Sucursal+Combo centrados), lejos
-   del borde izquierdo — un panel de min-width:260px anclado a ÉL se sale del viewport angosto y
-   empuja la página entera de costado. Se lo cuelga de la TOOLBAR completa en vez del botón puntual
-   (position:static en .mk-combo-dropdown deja que el panel absolute suba a buscar el próximo
-   ancestro posicionado, que es .mk-toolbar — sticky también cuenta), a todo el ancho de esa barra,
-   que ya vive dentro del margen de la pantalla. */
-@media (max-width: 900px) {
-    .mk-combo-dropdown { position: static; }
-
-    .mk-combo-dropdown-panel {
-        left: 1rem;
-        right: 1rem;
-        min-width: 0;
-    }
+.mk-combo-toggle-check:checked ~ .mk-combo-dropdown-panel {
+    display: block;
 }
 
-/* --- Chips de filtros activos -------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   CHIPS
+   -------------------------------------------------------------------------- */
 
 .mk-chips {
     display: flex;
@@ -302,10 +319,20 @@
     color: var(--mk-tinta-100);
 }
 
-.mk-chip:hover { background: var(--mk-acento); color: var(--mk-acento-tinta); }
-.mk-chip-limpiar { text-decoration: underline; color: var(--mk-tinta-70); }
+.mk-chip:hover {
+    background: var(--mk-acento);
+    color: var(--mk-acento-tinta);
+}
 
-/* --- Barra de orden ------------------------------------------------------ */
+.mk-chip-limpiar {
+    text-decoration: underline;
+    color: var(--mk-tinta-70);
+}
+
+
+/* --------------------------------------------------------------------------
+   ORDEN
+   -------------------------------------------------------------------------- */
 
 .mk-orden {
     display: flex;
@@ -321,10 +348,19 @@
     font-size: .9rem;
 }
 
-.mk-orden-opcion:hover { color: var(--mk-tinta-70); }
-.mk-orden-opcion.activa { color: var(--mk-tinta-100); font-weight: 600; }
+.mk-orden-opcion:hover {
+    color: var(--mk-tinta-70);
+}
 
-/* --- Barra superior: sucursales (izq) + orden (der) ---------------------- */
+.mk-orden-opcion.activa {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+}
+
+
+/* --------------------------------------------------------------------------
+   TOOLBAR
+   -------------------------------------------------------------------------- */
 
 .mk-toolbar {
     display: flex;
@@ -333,54 +369,21 @@
     justify-content: space-between;
     gap: 1rem 2rem;
     margin-bottom: 1.5rem;
-    /* min-height fijo (no el que den checkboxes/texto): junto con el padding, suma la MISMA altura
-       total que .mk-faceta-titulo (line-height 1.5rem + padding-bottom 1rem allá), así las dos
-       líneas quedan a la misma altura por matemática. Repartido arriba y abajo (no todo abajo):
-       Sucursal/Combo/Orden quedan centrados verticalmente, no pegados arriba. */
     min-height: 1.5rem;
     padding-top: .5rem;
     padding-bottom: .5rem;
     border-bottom: 1px solid var(--mk-tinta-20);
-    /* Pegada debajo del header (mismo top que usa .mk-filtros) para poder tocar Sucursal, Combo
-       u Orden en cualquier momento sin volver arriba. Necesita fondo opaco: si no, las cards se
-       ven pasar por detrás al scrollear. z-index por debajo del header (10), que manda siempre. */
+
     position: sticky;
     top: var(--mk-header-alto);
     z-index: 5;
     background: var(--mk-fondo);
 }
 
-/* La barra ya trae su propio margen; el .mk-orden de adentro no dobla. */
-.mk-toolbar .mk-orden { margin-bottom: 0; }
-
-/* En mobile la toolbar sticky no tiene lugar para las tres cosas: se prioriza Sucursal + Combo
-   (más usados) y Orden se muda al drawer de filtros (mk-filtros-orden, ver PanelFiltros.razor).
-   Además, para que Combo + Luro/Peralta entren en UNA sola línea cuando el ancho es chico:
-   - se oculta la palabra "Sucursal" (los ticks Luro/Peralta ya se entienden solos);
-   - Combo pasa a ir primero (order:-1), ocupando el lugar donde estaba "Sucursal", y al lado
-     quedan los ticks;
-   - la barra alinea a la izquierda (flex-start) para que Combo arranque pegado al borde, no
-     centrado en el medio. */
-@media (max-width: 900px) {
-    .mk-toolbar .mk-orden { display: none; }
-    .mk-toolbar { justify-content: flex-start; }
-    .mk-sucursales .mk-rotulo { display: none; }
-    .mk-toolbar-izq .mk-combo-dropdown { order: -1; }
+.mk-toolbar .mk-orden {
+    margin-bottom: 0;
 }
 
-/* La copia de Orden que vive en el drawer: sólo se ve en mobile — en desktop ya está en la
-   toolbar, no hace falta duplicarla acá. */
-.mk-filtros-orden {
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid var(--mk-tinta-20);
-}
-
-@media (min-width: 901px) {
-    .mk-filtros-orden { display: none; }
-}
-
-/* Agrupa Sucursal + Combo pegados entre sí a la izquierda: con el space-between del toolbar
-   solo (sin este wrapper), Combo quedaba centrado en vez de al lado de Sucursal. */
 .mk-toolbar-izq {
     display: flex;
     flex-wrap: wrap;
@@ -395,7 +398,6 @@
     gap: .5rem 1.25rem;
 }
 
-/* Sucursal como tick: un cuadradito que se llena al activarse (multi-selección). */
 .mk-suc {
     display: inline-flex;
     align-items: center;
@@ -405,7 +407,9 @@
     font-size: .9rem;
 }
 
-.mk-suc:hover { color: var(--mk-tinta-100); }
+.mk-suc:hover {
+    color: var(--mk-tinta-100);
+}
 
 .mk-suc-tick {
     flex: 0 0 auto;
@@ -417,10 +421,16 @@
     justify-content: center;
 }
 
-.mk-suc.activa { color: var(--mk-tinta-100); font-weight: 600; }
-.mk-suc.activa .mk-suc-tick { background: var(--mk-acento); border-color: var(--mk-acento); }
+.mk-suc.activa {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+}
 
-/* El "check" del tick, dibujado en CSS (sin icono externo). */
+.mk-suc.activa .mk-suc-tick {
+    background: var(--mk-acento);
+    border-color: var(--mk-acento);
+}
+
 .mk-suc.activa .mk-suc-tick::after {
     content: "";
     width: .3rem;
@@ -431,13 +441,21 @@
     transform: rotate(45deg);
 }
 
-/* --- Grilla + card ------------------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   GRILLA PÚBLICA
+   -------------------------------------------------------------------------- */
 
 .mk-grilla {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1.75rem .75rem;
 }
+
+
+/* --------------------------------------------------------------------------
+   CARD PÚBLICA
+   -------------------------------------------------------------------------- */
 
 .mk-card {
     display: flex;
@@ -447,10 +465,6 @@
 }
 
 .mk-card-foto {
-    /* Proporción fija → TODAS las cards miden lo mismo (grilla pareja). Las fotos del catálogo se
-       están estandarizando a un único tamaño 2:3; cuando estén todas, calzan exacto (sin margen ni
-       recorte). Mientras tanto, `contain` muestra la foto entera (nunca recorta cabeza/pies) y el
-       fondo del mismo color disimula el margencito de las que aún no coinciden. */
     aspect-ratio: 2 / 3;
     overflow: hidden;
     background: var(--mk-fondo-sutil);
@@ -465,11 +479,15 @@
     transition: opacity .2s ease;
 }
 
-.mk-card:hover .mk-foto { opacity: .85; }
+.mk-card:hover .mk-foto {
+    opacity: .85;
+}
 
-/* Curva de talles sobre la foto. Barra blanca que sube desde el borde inferior al pasar el mouse.
-   Oculta por defecto (transform + opacity) para poder animarla; los talles se envuelven si no entran.
-   Monocromática: fondo blanco translúcido, tinta negra. */
+
+/* --------------------------------------------------------------------------
+   TALLES SOBRE FOTO
+   -------------------------------------------------------------------------- */
+
 .mk-card-talles {
     position: absolute;
     left: 0;
@@ -501,27 +519,32 @@
     white-space: nowrap;
 }
 
-/* Solo en dispositivos con puntero fino y hover real (mouse). En touch no aparece nunca:
-   no habría forma de "salir" del hover y taparía la foto. */
 @media (hover: hover) and (pointer: fine) {
-    .mk-card:hover .mk-card-talles {
+    .mk-card:hover .mk-card-talles,
+    .mk-ic:hover .mk-card-talles {
         opacity: 1;
         transform: translateY(0);
     }
 }
 
-/* Sin foto: rectángulo liso, misma proporción. Se lee como "todavía sin foto"
-   sin parecer una imagen rota. */
 .mk-card-sinfoto {
     width: 100%;
     height: 100%;
     background: repeating-linear-gradient(
         -45deg,
-        rgba(0, 0, 0, .03) 0, rgba(0, 0, 0, .03) 10px,
-        rgba(0, 0, 0, .05) 10px, rgba(0, 0, 0, .05) 20px);
+        rgba(0, 0, 0, .03) 0,
+        rgba(0, 0, 0, .03) 10px,
+        rgba(0, 0, 0, .05) 10px,
+        rgba(0, 0, 0, .05) 20px
+    );
 }
 
-.mk-card-datos { padding-top: .75rem; display: flex; flex-direction: column; gap: .2rem; }
+.mk-card-datos {
+    padding-top: .75rem;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
 
 .mk-card-titulo {
     font-family: var(--mk-font-texto);
@@ -529,18 +552,33 @@
     font-weight: 400;
     line-height: 1.35;
     margin: 0;
-    /* Título a dos líneas máximo para que la grilla quede pareja. */
+
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.mk-card-combo { font-weight: 600; margin: .25rem 0 0; }
-.mk-card-unidad { color: var(--mk-tinta-70); font-size: .85rem; margin: 0; }
-.mk-card-locales { margin: .35rem 0 0; font-size: .7rem; }
+.mk-card-combo {
+    font-weight: 600;
+    margin: .25rem 0 0;
+}
 
-/* --- Paginación + sello de frescura -------------------------------------- */
+.mk-card-unidad {
+    color: var(--mk-tinta-70);
+    font-size: .85rem;
+    margin: 0;
+}
+
+.mk-card-locales {
+    margin: .35rem 0 0;
+    font-size: .7rem;
+}
+
+
+/* --------------------------------------------------------------------------
+   PAGINACIÓN
+   -------------------------------------------------------------------------- */
 
 .mk-paginacion {
     display: flex;
@@ -550,11 +588,9 @@
     margin-top: 3rem;
 }
 
-/* Scroll infinito (mejora progresiva, ver catalogo-scroll.js). Sin JS no se toca nada: la
-   paginación por links de siempre queda intacta. Con JS, <html class="js-infinita"> se agrega
-   y esta misma nav pasa a ser el sensor que dispara la carga de la página siguiente al entrar
-   en pantalla — sus links se ocultan y sólo queda visible el estado en mk-cargando-mas. */
-.mk-cargando-mas { display: none; }
+.mk-cargando-mas {
+    display: none;
+}
 
 .js-infinita .mk-paginacion > a,
 .js-infinita .mk-paginacion > .mk-rotulo {
@@ -566,9 +602,16 @@
     color: var(--mk-tinta-40);
 }
 
-.mk-actualizado { margin-top: 2rem; text-align: right; color: var(--mk-tinta-40); }
+.mk-actualizado {
+    margin-top: 2rem;
+    text-align: right;
+    color: var(--mk-tinta-40);
+}
 
-/* --- Ficha de producto --------------------------------------------------- */
+
+/* ==========================================================================
+   FICHA DE PRODUCTO PÚBLICA
+   ========================================================================== */
 
 .mk-producto {
     display: grid;
@@ -582,19 +625,28 @@
     overflow: hidden;
 }
 
-/* Imagen a su proporción NATURAL: ocupa el ancho y muestra la foto entera, sin recortar cabeza/pies. */
-.mk-producto-foto .mk-foto { width: 100%; height: auto; display: block; }
-/* El placeholder (sin foto) sí mantiene una proporción fija para no colapsar. */
-.mk-producto-foto .mk-card-sinfoto { aspect-ratio: 2 / 3; }
+.mk-producto-foto .mk-foto {
+    width: 100%;
+    height: auto;
+    display: block;
+}
 
-/* Foto ampliable: sólo con JS (catalogo-zoom.js marca el cursor de lupa cuando el visor está activo).
-   Sin JS es una imagen normal, así que no anunciamos un zoom que no existe. */
-.js-zoom .mk-producto-foto .mk-zoomable { cursor: zoom-in; }
+.mk-producto-foto .mk-card-sinfoto {
+    aspect-ratio: 2 / 3;
+}
 
-/* --- Visor con zoom (lightbox) ------------------------------------------- */
+.js-zoom .mk-producto-foto .mk-zoomable {
+    cursor: zoom-in;
+}
 
-/* Bloquea el scroll del fondo mientras el visor está abierto. */
-.mk-zoom-bloqueado { overflow: hidden; }
+
+/* --------------------------------------------------------------------------
+   ZOOM
+   -------------------------------------------------------------------------- */
+
+.mk-zoom-bloqueado {
+    overflow: hidden;
+}
 
 .mk-zoom-overlay {
     position: fixed;
@@ -604,38 +656,42 @@
     align-items: center;
     justify-content: center;
     padding: 2.5rem;
-    /* Fondo atenuado + desenfocado: la página se ve detrás borroneada y la foto queda destacada.
-       El velo claro (no negro) es el look de la referencia. backdrop-filter con fallback al velo
-       algo más opaco si el navegador no lo soporta. */
     background: rgba(245, 244, 242, .72);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    /* El navegador no maneja el pinch/scroll: lo hace el JS con transform. */
     touch-action: none;
     overscroll-behavior: contain;
 }
-.mk-zoom-overlay.activa { display: flex; }
+
+.mk-zoom-overlay.activa {
+    display: flex;
+}
 
 .mk-zoom-img {
     max-width: 100%;
     max-height: 100%;
-    /* La foto entera entra en pantalla al abrir; el zoom la agranda desde ahí. */
     object-fit: contain;
-    /* Sombra suave para que "flote" y se despegue del fondo borroneado (como en la referencia). */
     box-shadow: 0 1.5rem 3.5rem rgba(0, 0, 0, .22);
     background: #fff;
     transform-origin: center center;
     will-change: transform;
-    /* Zoom deslizado: cada paso de rueda / doble click "glidea" hasta su nivel en vez de saltar.
-       Se apaga mientras se arrastra o se hace pinch (.mk-arrastrando) para que el pan vaya sin lag. */
     transition: transform .18s ease-out;
     cursor: grab;
     user-select: none;
     -webkit-user-drag: none;
 }
-.mk-zoom-img.mk-arrastrando { transition: none; }
-.mk-zoom-img.ampliada { cursor: grab; }
-.mk-zoom-img.ampliada:active { cursor: grabbing; }
+
+.mk-zoom-img.mk-arrastrando {
+    transition: none;
+}
+
+.mk-zoom-img.ampliada {
+    cursor: grab;
+}
+
+.mk-zoom-img.ampliada:active {
+    cursor: grabbing;
+}
 
 .mk-zoom-cerrar {
     position: fixed;
@@ -646,23 +702,37 @@
     height: 2.75rem;
     border: 0;
     border-radius: 50%;
-    /* Botón oscuro: ahora el fondo del visor es claro. */
     background: rgba(0, 0, 0, .55);
     color: #fff;
     font-size: 1.75rem;
     line-height: 1;
     cursor: pointer;
 }
-.mk-zoom-cerrar:hover { background: rgba(0, 0, 0, .75); }
 
-/* Fallback: si el navegador no soporta backdrop-filter, se compensa con un velo más opaco
-   para que igual atenúe la página de atrás. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .mk-zoom-overlay { background: rgba(245, 244, 242, .95); }
+.mk-zoom-cerrar:hover {
+    background: rgba(0, 0, 0, .75);
 }
 
-.mk-producto-datos { display: flex; flex-direction: column; gap: .35rem; }
-.mk-producto-datos > .mk-migas { margin-bottom: .5rem; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .mk-zoom-overlay {
+        background: rgba(245, 244, 242, .95);
+    }
+}
+
+
+/* --------------------------------------------------------------------------
+   DATOS PRODUCTO
+   -------------------------------------------------------------------------- */
+
+.mk-producto-datos {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+}
+
+.mk-producto-datos > .mk-migas {
+    margin-bottom: .5rem;
+}
 
 .mk-producto-datos h1 {
     font-size: clamp(1.6rem, 3.5vw, 2.4rem);
@@ -670,27 +740,52 @@
     line-height: 1.1;
 }
 
-.mk-producto-combo { font-size: 1.5rem; font-weight: 600; margin: .5rem 0 0; }
-.mk-producto-unidad { color: var(--mk-tinta-70); margin: 0 0 1rem; }
-.mk-producto-texto { line-height: 1.6; color: var(--mk-tinta-70); margin: .5rem 0; }
+.mk-producto-combo {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: .5rem 0 0;
+}
 
-.mk-producto-bloque { margin-top: 1.5rem; }
-.mk-producto-bloque h2 { margin: 0 0 .6rem; }
+.mk-producto-unidad {
+    color: var(--mk-tinta-70);
+    margin: 0 0 1rem;
+}
 
-.mk-producto-codigo { margin-top: 2rem; color: var(--mk-tinta-40); }
+.mk-producto-texto {
+    line-height: 1.6;
+    color: var(--mk-tinta-70);
+    margin: .5rem 0;
+}
 
-.mk-producto-vacio { text-align: center; padding: 5rem 1rem; }
+.mk-producto-bloque {
+    margin-top: 1.5rem;
+}
 
-/* --- Drawer de filtros (controles) --------------------------------------
-   El botón "Filtros", el fondo y la cabecera con la × sólo existen para la
-   vista de celular. En desktop el panel es una sidebar fija y se ocultan. */
+.mk-producto-bloque h2 {
+    margin: 0 0 .6rem;
+}
+
+.mk-producto-codigo {
+    margin-top: 2rem;
+    color: var(--mk-tinta-40);
+}
+
+.mk-producto-vacio {
+    text-align: center;
+    padding: 5rem 1rem;
+}
+
+
+/* ==========================================================================
+   DRAWER DE FILTROS
+   ========================================================================== */
+
 .mk-filtros-abrir,
 .mk-filtros-backdrop,
-.mk-filtros-cabecera { display: none; }
+.mk-filtros-cabecera {
+    display: none;
+}
 
-/* Flecha "volver arriba": círculo fijo abajo a la derecha, SIEMPRE visible (desktop y celular).
-   Sube al tope de la página del catálogo. z-index 50 < 55 del backdrop, así en celular el fondo
-   oscuro del drawer la tapa cuando está abierto. */
 .mk-subir {
     display: inline-flex;
     align-items: center;
@@ -710,12 +805,10 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
 }
 
-.mk-subir:hover { color: var(--mk-acento-tinta); }
+.mk-subir:hover {
+    color: var(--mk-acento-tinta);
+}
 
-/* El checkbox que guarda el estado abierto/cerrado del drawer se oculta a la
-   vista pero SIGUE siendo interactivo (no se usa `hidden` ni display:none: un
-   control oculto no se puede activar desde su <label>, que es justo lo que hace
-   de botón). Patrón sr-only estándar: además queda accesible por teclado. */
 .mk-filtros-check {
     position: absolute;
     width: 1px;
@@ -729,13 +822,15 @@
     white-space: nowrap;
 }
 
-/* --- Navegación por sección en el drawer (drill-down, sólo celular) -------
-   En desktop la navegación por género está en el mega-menú del header, así que
-   acá no se muestra. En celular aparece arriba de las facetas, dentro del drawer. */
-.mk-secciones { display: none; }
 
-/* Los radios que guardan el nivel del drill-down: ocultos a la vista pero
-   interactivos (patrón sr-only, igual que el checkbox del drawer). */
+/* --------------------------------------------------------------------------
+   SECCIONES MOBILE
+   -------------------------------------------------------------------------- */
+
+.mk-secciones {
+    display: none;
+}
+
 .mk-sec-radio,
 .mk-sec-radio-none {
     position: absolute;
@@ -750,18 +845,130 @@
     white-space: nowrap;
 }
 
-/* Ícono "sliders" del botón que abre el drawer. */
-.mk-filtros-icono { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }
-.mk-filtros-icono line { stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
-.mk-filtros-icono circle { fill: currentColor; }
+.mk-filtros-icono {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex: 0 0 auto;
+}
 
-/* --- Responsive ---------------------------------------------------------- */
+.mk-filtros-icono line {
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+}
+
+.mk-filtros-icono circle {
+    fill: currentColor;
+}
+
+
+/* ==========================================================================
+   RESPONSIVE PÚBLICO
+   ========================================================================== */
 
 @media (max-width: 900px) {
-    .mk-catalogo-cuerpo { grid-template-columns: 1fr; gap: 1.5rem; }
 
-    /* Botón blanco de Filtros: FIJO abajo a la izquierda, siempre a mano mientras se scrollea.
-       (El de "volver arriba" va abajo a la derecha.) */
+    .mk-catalogo-cuerpo {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .mk-combo-dropdown {
+        position: static;
+    }
+
+    .mk-combo-dropdown-panel {
+        left: 1rem;
+        right: 1rem;
+        min-width: 0;
+    }
+
+    .mk-toolbar .mk-orden {
+        display: none;
+    }
+
+    .mk-toolbar {
+        justify-content: flex-start;
+    }
+
+    .mk-sucursales .mk-rotulo {
+        display: none;
+    }
+
+    .mk-toolbar-izq .mk-combo-dropdown {
+        order: -1;
+    }
+
+    .mk-filtros-orden {
+        padding-bottom: 1.25rem;
+        border-bottom: 1px solid var(--mk-tinta-20);
+    }
+
+    .mk-filtros {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 60;
+        width: min(85vw, 320px);
+        height: 100dvh;
+        max-height: none;
+        margin: 0;
+        padding: 1.25rem 1.25rem 2rem;
+        background: var(--mk-fondo);
+        border-right: 1px solid var(--mk-tinta-20);
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+    }
+
+    .mk-filtros .mk-faceta-lista {
+        max-height: none;
+        overflow-y: visible;
+        overflow-x: visible;
+    }
+
+    .mk-filtros-cabecera {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: .5rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid var(--mk-tinta-20);
+    }
+
+    .mk-filtros-cerrar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        font-size: 1.7rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .mk-filtros-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 55;
+        background: rgba(0, 0, 0, .5);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .25s ease, visibility .25s ease;
+    }
+
+    .mk-filtros-check:checked ~ .mk-catalogo-cuerpo .mk-filtros {
+        transform: translateX(0);
+    }
+
+    .mk-filtros-check:checked ~ .mk-catalogo-cuerpo .mk-filtros-backdrop {
+        display: block;
+        opacity: 1;
+        visibility: visible;
+    }
+
     .mk-filtros-abrir {
         display: inline-flex;
         align-items: center;
@@ -792,114 +999,49 @@
         font-size: .75rem;
     }
 
-    /* El panel deja de ser sidebar: pasa a un drawer fijo fuera de pantalla que
-       entra deslizándose desde la izquierda. */
-    .mk-filtros {
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 60;
-        width: min(85vw, 320px);
-        height: 100dvh;
-        max-height: none;   /* pisa el max-height del sidebar de desktop, que si no deja el drawer corto */
-        margin: 0;
-        padding: 1.25rem 1.25rem 2rem;
-        background: var(--mk-fondo);
-        border-right: 1px solid var(--mk-tinta-20);
-        overflow-y: auto;
-        overflow-x: hidden;   /* mismo motivo que en desktop: overflow-y:auto solo habilita el otro eje */
-        /* Nada de overscroll-behavior acá: combinado con -webkit-overflow-scrolling trababa el
-           scroll en algunos Chromium. No hace falta igual — .mk-filtros-backdrop, el fondo oscuro
-           de abajo, ya bloquea la interacción con la página mientras el drawer está abierto. */
-        -webkit-overflow-scrolling: touch;
-        transform: translateX(-100%);
-        transition: transform .25s ease;
+    .mk-catalogo-resultados {
+        padding-bottom: 4.5rem;
     }
 
-    /* En el drawer el scroll es UNO SOLO: el del panel entero. Cada faceta pierde
-       su scroll interno (el max-height de 15rem del desktop), que si no atrapa el
-       gesto del dedo y da la sensación de que la lista queda "cortada" en Prenda y
-       Talle sin poder bajar a Color y Combo. */
-    .mk-filtros .mk-faceta-lista {
-        max-height: none;
-        overflow-y: visible;
-        /* El overflow-x:hidden de la regla base (desktop) se sigue heredando acá, y por spec de
-           CSS "si un eje es visible y el otro no, el visible se fuerza a auto" — cada faceta
-           terminaba siendo, sin querer, su propio contenedor de scroll (sin barra, porque el
-           contenido entra justo), y eso le robaba la rueda del mouse al scroll del panel entero.
-           Con los dos ejes en visible, la lista deja de ser un contenedor de scroll y el gesto
-           pasa derecho a .mk-filtros, que es el único que tiene que scrollear acá. */
-        overflow-x: visible;
+    .mk-producto {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
     }
+}
 
-    .mk-filtros-cabecera {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: .5rem;
-        padding-bottom: .75rem;
-        border-bottom: 1px solid var(--mk-tinta-20);
+@media (min-width: 901px) {
+    .mk-filtros-orden {
+        display: none;
     }
-
-    .mk-filtros-cerrar {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        font-size: 1.7rem;
-        line-height: 1;
-        cursor: pointer;
-    }
-
-    /* Fondo oscuro detrás del drawer; oculto hasta que se abre. */
-    .mk-filtros-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 55;
-        background: rgba(0, 0, 0, .5);
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity .25s ease, visibility .25s ease;
-    }
-
-    /* Estado ABIERTO: el checkbox oculto (hermano de .mk-catalogo-cuerpo) marcado
-       desliza el panel a la vista y muestra el fondo. */
-    .mk-filtros-check:checked ~ .mk-catalogo-cuerpo .mk-filtros { transform: translateX(0); }
-
-    .mk-filtros-check:checked ~ .mk-catalogo-cuerpo .mk-filtros-backdrop {
-        display: block;
-        opacity: 1;
-        visibility: visible;
-    }
-
-    /* Aire al pie para que los botones flotantes no tapen la última fila ni el sello de precios. */
-    .mk-catalogo-resultados { padding-bottom: 4.5rem; }
-
-    /* Ficha apilada: una sola columna, foto ARRIBA a todo el ancho (a su proporción natural, sin recorte)
-       y la info (precio, talles, colores, descripción) DEBAJO. Se scrollea para ver el detalle. */
-    .mk-producto { grid-template-columns: 1fr; gap: 1.5rem; }
 }
 
 @media (max-width: 640px) {
-    .mk-catalogo, .mk-producto { padding-inline: 1.25rem; }
-    .mk-grilla { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.25rem .6rem; }
 
-    /* --- Drill-down de secciones dentro del drawer -----------------------
-       Nivel 1: lista de géneros. Al tocar uno, :has() oculta los demás y su
-       radio muestra los tipos. "Volver" (radio "ninguna") vuelve al nivel 1.
-       Todo sin una línea de JavaScript. */
+    .mk-catalogo,
+    .mk-producto {
+        padding-inline: 1.25rem;
+    }
+
+    .mk-grilla {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1.25rem .6rem;
+    }
+
     .mk-secciones {
         display: block;
-        /* Sin border-bottom propio: el último género (Unisex) ya cierra con el suyo
-           (mk-sec-gen); tener los dos pegados, separados sólo por un padding, se veía
-           como una línea de más. */
         margin-bottom: 1.75rem;
     }
 
-    .mk-secciones-titulo { display: block; margin-bottom: .75rem; }
+    .mk-secciones-titulo {
+        display: block;
+        margin-bottom: .75rem;
+    }
 
-    .mk-sec-lista { list-style: none; margin: 0; padding: 0; }
+    .mk-sec-lista {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
 
     .mk-sec-gen {
         display: flex;
@@ -912,9 +1054,14 @@
         border-bottom: 1px solid var(--mk-tinta-20);
     }
 
-    .mk-sec-flecha { color: var(--mk-tinta-40); font-size: 1.2rem; }
+    .mk-sec-flecha {
+        color: var(--mk-tinta-40);
+        font-size: 1.2rem;
+    }
 
-    .mk-sec-tipos { display: none; }
+    .mk-sec-tipos {
+        display: none;
+    }
 
     .mk-sec-volver {
         display: inline-block;
@@ -926,7 +1073,10 @@
         padding: .35rem 0 1rem;
     }
 
-    .mk-sec-tipos-titulo { display: block; margin: 0 0 .75rem; }
+    .mk-sec-tipos-titulo {
+        display: block;
+        margin: 0 0 .75rem;
+    }
 
     .mk-sec-tipo {
         display: flex;
@@ -939,34 +1089,59 @@
         font-size: 1rem;
     }
 
-    .mk-sec-tipo:hover > span:first-child { text-decoration: underline; }
-    .mk-sec-cant { color: var(--mk-tinta-40); font-size: .8rem; }
+    .mk-sec-tipo:hover > span:first-child {
+        text-decoration: underline;
+    }
 
-    /* Reglas del drill-down (dependen de :has(), soportado por todos los
-       navegadores móviles actuales). */
-    .mk-sec-radio:checked ~ .mk-sec-tipos { display: block; }
-    .mk-sec-item:has(.mk-sec-radio:checked) .mk-sec-gen { display: none; }
-    .mk-secciones:has(.mk-sec-radio:checked) .mk-sec-item:not(:has(.mk-sec-radio:checked)) { display: none; }
-    .mk-secciones:has(.mk-sec-radio:checked) .mk-secciones-titulo { display: none; }
+    .mk-sec-cant {
+        color: var(--mk-tinta-40);
+        font-size: .8rem;
+    }
+
+    .mk-sec-radio:checked ~ .mk-sec-tipos {
+        display: block;
+    }
+
+    .mk-sec-item:has(.mk-sec-radio:checked) .mk-sec-gen {
+        display: none;
+    }
+
+    .mk-secciones:has(.mk-sec-radio:checked) .mk-sec-item:not(:has(.mk-sec-radio:checked)) {
+        display: none;
+    }
+
+    .mk-secciones:has(.mk-sec-radio:checked) .mk-secciones-titulo {
+        display: none;
+    }
 }
 
-/* ========================================================================
-   CATÁLOGO INTERNO (staff). Monocromático, mismo lenguaje visual que el
-   público pero con datos de gestión. Layout: sidebar de filtros + grilla.
-   ======================================================================== */
 
-.mk-int { padding: 1.5rem 2rem 4rem; }
+/* ==========================================================================
+   CATÁLOGO INTERNO — STAFF
+   ========================================================================== */
 
-.mk-int-cab { margin-bottom: 1.5rem; }
-.mk-int-cab h1 { margin: 0 0 0.5rem; }
+.mk-int {
+    padding: 1.5rem 2rem 4rem;
+}
+
+.mk-int-cab {
+    margin-bottom: 1.5rem;
+}
+
+.mk-int-cab h1 {
+    margin: 0 0 .5rem;
+}
 
 .mk-int-totales {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem 1.25rem;
+    gap: .4rem 1.25rem;
     color: var(--mk-tinta-70);
 }
-.mk-int-totales span { white-space: nowrap; }
+
+.mk-int-totales span {
+    white-space: nowrap;
+}
 
 .mk-int-cuerpo {
     display: grid;
@@ -975,7 +1150,11 @@
     align-items: start;
 }
 
-/* --- Sidebar de filtros --- */
+
+/* --------------------------------------------------------------------------
+   SIDEBAR INTERNO
+   -------------------------------------------------------------------------- */
+
 .mk-int-filtros {
     position: sticky;
     top: calc(var(--mk-header-alto) + 1rem);
@@ -986,302 +1165,867 @@
     overflow-y: auto;
 }
 
-.mk-int-buscar { display: flex; gap: 0.4rem; }
+.mk-int-buscar {
+    display: flex;
+    gap: .4rem;
+}
+
 .mk-int-buscar input {
     flex: 1;
     min-width: 0;
-    padding: 0.5rem 0.6rem;
+    padding: .5rem .6rem;
     border: 1px solid var(--mk-tinta-20);
     background: var(--mk-fondo);
     color: var(--mk-tinta-100);
     font: inherit;
-    font-size: 0.85rem;
+    font-size: .85rem;
 }
+
 .mk-int-buscar button {
-    padding: 0.5rem 0.8rem;
+    padding: .5rem .8rem;
     border: 1px solid var(--mk-tinta-100);
     background: var(--mk-tinta-100);
     color: var(--mk-fondo);
     font: inherit;
-    font-size: 0.8rem;
+    font-size: .8rem;
     font-weight: 600;
     cursor: pointer;
 }
 
-.mk-int-grupo { display: flex; flex-direction: column; gap: 0.4rem; }
-.mk-int-grupo h2 { margin: 0 0 0.2rem; color: var(--mk-tinta-70); }
-.mk-int-faceta { display: flex; flex-direction: column; gap: 0.3rem; }
-.mk-int-sub { margin-top: 0.4rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.mk-int-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
 
-/* Tick multi-selección (ubicación, facetas) */
+.mk-int-grupo h2 {
+    margin: 0 0 .5rem;
+    padding: 0 0 .55rem;
+    line-height: 1.4;
+    color: var(--mk-tinta-70);
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+.mk-int-faceta {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+}
+
+.mk-int-sub {
+    margin-top: .4rem;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+}
+
+
+/* --------------------------------------------------------------------------
+   TICKS / RADIOS
+   -------------------------------------------------------------------------- */
+
 .mk-int-tick,
 .mk-int-radio {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
+    gap: .5rem;
+    font-size: .85rem;
     color: var(--mk-tinta-70);
     text-decoration: none;
     cursor: pointer;
 }
+
 .mk-int-tick:hover,
-.mk-int-radio:hover { color: var(--mk-tinta-100); }
+.mk-int-radio:hover {
+    color: var(--mk-tinta-100);
+}
+
 .mk-int-tick.activa,
-.mk-int-radio.activa { color: var(--mk-tinta-100); font-weight: 600; }
+.mk-int-radio.activa {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+}
 
 .mk-int-box {
-    width: 0.9rem; height: 0.9rem;
+    width: .9rem;
+    height: .9rem;
     border: 1px solid var(--mk-tinta-40);
     background: var(--mk-fondo);
     flex-shrink: 0;
 }
-.mk-int-tick.activa .mk-int-box { background: var(--mk-tinta-100); border-color: var(--mk-tinta-100); }
+
+.mk-int-tick.activa .mk-int-box {
+    background: var(--mk-tinta-100);
+    border-color: var(--mk-tinta-100);
+}
 
 .mk-int-radio {
-    padding-left: 0.1rem;
+    padding-left: .1rem;
     border-left: 2px solid transparent;
 }
-.mk-int-radio.activa { border-left-color: var(--mk-tinta-100); padding-left: 0.4rem; }
 
-.mk-int-cant { margin-left: auto; color: var(--mk-tinta-40); font-size: 0.75rem; }
+.mk-int-radio.activa {
+    border-left-color: var(--mk-tinta-100);
+    padding-left: .4rem;
+}
 
-/* --- Resultados --- */
+.mk-int-cant {
+    margin-left: auto;
+    color: var(--mk-tinta-40);
+    font-size: .75rem;
+}
+
+
+/* --------------------------------------------------------------------------
+   TOOLBAR INTERNO
+   -------------------------------------------------------------------------- */
+
 .mk-int-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: .75rem;
     margin-bottom: 1.25rem;
-    padding-bottom: 0.75rem;
+    padding-bottom: .75rem;
     border-bottom: 1px solid var(--mk-tinta-20);
 }
-.mk-int-total { color: var(--mk-tinta-70); }
 
-.mk-int-actualizar { display: inline-flex; align-items: center; gap: 0.6rem; }
-.mk-int-actualizar .mk-rotulo { color: var(--mk-tinta-40); }
+.mk-int-total {
+    color: var(--mk-tinta-70);
+}
+
+/* Grupo izquierdo del toolbar interno: total + Sucursal (como el público). */
+.mk-int-toolbar-izq {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem 1.75rem;
+}
+
+.mk-int-actualizar {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.mk-int-actualizar .mk-rotulo {
+    color: var(--mk-tinta-40);
+}
+
 .mk-int-actualizar button {
-    padding: 0.35rem 0.8rem;
+    padding: .35rem .8rem;
     border: 1px solid var(--mk-tinta-40);
     background: var(--mk-fondo);
     color: var(--mk-tinta-100);
     font: inherit;
-    font-size: 0.8rem;
+    font-size: .8rem;
     font-weight: 600;
     cursor: pointer;
 }
-.mk-int-actualizar button:hover { border-color: var(--mk-tinta-100); }
+
+.mk-int-actualizar button:hover {
+    border-color: var(--mk-tinta-100);
+}
+
+
+/* --------------------------------------------------------------------------
+   GRILLA INTERNA
+   -------------------------------------------------------------------------- */
 
 .mk-int-grilla {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-    gap: 1.25rem;
+    gap: 1.75rem .75rem;
 }
 
-/* --- Card interna --- */
+
+/* ==========================================================================
+   CARD INTERNA
+   ==========================================================================
+
+   IMPORTANTE:
+   La card interna sigue el mismo lenguaje visual que la pública:
+   - sin borde exterior
+   - sin apariencia de caja
+   - foto limpia
+   - información debajo
+   - hover sutil sobre la imagen
+   ========================================================================== */
+
 .mk-ic {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--mk-tinta-20);
     background: var(--mk-fondo);
     text-decoration: none;
     color: var(--mk-tinta-100);
-    transition: border-color 0.15s ease;
+    border: 0;
+    transition: opacity .15s ease;
 }
-.mk-ic:hover { border-color: var(--mk-tinta-100); }
-.mk-ic-oculto { opacity: 0.72; }
+
+.mk-ic:hover {
+    border: 0;
+    opacity: .85;
+}
+
+.mk-ic-oculto {
+    opacity: .72;
+}
+
+
+/* --------------------------------------------------------------------------
+   FOTO CARD INTERNA
+   -------------------------------------------------------------------------- */
 
 .mk-ic-foto {
     position: relative;
     aspect-ratio: 2 / 3;
     overflow: hidden;
-    background: var(--mk-tinta-20);
+    background: var(--mk-fondo-sutil);
 }
+
 .mk-ic-foto .mk-foto,
 .mk-ic-foto .mk-card-sinfoto {
-    width: 100%; height: 100%;
-    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
 }
+
+
+/* --------------------------------------------------------------------------
+   BADGES
+   -------------------------------------------------------------------------- */
 
 .mk-ic-badges {
     position: absolute;
-    top: 0.4rem; left: 0.4rem;
+    top: .4rem;
+    left: .4rem;
+    right: .4rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
+    gap: .25rem;
 }
+
 .mk-ic-badge {
-    font-size: 0.65rem;
+    flex: 0 0 auto;
+    font-size: .65rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 0.15rem 0.4rem;
+    letter-spacing: .03em;
+    padding: .15rem .4rem;
     background: var(--mk-fondo);
     color: var(--mk-tinta-100);
     border: 1px solid var(--mk-tinta-100);
 }
-.mk-ic-badge-depo { background: var(--mk-tinta-100); color: var(--mk-fondo); }
 
-.mk-ic-oculto-tag {
-    position: absolute;
-    top: 0.4rem; right: 0.4rem;
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    padding: 0.15rem 0.4rem;
-    background: var(--mk-fondo);
-    color: var(--mk-tinta-100);
-    border: 1px dashed var(--mk-tinta-100);
+.mk-ic-badge-depo {
+    background: var(--mk-tinta-100);
+    color: var(--mk-fondo);
 }
 
-.mk-ic-datos { padding: 0.7rem 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.35rem; }
+/* --------------------------------------------------------------------------
+   DATOS CARD INTERNA
+   -------------------------------------------------------------------------- */
+
+.mk-ic-datos {
+    padding: .75rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
 .mk-ic-titulo {
     margin: 0;
-    font-size: 0.9rem;
-    font-weight: 600;
-    line-height: 1.25;
+    font-size: .95rem;
+    font-weight: 400;
+    line-height: 1.35;
+
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-.mk-ic-cod { color: var(--mk-tinta-40); font-size: 0.75rem; }
 
-.mk-ic-precios { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-.mk-ic-combo { font-weight: 700; }
-.mk-ic-venta { color: var(--mk-tinta-70); font-size: 0.85rem; }
+.mk-ic-cod {
+    color: var(--mk-tinta-40);
+    font-size: .75rem;
+}
+
+.mk-ic-precios {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.mk-ic-combo {
+    font-weight: 600;
+}
+
+.mk-ic-venta {
+    color: var(--mk-tinta-70);
+    font-size: .85rem;
+}
+
+
+/* --------------------------------------------------------------------------
+   DATOS DE GESTIÓN
+   -------------------------------------------------------------------------- */
 
 .mk-ic-gestion {
     display: flex;
     gap: 1rem;
-    margin: 0.2rem 0 0;
-    padding: 0.4rem 0 0;
-    border-top: 1px solid var(--mk-tinta-20);
-}
-.mk-ic-gestion div { display: flex; flex-direction: column; }
-.mk-ic-gestion dt { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mk-tinta-40); }
-.mk-ic-gestion dd { margin: 0; font-size: 0.9rem; font-weight: 600; }
-
-.mk-ic-meta { color: var(--mk-tinta-70); font-size: 0.72rem; }
-
-@media (max-width: 820px) {
-    .mk-int { padding: 1rem 1.25rem 3rem; }
-    .mk-int-cuerpo { grid-template-columns: 1fr; }
-    .mk-int-filtros {
-        position: static;
-        max-height: none;
-        overflow: visible;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 1rem 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--mk-tinta-20);
-    }
-    .mk-int-buscar { flex-basis: 100%; }
+    margin: .45rem 0 0;
+    padding: .45rem 0 0;
+    border-top: 0;
 }
 
-/* --- Ficha interna --- */
-.mk-if { padding: 1.5rem 2rem 4rem; max-width: 72rem; margin: 0 auto; }
-.mk-if .mk-migas { margin-bottom: 1.5rem; }
+.mk-ic-gestion div {
+    display: flex;
+    flex-direction: column;
+}
 
-.mk-if-cuerpo {
+.mk-ic-gestion dt {
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--mk-tinta-40);
+}
+
+.mk-ic-gestion dd {
+    margin: 0;
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.mk-ic-meta {
+    color: var(--mk-tinta-70);
+    font-size: .72rem;
+}
+
+
+/* ==========================================================================
+   FICHA INTERNA
+   ========================================================================== */
+
+.mk-if {
+    width: min(100% - 3rem, 72rem);
+    margin: 0 auto;
+    padding: 1.25rem 0 4rem;
+}
+
+/* Migas */
+.mk-if-migas {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: 1.5rem;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--mk-tinta-40);
+}
+
+.mk-if-migas a { color: var(--mk-tinta-70); text-decoration: none; }
+.mk-if-migas a:hover { color: var(--mk-tinta-100); }
+
+/* Estado "no encontrado" */
+.mk-if-vacio { padding: 3rem 0; }
+.mk-if-vacio h1 { margin: .25rem 0 .75rem; font-size: 1.6rem; }
+.mk-if-volver { display: inline-block; margin-top: 1rem; color: var(--mk-tinta-100); }
+
+
+/* --------------------------------------------------------------------------
+   LAYOUT: FOTO (izq) + DATOS (der)
+   -------------------------------------------------------------------------- */
+
+.mk-if-layout {
     display: grid;
-    grid-template-columns: minmax(0, 22rem) 1fr;
-    gap: 2.5rem;
+    grid-template-columns: minmax(20rem, 28rem) minmax(0, 1fr);
+    gap: clamp(1.5rem, 3vw, 3.5rem);
     align-items: start;
+}
+
+/* Columna foto: sticky mientras se scrollea la info. */
+.mk-if-media {
+    position: sticky;
+    top: calc(var(--mk-header-alto) + 1rem);
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
 }
 
 .mk-if-foto {
     position: relative;
     aspect-ratio: 2 / 3;
-    background: var(--mk-tinta-20);
     overflow: hidden;
+    background: var(--mk-fondo-sutil);
 }
+
 .mk-if-foto img,
-.mk-if-foto .mk-card-sinfoto { width: 100%; height: 100%; object-fit: cover; }
-.mk-if-badges { position: absolute; top: 0.5rem; left: 0.5rem; display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.mk-if-foto .mk-card-sinfoto {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
 
-.mk-if-datos { display: flex; flex-direction: column; gap: 1rem; }
-.mk-if-datos h1 { margin: 0; }
-.mk-if-cod { color: var(--mk-tinta-70); }
-.mk-if-desc { margin: 0; color: var(--mk-tinta-70); }
+.mk-if-badges {
+    position: absolute;
+    top: .6rem;
+    left: .6rem;
+    right: .6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .3rem;
+}
 
-.mk-if-precios,
-.mk-if-meta {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    gap: 0.75rem 1.25rem;
+.mk-if-badge {
+    font-size: .62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: .18rem .45rem;
+    background: var(--mk-fondo);
+    color: var(--mk-tinta-100);
+    border: 1px solid var(--mk-tinta-100);
+}
+
+.mk-if-badge-inverso {
+    background: var(--mk-tinta-100);
+    color: var(--mk-fondo);
+}
+
+/* Código bajo la foto. */
+.mk-if-media-info {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .5rem;
+    padding-top: .1rem;
+}
+
+.mk-if-media-info .mk-rotulo { color: var(--mk-tinta-40); }
+.mk-if-media-info strong { font-size: .9rem; letter-spacing: .02em; }
+
+
+/* --------------------------------------------------------------------------
+   DATOS FICHA
+   -------------------------------------------------------------------------- */
+
+.mk-if-datos {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Cabecera: taxonomía + título (izq) y estado publicado/oculto (der). */
+.mk-if-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .75rem;
+}
+
+.mk-if-rubro {
+    margin: 0 0 .35rem;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--mk-tinta-40);
+}
+
+.mk-if-datos h1 {
     margin: 0;
+    font-size: clamp(1.5rem, 2.6vw, 2.2rem);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+}
+
+/* Pill de estado con punto. Publicado = tinta llena; oculto = borde punteado tenue. */
+.mk-if-estado {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .3rem .6rem;
+    font-size: .68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    border: 1px solid var(--mk-tinta-40);
+    color: var(--mk-tinta-70);
+}
+
+.mk-if-estado span {
+    width: .5rem;
+    height: .5rem;
+    border-radius: 50%;
+    background: var(--mk-tinta-40);
+}
+
+.mk-if-estado.publicado {
+    border-color: var(--mk-tinta-100);
+    color: var(--mk-tinta-100);
+}
+
+.mk-if-estado.publicado span { background: var(--mk-tinta-100); }
+.mk-if-estado.oculto { border-style: dashed; }
+
+
+/* --------------------------------------------------------------------------
+   BLOQUES DE SECCIÓN (precios, stock, ventas, datos, atributos)
+   -------------------------------------------------------------------------- */
+
+.mk-if-bloque {
     padding: 1rem 0;
     border-top: 1px solid var(--mk-tinta-20);
 }
-.mk-if-precios div, .mk-if-meta div { display: flex; flex-direction: column; gap: 0.15rem; }
-.mk-if-precios dt, .mk-if-meta dt {
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mk-tinta-40);
+
+.mk-if-bloque-titulo {
+    margin-bottom: .75rem;
 }
-.mk-if-precios dd, .mk-if-meta dd { margin: 0; font-size: 1.05rem; font-weight: 600; }
-.mk-if-margen dd { font-size: 1.35rem; }
 
-.mk-if-nota { margin: -0.5rem 0 0; color: var(--mk-tinta-40); font-size: 0.72rem; }
+.mk-if-bloque-titulo .mk-rotulo {
+    font-size: .68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--mk-tinta-70);
+}
 
-/* Tabla de stock por origen (Luro / Peralta / depósito) — monocromática, como el resto de la ficha. */
+
+/* --------------------------------------------------------------------------
+   LISTAS DE DATOS (precios / ventas / datos del artículo)
+   -------------------------------------------------------------------------- */
+
+.mk-if-precios,
+.mk-if-ventas,
+.mk-if-datos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: .9rem 1.25rem;
+    margin: 0;
+}
+
+.mk-if-precios > div,
+.mk-if-ventas > div,
+.mk-if-datos-grid > div {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.mk-if-precios dt,
+.mk-if-ventas dt,
+.mk-if-datos-grid dt {
+    font-size: .64rem;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--mk-tinta-40);
+}
+
+.mk-if-precios dd,
+.mk-if-ventas dd,
+.mk-if-datos-grid dd {
+    margin: 0;
+    font-size: .95rem;
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+.mk-if-margen dd { font-size: 1.25rem; }
+
+/* Precio "de vidriera", igual que la card pública: combo grande + precio por unidad. */
+.mk-if-precio-publico { margin-bottom: 1rem; }
+
+.mk-if-precio-combo {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.mk-if-precio-unidad {
+    display: block;
+    margin-top: .15rem;
+    color: var(--mk-tinta-70);
+    font-size: .9rem;
+}
+
+
+/* --------------------------------------------------------------------------
+   STOCK — grilla de 3 columnas (origen · stock · tránsito)
+   -------------------------------------------------------------------------- */
+
 .mk-if-stock {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0 0;
-    border-top: 1px solid var(--mk-tinta-20);
+    display: flex;
+    flex-direction: column;
 }
-.mk-if-stock th, .mk-if-stock td { padding: 0.5rem 0.4rem; text-align: right; }
-.mk-if-stock th:first-child, .mk-if-stock td:first-child { text-align: left; }
-.mk-if-stock thead th {
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--mk-tinta-40); font-weight: 600; border-bottom: 1px solid var(--mk-tinta-20);
+
+.mk-if-stock-head,
+.mk-if-stock-row,
+.mk-if-stock-total {
+    display: grid;
+    grid-template-columns: 1fr 4rem 4rem;
+    gap: 1rem;
+    align-items: baseline;
+    padding: .5rem 0;
 }
-.mk-if-stock tbody td { font-size: 1rem; border-bottom: 1px solid var(--mk-tinta-20); }
-.mk-if-stock tbody td:not(:first-child) { font-weight: 600; }
-.mk-if-stock tfoot th, .mk-if-stock tfoot td { font-size: 1.05rem; font-weight: 700; padding-top: 0.6rem; }
 
-/* Bloque de ventas realizadas de la ficha. */
-.mk-if-ventas { margin-top: 1rem; }
-.mk-if-ventas > .mk-rotulo { display: block; color: var(--mk-tinta-70); margin-bottom: -0.25rem; }
-.mk-if-ventas .mk-if-meta { border-top: none; padding-top: 0.5rem; }
+.mk-if-stock-head span:not(:first-child),
+.mk-if-stock-row span,
+.mk-if-stock-total strong:not(:first-child) {
+    text-align: right;
+}
 
-.mk-if-chips { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.mk-if-chips .mk-rotulo { margin-right: 0.3rem; color: var(--mk-tinta-70); }
+.mk-if-stock-head {
+    font-size: .64rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--mk-tinta-40);
+    padding: 0 0 .35rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+.mk-if-stock-row {
+    font-size: .9rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+.mk-if-stock-row span { font-weight: 600; }
+
+.mk-if-stock-total {
+    padding-top: .6rem;
+    font-weight: 700;
+}
+
+.mk-if-nota {
+    margin: .7rem 0 0;
+    color: var(--mk-tinta-40);
+    font-size: .68rem;
+    line-height: 1.4;
+}
+
+.mk-if-nota-final { padding-top: 1rem; }
+
+
+/* --------------------------------------------------------------------------
+   PRECIOS
+   -------------------------------------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   TALLES / COLORES
+   -------------------------------------------------------------------------- */
+
+.mk-if-atributos {
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+}
+
+.mk-if-atributo {
+    display: flex;
+    align-items: baseline;
+    gap: .6rem;
+    flex-wrap: wrap;
+}
+
+.mk-if-atributo > .mk-rotulo {
+    flex: 0 0 4rem;
+    font-size: .64rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--mk-tinta-40);
+}
+
+.mk-if-chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
 .mk-if-chip {
+    padding: .25rem .5rem;
     border: 1px solid var(--mk-tinta-40);
-    padding: 0.15rem 0.5rem;
-    font-size: 0.8rem;
+    font-size: .75rem;
+    line-height: 1;
 }
 
-.mk-if-visib {
+
+/* --------------------------------------------------------------------------
+   VISIBILIDAD (acción: la única escritura de la app)
+   -------------------------------------------------------------------------- */
+
+.mk-if-visibilidad {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-top: 0.5rem;
-    padding: 1rem 1.25rem;
+    gap: 1.5rem;
+    margin-top: 1.25rem;
+    padding: 1rem 1.15rem;
     border: 1px solid var(--mk-tinta-100);
 }
-.mk-if-visib > div { display: flex; flex-direction: column; gap: 0.15rem; }
-.mk-if-visib strong { font-size: 1.1rem; }
-.mk-if-visib.es-oculto { border-style: dashed; }
+
+.mk-if-visibilidad.es-oculto { border-style: dashed; }
+
+.mk-if-visibilidad-estado {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    min-width: 0;
+}
+
+.mk-if-visibilidad-punto {
+    flex: 0 0 auto;
+    width: .6rem;
+    height: .6rem;
+    border-radius: 50%;
+    background: var(--mk-tinta-100);
+}
+
+.mk-if-visibilidad.es-oculto .mk-if-visibilidad-punto { background: var(--mk-tinta-40); }
+
+.mk-if-visibilidad-estado > div {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+
+.mk-if-visibilidad-estado .mk-rotulo { color: var(--mk-tinta-40); }
+.mk-if-visibilidad-estado strong { font-size: .95rem; }
 
 .mk-if-boton {
-    padding: 0.6rem 1.2rem;
+    flex: 0 0 auto;
+    padding: .55rem 1rem;
     border: 1px solid var(--mk-tinta-100);
     background: var(--mk-tinta-100);
     color: var(--mk-fondo);
     font: inherit;
+    font-size: .8rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
+    transition: background .15s ease, color .15s ease;
 }
-.mk-if-boton:hover { background: var(--mk-fondo); color: var(--mk-tinta-100); }
 
-@media (max-width: 720px) {
-    .mk-if { padding: 1rem 1.25rem 3rem; }
-    .mk-if-cuerpo { grid-template-columns: 1fr; gap: 1.5rem; }
-    .mk-if-foto { max-width: 20rem; }
+.mk-if-boton:hover {
+    background: var(--mk-fondo);
+    color: var(--mk-tinta-100);
+}
+
+
+/* ==========================================================================
+   RESPONSIVE — CATÁLOGO INTERNO
+   ========================================================================== */
+
+@media (max-width: 900px) {
+
+    .mk-int {
+        padding: 1rem 1.25rem 3rem;
+    }
+
+    .mk-int-cuerpo {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    /* Filtros internos como DRAWER deslizante (mismo mecanismo y chrome que el público:
+       el botón "Filtros", el backdrop y la cabecera con × son reglas genéricas mk-filtros-*). */
+    .mk-int-filtros {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 60;
+        width: min(85vw, 320px);
+        height: 100dvh;
+        max-height: none;
+        margin: 0;
+        padding: 1.25rem 1.25rem 2rem;
+        background: var(--mk-fondo);
+        border-right: 1px solid var(--mk-tinta-20);
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+    }
+
+    .mk-filtros-check:checked ~ .mk-int-cuerpo .mk-int-filtros {
+        transform: translateX(0);
+    }
+
+    .mk-filtros-check:checked ~ .mk-int-cuerpo .mk-filtros-backdrop {
+        display: block;
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .mk-int-buscar {
+        flex-basis: 100%;
+    }
+
+    .mk-int-grilla {
+        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    }
+}
+
+
+/* ==========================================================================
+   RESPONSIVE — FICHA INTERNA
+   ========================================================================== */
+
+@media (max-width: 1000px) {
+    .mk-if-layout {
+        grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
+        gap: 1.75rem;
+    }
+}
+
+@media (max-width: 760px) {
+
+    .mk-if {
+        width: calc(100% - 2rem);
+        padding: 1rem 0 5rem;
+    }
+
+    .mk-if-migas {
+        margin-bottom: 1rem;
+    }
+
+    /* Foto arriba, info abajo (deja de ser sticky). */
+    .mk-if-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .mk-if-media {
+        position: relative;
+        top: auto;
+        width: min(100%, 20rem);
+        margin-inline: auto;
+    }
+
+    .mk-if-header {
+        flex-direction: column;
+        gap: .6rem;
+    }
+
+    .mk-if-visibilidad {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .8rem;
+    }
+
+    .mk-if-boton {
+        width: 100%;
+    }
 }

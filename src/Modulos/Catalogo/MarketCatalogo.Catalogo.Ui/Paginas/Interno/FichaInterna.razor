@@ -3,127 +3,265 @@
 @attribute [Authorize(Policy = "Interno")]
 @inject ICatalogoInternoConsulta Interno
 
-@* Ficha interna de un artículo (staff). Muestra todos los datos de gestión y permite ocultar/mostrar el
-   artículo del catálogo público (la única escritura de la app, vía POST a /interno/visibilidad). SSR. *@
-
 <PageTitle>@(_a?.Descripcion ?? Codigo) - Interno</PageTitle>
-<HeadContent><meta name="robots" content="noindex" /></HeadContent>
+
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
 
 @if (_a is null)
 {
-    <div class="mk-if">
-        <p class="mk-vacio">No se encontró el artículo <strong>@Codigo</strong> en el universo interno.</p>
-        <p><a href="/interno">Volver al catálogo interno</a></p>
-    </div>
+    <main class="mk-if">
+        <div class="mk-if-vacio">
+            <p class="mk-rotulo">ARTÍCULO NO ENCONTRADO</p>
+            <h1>@Codigo</h1>
+            <p>No se encontró el artículo en el universo interno.</p>
+            <a class="mk-if-volver" href="/interno">← Volver al catálogo interno</a>
+        </div>
+    </main>
 }
 else
 {
-    <div class="mk-if">
-        <nav class="mk-migas mk-rotulo" aria-label="Ubicación">
+    <main class="mk-if">
+
+        <nav class="mk-if-migas" aria-label="Ubicación">
             <a href="/interno">Catálogo interno</a>
-            <span aria-hidden="true">›</span>
+            <span aria-hidden="true">/</span>
             <span>@_a.Codigo</span>
         </nav>
 
-        <div class="mk-if-cuerpo">
-            <div class="mk-if-foto">
-                @if (_a.TieneFoto)
-                {
-                    <img src="/fotos/@(_a.Codigo)_1200.webp?v=@_a.FotoVersion" alt="@_a.Descripcion" />
-                }
-                else
-                {
-                    <div class="mk-card-sinfoto" aria-label="Sin foto"></div>
-                }
-                <div class="mk-if-badges">
-                    @if (_a.EnLuro) { <span class="mk-ic-badge">Luro</span> }
-                    @if (_a.EnPeralta) { <span class="mk-ic-badge">Peralta</span> }
-                    @if (_a.EnDeposito) { <span class="mk-ic-badge mk-ic-badge-depo">Depósito</span> }
+        <div class="mk-if-layout">
+
+            @* ============================================================
+               FOTO (izquierda, sticky)
+               ============================================================ *@
+            <section class="mk-if-media">
+
+                <div class="mk-if-foto">
+                    @if (_a.TieneFoto)
+                    {
+                        <img src="/fotos/@(_a.Codigo)_1200.webp?v=@_a.FotoVersion" alt="@_a.Descripcion" />
+                    }
+                    else
+                    {
+                        <div class="mk-card-sinfoto" aria-label="Sin foto"></div>
+                    }
+
+                    <div class="mk-if-badges">
+                        @if (_a.EnLuro) { <span class="mk-if-badge">Luro</span> }
+                        @if (_a.EnPeralta) { <span class="mk-if-badge">Peralta</span> }
+                        @if (_a.EnDeposito) { <span class="mk-if-badge mk-if-badge-inverso">Depósito</span> }
+                    </div>
                 </div>
-            </div>
 
-            <div class="mk-if-datos">
-                <h1>@_a.Descripcion</h1>
-                <p class="mk-if-cod mk-rotulo">@_a.Codigo · @_a.Rubro @(_a.Prenda is not null ? $"· {_a.Prenda}" : "") · @_a.Genero</p>
+                <div class="mk-if-media-info">
+                    <span class="mk-rotulo">CÓDIGO</span>
+                    <strong>@_a.Codigo</strong>
+                </div>
 
-                <dl class="mk-if-precios">
-                    @if (_a.ComboTexto is not null) { <div><dt>Combo</dt><dd>@_a.ComboTexto</dd></div> }
-                    @if (_a.PrecioUnidadCombo is decimal pu) { <div><dt>Precio unidad (combo)</dt><dd>@Plata(pu)</dd></div> }
-                    @if (_a.PrecioVenta is decimal pv) { <div><dt>Venta suelta (LISTA1)</dt><dd>@Plata(pv)</dd></div> }
-                    <div><dt>Costo (LISTA0)</dt><dd>@(_a.PrecioCompra is decimal c ? Plata(c) : "—")</dd></div>
-                    <div class="mk-if-margen"><dt>Margen teórico</dt><dd>@(_a.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
-                </dl>
+            </section>
 
-                @if (_a.StockTotal is not null)
-                {
-                    <table class="mk-if-stock">
-                        <thead>
-                            <tr><th>Origen</th><th>Stock</th><th>En tránsito</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr><td>Luro</td><td>@Unid(_a.StockLuro)</td><td>@Unid(_a.TransitoLuro)</td></tr>
-                            <tr><td>Peralta</td><td>@Unid(_a.StockPeralta)</td><td>@Unid(_a.TransitoPeralta)</td></tr>
-                            <tr><td>Depósito (central)</td><td>@Unid(_a.StockCentral)</td><td>@Unid(_a.TransitoCentral)</td></tr>
-                        </tbody>
-                        <tfoot>
-                            <tr><th>Total</th><td>@Unid(_a.StockTotal)</td><td>@Unid(_a.EnTransito)</td></tr>
-                        </tfoot>
-                    </table>
-                }
-                else
-                {
-                    <p class="mk-if-nota mk-rotulo">No se pudo consultar el stock en este momento.</p>
-                }
 
+            @* ============================================================
+               DATOS (derecha)
+               ============================================================ *@
+            <section class="mk-if-datos">
+
+                <header class="mk-if-header">
+                    <div>
+                        <p class="mk-if-rubro">
+                            @_a.Rubro
+                            @if (_a.Prenda is not null) { <span>· @_a.Prenda</span> }
+                            <span>· @_a.Genero</span>
+                        </p>
+                        <h1>@_a.Descripcion</h1>
+                    </div>
+
+                    <div class="mk-if-estado @(_a.Publicado ? "publicado" : "oculto")">
+                        <span></span>
+                        @(_a.Publicado ? "Publicado" : "Oculto")
+                    </div>
+                </header>
+
+
+                @* ========================================================
+                   VENTAS
+                   ======================================================== *@
                 @if (_a.VentasDias is int dias)
                 {
-                    <div class="mk-if-ventas">
-                        <span class="mk-rotulo">Ventas · últimas @(dias / 7) semanas</span>
+                    <section class="mk-if-bloque">
+
+                        <div class="mk-if-bloque-titulo">
+                            <span class="mk-rotulo">VENTAS · ÚLTIMAS @(dias / 7) SEMANAS</span>
+                        </div>
+
                         @if (_a.HuboVentas)
                         {
-                            <dl class="mk-if-meta">
+                            <dl class="mk-if-ventas">
                                 <div><dt>Vendido</dt><dd>@Unid(_a.Vendido) u.</dd></div>
                                 <div><dt>Luro · Peralta</dt><dd>@Unid(_a.VendidoLuro) · @Unid(_a.VendidoPeralta)</dd></div>
                                 <div><dt>Facturado</dt><dd>@(_a.Facturado is decimal fa ? Plata(fa) : "—")</dd></div>
-                                <div><dt>Costo del período</dt><dd>@(_a.CostoPeriodo is decimal co ? Plata(co) : "—")</dd></div>
+                                <div><dt>Costo período</dt><dd>@(_a.CostoPeriodo is decimal co ? Plata(co) : "—")</dd></div>
                                 <div><dt>Margen realizado</dt><dd>@(_a.MargenRealPesos is decimal mp ? Plata(mp) : "—")</dd></div>
-                                <div class="mk-if-margen"><dt>Margen real %</dt><dd>@(_a.MargenRealPct is decimal mpc ? $"{mpc:0.#}%" : "—")</dd></div>
+                                <div class="mk-if-margen"><dt>Margen real</dt><dd>@(_a.MargenRealPct is decimal mpc ? $"{mpc:0.#}%" : "—")</dd></div>
                                 @if (_a.UltimaVenta is DateTime uv) { <div><dt>Última venta</dt><dd>@uv.ToString("dd/MM/yyyy")</dd></div> }
                             </dl>
                         }
                         else
                         {
-                            <p class="mk-if-nota mk-rotulo">Sin ventas en el período.</p>
+                            <p class="mk-if-nota">Sin ventas en el período.</p>
+                        }
+
+                    </section>
+                }
+
+
+                @* ========================================================
+                   STOCK
+                   ======================================================== *@
+                <section class="mk-if-bloque">
+
+                    <div class="mk-if-bloque-titulo">
+                        <span class="mk-rotulo">STOCK</span>
+                    </div>
+
+                    @if (_a.StockTotal is not null)
+                    {
+                        <div class="mk-if-stock">
+                            <div class="mk-if-stock-head">
+                                <span>Origen</span>
+                                <span>Stock</span>
+                                <span>Tránsito</span>
+                            </div>
+                            <div class="mk-if-stock-row">
+                                <strong>Luro</strong>
+                                <span>@Unid(_a.StockLuro)</span>
+                                <span>@Unid(_a.TransitoLuro)</span>
+                            </div>
+                            <div class="mk-if-stock-row">
+                                <strong>Peralta</strong>
+                                <span>@Unid(_a.StockPeralta)</span>
+                                <span>@Unid(_a.TransitoPeralta)</span>
+                            </div>
+                            <div class="mk-if-stock-row">
+                                <strong>Depósito</strong>
+                                <span>@Unid(_a.StockCentral)</span>
+                                <span>@Unid(_a.TransitoCentral)</span>
+                            </div>
+                            <div class="mk-if-stock-total">
+                                <strong>Total</strong>
+                                <strong>@Unid(_a.StockTotal)</strong>
+                                <strong>@Unid(_a.EnTransito)</strong>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="mk-if-nota">No se pudo consultar el stock en este momento.</p>
+                    }
+
+                </section>
+
+
+                @* ========================================================
+                   PRECIOS — igual que la card pública: combo + "la unidad",
+                   más el costo y el margen (datos internos).
+                   ======================================================== *@
+                <section class="mk-if-bloque">
+
+                    <div class="mk-if-bloque-titulo">
+                        <span class="mk-rotulo">PRECIOS</span>
+                    </div>
+
+                    <div class="mk-if-precio-publico">
+                        @if (_a.ComboTexto is not null)
+                        {
+                            <span class="mk-if-precio-combo">@_a.ComboTexto</span>
+                        }
+                        @if (_a.PrecioVenta is decimal pv)
+                        {
+                            <span class="mk-if-precio-unidad">@Plata(pv) la unidad</span>
                         }
                     </div>
-                }
 
-                <dl class="mk-if-meta">
-                    <div><dt>Proveedor</dt><dd>@(_a.Proveedor ?? "—")</dd></div>
-                    <div><dt>Marca</dt><dd>@(_a.Marca ?? "—")</dd></div>
-                    <div><dt>Temporada</dt><dd>@(_a.Temporada ?? "—")</dd></div>
-                </dl>
-                <p class="mk-if-nota mk-rotulo">Stock a la última replicación de cada tienda. Ventas y margen realizado con costo histórico (LISTA0) a la fecha de cada venta.</p>
+                    <dl class="mk-if-precios">
+                        @if (_a.PrecioUnidadCombo is decimal pu)
+                        {
+                            <div><dt>Unidad en combo</dt><dd>@Plata(pu)</dd></div>
+                        }
+                        <div><dt>Costo LISTA0</dt><dd>@(_a.PrecioCompra is decimal c ? Plata(c) : "—")</dd></div>
+                        <div class="mk-if-margen"><dt>Margen teórico</dt><dd>@(_a.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
+                    </dl>
 
-                @if (_a.Talles.Count > 0)
+                </section>
+
+
+                @* ========================================================
+                   DATOS DEL ARTÍCULO
+                   ======================================================== *@
+                <section class="mk-if-bloque">
+
+                    <div class="mk-if-bloque-titulo">
+                        <span class="mk-rotulo">DATOS</span>
+                    </div>
+
+                    <dl class="mk-if-datos-grid">
+                        <div><dt>Proveedor</dt><dd>@(_a.Proveedor ?? "—")</dd></div>
+                        <div><dt>Marca</dt><dd>@(_a.Marca ?? "—")</dd></div>
+                        <div><dt>Temporada</dt><dd>@(_a.Temporada ?? "—")</dd></div>
+                    </dl>
+
+                </section>
+
+
+                @* ========================================================
+                   TALLES / COLORES
+                   ======================================================== *@
+                @if (_a.Talles.Count > 0 || _a.Colores.Count > 0)
                 {
-                    <div class="mk-if-chips"><span class="mk-rotulo">Talles</span>
-                        @foreach (var t in _a.Talles) { <span class="mk-if-chip">@t</span> }
-                    </div>
-                }
-                @if (_a.Colores.Count > 0)
-                {
-                    <div class="mk-if-chips"><span class="mk-rotulo">Colores</span>
-                        @foreach (var col in _a.Colores) { <span class="mk-if-chip">@col</span> }
-                    </div>
+                    <section class="mk-if-bloque mk-if-atributos">
+                        @if (_a.Talles.Count > 0)
+                        {
+                            <div class="mk-if-atributo">
+                                <span class="mk-rotulo">TALLES</span>
+                                <div class="mk-if-chips">
+                                    @foreach (var talle in _a.Talles) { <span class="mk-if-chip">@talle</span> }
+                                </div>
+                            </div>
+                        }
+                        @if (_a.Colores.Count > 0)
+                        {
+                            <div class="mk-if-atributo">
+                                <span class="mk-rotulo">COLORES</span>
+                                <div class="mk-if-chips">
+                                    @foreach (var color in _a.Colores) { <span class="mk-if-chip">@color</span> }
+                                </div>
+                            </div>
+                        }
+                    </section>
                 }
 
-                @* Visibilidad pública + acción (la única escritura). *@
-                <div class="mk-if-visib @(_a.Publicado ? "es-visible" : "es-oculto")">
-                    <div>
-                        <span class="mk-rotulo">En el catálogo público</span>
-                        <strong>@(_a.Publicado ? "Sí, se muestra" : "No se muestra")</strong>
+
+                @* Nota técnica *@
+                <p class="mk-if-nota mk-if-nota-final">
+                    Stock a la última replicación de cada tienda. Ventas y margen realizado con costo
+                    histórico (LISTA0) a la fecha de cada venta.
+                </p>
+
+
+                @* ========================================================
+                   VISIBILIDAD (única escritura de la app)
+                   ======================================================== *@
+                <section class="mk-if-visibilidad @(_a.Publicado ? "es-visible" : "es-oculto")">
+
+                    <div class="mk-if-visibilidad-estado">
+                        <span class="mk-if-visibilidad-punto"></span>
+                        <div>
+                            <span class="mk-rotulo">CATÁLOGO PÚBLICO</span>
+                            <strong>@(_a.Publicado ? "El artículo está visible" : "El artículo está oculto")</strong>
+                        </div>
                     </div>
+
                     <form method="post" action="/interno/visibilidad">
                         <input type="hidden" name="codigo" value="@_a.Codigo" />
                         <input type="hidden" name="volver" value="/interno/producto/@_a.Codigo" />
@@ -132,25 +270,38 @@ else
                             @(_a.Publicado ? "Ocultar del público" : "Mostrar en el público")
                         </button>
                     </form>
-                </div>
-            </div>
+
+                </section>
+
+            </section>
+
         </div>
-    </div>
+
+    </main>
 }
 
 @code {
-    [Parameter] public string? Codigo { get; set; }
+
+    [Parameter]
+    public string? Codigo { get; set; }
+
     private ArticuloInternoDto? _a;
 
     protected override async Task OnParametersSetAsync()
     {
-        try { _a = await Interno.PorCodigoAsync(Codigo); }
-        catch { _a = null; }
+        try
+        {
+            _a = await Interno.PorCodigoAsync(Codigo);
+        }
+        catch
+        {
+            _a = null;
+        }
     }
 
     private static string Plata(decimal monto)
         => monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
 
-    // Unidades: "—" cuando es 0 o null (no ensucia la tabla con ceros), el número si hay algo.
-    private static string Unid(decimal? v) => v is decimal x && x != 0 ? x.ToString("0.##") : "—";
+    private static string Unid(decimal? valor)
+        => valor is decimal x && x != 0 ? x.ToString("0.##") : "—";
 }

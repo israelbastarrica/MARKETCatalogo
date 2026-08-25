@@ -76,9 +76,21 @@ public static class MenuSecciones
                     .ToList();
                 return new SeccionNav(grp.Key.Slug, grp.Key.Nombre, grp.Sum(x => x.Cant), tipos);
             })
-            .OrderByDescending(s => s.Cantidad).ThenBy(s => s.Nombre)
+            // Orden FIJO del header: Mujer, Hombre, Niños, Unisex. Cualquier otra sección inesperada
+            // va después, por cantidad. (Antes era todo por cantidad y quedaba Mujer, Niños, Hombre…)
+            .OrderBy(s => OrdenSeccion(s.Slug)).ThenByDescending(s => s.Cantidad).ThenBy(s => s.Nombre)
             .ToList();
     }
+
+    // Orden canónico de las secciones de género. Menor = primero; 99 = las no previstas, al final.
+    private static int OrdenSeccion(string slug) => slug.ToLowerInvariant() switch
+    {
+        "mujer" => 0,
+        "hombre" => 1,
+        "ninos" => 2,
+        "unisex" => 3,
+        _ => 99,
+    };
 
     /// <summary>Rótulo de sección para un conjunto de géneros que viene de un ?gen= multi-género,
     /// respetando la fusión: nena+nene+bebe → "Niños". Si caen en varias secciones, las une con " y ".

@@ -34,9 +34,31 @@
     }
     else
     {
+        @* Chips de filtros activos, cada × con la URL que lo quita (igual que el público). *@
+        @if (_chips.Count > 0)
+        {
+            <div class="mk-chips">
+                @foreach (var c in _chips)
+                {
+                    <a class="mk-chip" href="@c.UrlQuitar">@c.Etiqueta <span aria-hidden="true">×</span></a>
+                }
+                <a class="mk-chip-limpiar mk-rotulo" href="@UrlInterno.Limpiar()">Limpiar todo</a>
+            </div>
+        }
+
+        @* Drawer de filtros SIN JavaScript: un checkbox oculto guarda abierto/cerrado; en desktop es
+           sidebar fija, en celular se desliza desde la izquierda. Mismo mecanismo que el público. *@
+        <input type="checkbox" id="mk-toggle-filtros" class="mk-filtros-check" />
+
         <div class="mk-int-cuerpo">
 
             <aside class="mk-int-filtros">
+                @* Cabecera del drawer: sólo visible en celular. El × cierra apuntando al checkbox. *@
+                <div class="mk-filtros-cabecera">
+                    <span class="mk-rotulo">Filtros</span>
+                    <label for="mk-toggle-filtros" class="mk-filtros-cerrar" aria-label="Cerrar filtros">×</label>
+                </div>
+
                 @* Búsqueda (form GET: mantiene el resto de los filtros con hidden). *@
                 <form class="mk-int-buscar" method="get" action="/interno">
                     @foreach (var (k, v) in CamposOcultos("q")) { <input type="hidden" name="@k" value="@v" /> }
@@ -44,19 +66,14 @@
                     <button type="submit">Buscar</button>
                 </form>
 
+                @* Sucursal (Luro/Peralta/Depósito) vive arriba en la toolbar, como el público. Acá queda
+                   el cruce fino depósito/local. *@
                 <div class="mk-int-grupo">
-                    <h2 class="mk-rotulo">Ubicación</h2>
-                    @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta"), ("deposito", "Depósito") })
-                    {
-                        <a class="mk-int-tick @(UrlInterno.CsvContiene(_filtros.Ubicaciones, val) ? "activa" : "")"
-                           href="@UrlInterno.Alternar(_filtros, "ubic", val)"><span class="mk-int-box"></span>@et</a>
-                    }
-                    <div class="mk-int-sub">
-                        <a class="mk-int-radio @(_filtros.CruceDepoLocal == "solo-deposito" ? "activa" : "")"
-                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "solo-deposito" ? null : "solo-deposito")">En depósito sin local</a>
-                        <a class="mk-int-radio @(_filtros.CruceDepoLocal == "en-local" ? "activa" : "")"
-                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "en-local" ? null : "en-local")">En algún local</a>
-                    </div>
+                    <h2 class="mk-rotulo">Depósito</h2>
+                    <a class="mk-int-radio @(_filtros.CruceDepoLocal == "solo-deposito" ? "activa" : "")"
+                       href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "solo-deposito" ? null : "solo-deposito")">En depósito sin local</a>
+                    <a class="mk-int-radio @(_filtros.CruceDepoLocal == "en-local" ? "activa" : "")"
+                       href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "en-local" ? null : "en-local")">En algún local</a>
                 </div>
 
                 <div class="mk-int-grupo">
@@ -74,9 +91,46 @@
                 @FacetaBloque("Temporada", "temp", _pagina.Temporadas)
             </aside>
 
+            @* Fondo oscuro del drawer; tocarlo lo cierra. *@
+            <label for="mk-toggle-filtros" class="mk-filtros-backdrop" aria-hidden="true"></label>
+
             <div class="mk-int-resultados">
+
+                @* Botón que abre el drawer (sólo celular, CSS). Muestra cuántos filtros hay activos. *@
+                <label for="mk-toggle-filtros" class="mk-filtros-abrir" aria-label="Abrir filtros">
+                    <svg class="mk-filtros-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <line x1="3" y1="7" x2="21" y2="7" />
+                        <circle cx="9" cy="7" r="2.4" />
+                        <line x1="3" y1="17" x2="21" y2="17" />
+                        <circle cx="15" cy="17" r="2.4" />
+                    </svg>
+                    <span class="mk-rotulo">Filtros</span>
+                    @if (_chips.Count > 0)
+                    {
+                        <span class="mk-filtros-abrir-contador">@_chips.Count</span>
+                    }
+                </label>
+
                 <div class="mk-int-toolbar">
-                    <span class="mk-int-total mk-rotulo">@_pagina.Total @(_pagina.Total == 1 ? "artículo" : "artículos")</span>
+                    <div class="mk-int-toolbar-izq">
+                        <span class="mk-int-total mk-rotulo">@_pagina.Total @(_pagina.Total == 1 ? "artículo" : "artículos")</span>
+
+                        @* Sucursal como ticks, igual que el público. Multi-selección; ninguna = todas.
+                           Togglea el mismo filtro "ubic" que antes estaba en el sidebar. *@
+                        <div class="mk-sucursales">
+                            <span class="mk-rotulo">Sucursal</span>
+                            @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta"), ("deposito", "Depósito") })
+                            {
+                                <a class="mk-suc @(UrlInterno.CsvContiene(_filtros.Ubicaciones, val) ? "activa" : "")"
+                                   href="@UrlInterno.Alternar(_filtros, "ubic", val)">
+                                    <span class="mk-suc-tick" aria-hidden="true"></span>@et
+                                </a>
+                            }
+                        </div>
+
+                        @* Combo: dropdown de dos niveles, igual que el público. *@
+                        <ComboDropdownInterno Opciones="_pagina.Combos" Filtros="_filtros" />
+                    </div>
 
                     <form class="mk-int-actualizar" method="post" action="/interno/actualizar">
                         <input type="hidden" name="volver" value="@UrlInterno.Pagina(_filtros, _pagina.Pagina)" />
@@ -86,7 +140,7 @@
 
                     <div class="mk-orden">
                         <span class="mk-rotulo">Orden</span>
-                        @foreach (var (val, et) in new[] { ("codigo", "Código"), ("precio-asc", "Menor precio"), ("precio-desc", "Mayor precio"), ("margen", "Menor margen"), ("nombre", "Nombre") })
+                        @foreach (var (val, et) in new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("nombre", "Nombre") })
                         {
                             <a class="mk-orden-opcion @(_filtros.Orden == val ? "activa" : "")"
                                href="@UrlInterno.Set(_filtros, "orden", val)">@et</a>
@@ -107,23 +161,41 @@
                         }
                     </div>
 
-                    @if (_pagina.Paginas > 1)
-                    {
-                        <nav class="mk-paginacion" aria-label="Páginas">
-                            @if (_pagina.Pagina > 1)
-                            {
-                                <a href="@UrlInterno.Pagina(_filtros, _pagina.Pagina - 1)">Anterior</a>
-                            }
-                            <span class="mk-rotulo">Página @_pagina.Pagina de @_pagina.Paginas</span>
-                            @if (_pagina.Pagina < _pagina.Paginas)
-                            {
-                                <a href="@UrlInterno.Pagina(_filtros, _pagina.Pagina + 1)">Siguiente</a>
-                            }
-                        </nav>
-                    }
+                @if (_pagina.Paginas > 1)
+                {
+                    <nav class="mk-paginacion" aria-label="Páginas">
+                        @if (_pagina.Pagina > 1)
+                        {
+                            <a rel="prev"
+                            href="@UrlInterno.Pagina(_filtros, _pagina.Pagina - 1)">
+                                Anterior
+                            </a>
+                        }
+
+                        <span class="mk-rotulo">
+                            Página @_pagina.Pagina de @_pagina.Paginas
+                        </span>
+
+                        @if (_pagina.Pagina < _pagina.Paginas)
+                        {
+                            <a rel="next"
+                            href="@UrlInterno.Pagina(_filtros, _pagina.Pagina + 1)">
+                                Siguiente
+                            </a>
+                        }
+
+                        <span class="mk-cargando-mas" aria-live="polite"></span>
+                    </nav>
+                }
+
                 }
             </div>
         </div>
+
+        @* Flecha "volver arriba", fija abajo a la derecha (sólo celular). *@
+        <a href="#mk-int-top" class="mk-subir" data-enhance-nav="false"
+           onclick="event.preventDefault();window.scrollTo({top:0,behavior:'smooth'});"
+           aria-label="Volver arriba">↑</a>
     }
 </div>
 
@@ -138,6 +210,7 @@
     [SupplyParameterFromQuery(Name = "prov")] public string? Prov { get; set; }
     [SupplyParameterFromQuery(Name = "marca")] public string? Marca { get; set; }
     [SupplyParameterFromQuery(Name = "temp")] public string? Temp { get; set; }
+    [SupplyParameterFromQuery(Name = "combo")] public string? Combo { get; set; }
     [SupplyParameterFromQuery(Name = "pub")] public string? Pub { get; set; }
     [SupplyParameterFromQuery(Name = "margenMax")] public decimal? MargenMax { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
@@ -146,6 +219,7 @@
 
     private FiltrosInterno _filtros = new();
     private PaginaInternaDto? _pagina;
+    private IReadOnlyList<(string Etiqueta, string UrlQuitar)> _chips = [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -161,6 +235,7 @@
             Proveedores = Csv(Prov),
             Marcas = Csv(Marca),
             Temporadas = Csv(Temp),
+            ComboDetalles = Csv(Combo),
             Publicado = Pub is null ? null : Pub.Equals("si", StringComparison.OrdinalIgnoreCase) ? true
                        : Pub.Equals("no", StringComparison.OrdinalIgnoreCase) ? false : null,
             MargenMax = MargenMax,
@@ -168,6 +243,8 @@
             Orden = string.IsNullOrWhiteSpace(Orden) ? "codigo" : Orden!.Trim(),
             Pagina = Pag is > 0 ? Pag.Value : 1,
         };
+
+        _chips = UrlInterno.Chips(_filtros).ToList();
 
         try { _pagina = await Interno.BuscarAsync(_filtros); }
         catch { _pagina = null; }
@@ -198,6 +275,7 @@
         if (_filtros.Proveedores.Count > 0) yield return ("prov", string.Join(',', _filtros.Proveedores));
         if (_filtros.Marcas.Count > 0) yield return ("marca", string.Join(',', _filtros.Marcas));
         if (_filtros.Temporadas.Count > 0) yield return ("temp", string.Join(',', _filtros.Temporadas));
+        if (_filtros.ComboDetalles.Count > 0) yield return ("combo", string.Join(',', _filtros.ComboDetalles));
         if (_filtros.Publicado is bool p) yield return ("pub", p ? "si" : "no");
         if (!string.IsNullOrWhiteSpace(_filtros.Orden) && _filtros.Orden != "codigo") yield return ("orden", _filtros.Orden);
     }

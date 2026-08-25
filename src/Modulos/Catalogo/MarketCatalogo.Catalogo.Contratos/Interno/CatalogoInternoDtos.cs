@@ -88,6 +88,10 @@ public sealed record FiltrosInterno
     public IReadOnlyList<string> Marcas { get; init; } = [];
     public IReadOnlyList<string> Temporadas { get; init; } = [];
 
+    /// <summary>Filtro de combo, dos niveles (cantidad + precio del tramo): cada valor es "{cantidad}-{total}"
+    /// (ej. "2-15000"). Mismo formato que el público. Vacío = sin filtrar por combo.</summary>
+    public IReadOnlyList<string> ComboDetalles { get; init; } = [];
+
     /// <summary>true = sólo los que se ven en el público; false = sólo los que NO; null = todos.</summary>
     public bool? Publicado { get; init; }
     /// <summary>Margen teórico máximo (ej. 30 = "margen &lt; 30%"): para cazar los de margen flaco.</summary>
@@ -124,4 +128,8 @@ public sealed class PaginaInternaDto
     public required IReadOnlyList<OpcionFacetaInterna> Proveedores { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Marcas { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Temporadas { get; init; }
+
+    /// <summary>Faceta de combo de dos niveles (cantidad → tramos de precio), igual que el público
+    /// (reusa <see cref="OpcionFacetaCombo"/> del contrato). Los tramos salen de la grilla de márgenes.</summary>
+    public required IReadOnlyList<OpcionFacetaCombo> Combos { get; init; }
 }

@@ -4,9 +4,14 @@
 // completa (misma URL que el link "Siguiente"), se sacan de ahí los artículos y la nav nueva, y
 // se van agregando al final de la grilla actual. No hay endpoint aparte: es la misma página SSR.
 (function () {
+    // Sirve al catálogo PÚBLICO (.mk-catalogo .mk-grilla) y al INTERNO (.mk-int .mk-int-grilla): sólo
+    // uno existe por página, así que el selector combinado devuelve el que corresponde.
+    var SEL_GRILLA = '.mk-catalogo .mk-grilla, .mk-int .mk-int-grilla';
+    var SEL_PAGINACION = '.mk-catalogo .mk-paginacion, .mk-int .mk-paginacion';
+
     function initInfinita() {
-        var grilla = document.querySelector('.mk-catalogo .mk-grilla');
-        var paginacion = document.querySelector('.mk-catalogo .mk-paginacion');
+        var grilla = document.querySelector(SEL_GRILLA);
+        var paginacion = document.querySelector(SEL_PAGINACION);
         if (!grilla || !paginacion) return;
         // Sin esto no hay forma de disparar la carga al llegar al final: se deja la paginación
         // por links tal cual, en vez de ocultarla y dejar al usuario sin cómo pasar de página.
@@ -38,8 +43,8 @@
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
-                    var nuevaGrilla = doc.querySelector('.mk-catalogo .mk-grilla');
-                    var nuevaPaginacion = doc.querySelector('.mk-catalogo .mk-paginacion');
+                    var nuevaGrilla = doc.querySelector(SEL_GRILLA);
+                    var nuevaPaginacion = doc.querySelector(SEL_PAGINACION);
 
                     if (nuevaGrilla) {
                         while (nuevaGrilla.firstElementChild) {

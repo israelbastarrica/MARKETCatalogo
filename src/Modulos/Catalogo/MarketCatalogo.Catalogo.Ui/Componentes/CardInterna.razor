@@ -23,10 +23,21 @@
             @if (Articulo.EnDeposito) { <span class="mk-ic-badge mk-ic-badge-depo">Depósito</span> }
         </div>
 
-        @if (!Articulo.Publicado)
-        {
-            <span class="mk-ic-oculto-tag" title="No se muestra en el catálogo público">Oculto</span>
-        }
+        @* Curva de talles al pasar el mouse (sólo hover real; en touch no se muestra). Mismo overlay
+           que la card pública. Sin talles reales = talle único. *@
+        <div class="mk-card-talles" aria-hidden="true">
+            @if (Articulo.Talles.Count > 0)
+            {
+                @foreach (var talle in Articulo.Talles)
+                {
+                    <span class="mk-card-talle">@talle</span>
+                }
+            }
+            else
+            {
+                <span class="mk-card-talle mk-card-talle-unico">Talle único</span>
+            }
+        </div>
     </div>
 
     <div class="mk-ic-datos">

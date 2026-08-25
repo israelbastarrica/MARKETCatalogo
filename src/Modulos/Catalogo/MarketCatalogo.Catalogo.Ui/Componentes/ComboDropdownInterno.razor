@@ -1,0 +1,61 @@
+@using MarketCatalogo.Catalogo.Contratos
+@using MarketCatalogo.Catalogo.Contratos.Interno
+@using MarketCatalogo.Catalogo.Ui
+
+@* Combo del catálogo INTERNO: mismo dropdown de dos niveles que el público (reusa todo el CSS
+   mk-combo-dropdown / mk-faceta-combo-*), pero cableado a FiltrosInterno + UrlInterno. La única
+   diferencia con el público es el toggle: UrlInterno.Alternar ya alterna por pertenencia al CSV,
+   así que no necesita el flag "ya activa". *@
+
+@if (Opciones.Count > 0)
+{
+    <div class="mk-combo-dropdown">
+        <input type="checkbox" id="mk-combo-toggle" class="mk-combo-toggle-check" checked="@(Activos > 0)" />
+
+        <label for="mk-combo-toggle" class="mk-combo-dropdown-boton">
+            <span class="mk-rotulo">Combo</span>
+            @if (Activos > 0)
+            {
+                <span class="mk-combo-dropdown-contador">@Activos</span>
+            }
+        </label>
+
+        <label for="mk-combo-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
+
+        <div class="mk-combo-dropdown-panel">
+            <ul class="mk-faceta-combo-grupos">
+                @foreach (var g in Opciones)
+                {
+                    <li>
+                        <details open="@g.TieneActivo">
+                            <summary>
+                                <span class="mk-faceta-nombre">@g.Etiqueta</span>
+                                <span class="mk-faceta-cantidad">@g.Cantidad</span>
+                            </summary>
+                            <ul class="mk-faceta-combo-detalles">
+                                @foreach (var d in g.Detalles)
+                                {
+                                    <li>
+                                        <a class="mk-faceta-opcion @(d.Activa ? "activa" : "")"
+                                           href="@UrlInterno.Alternar(Filtros, "combo", d.Valor)">
+                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                            <span class="mk-faceta-nombre">@d.Etiqueta</span>
+                                            <span class="mk-faceta-cantidad">@d.Cantidad</span>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </details>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public required IReadOnlyList<OpcionFacetaCombo> Opciones { get; set; }
+    [Parameter, EditorRequired] public required FiltrosInterno Filtros { get; set; }
+
+    private int Activos => Opciones.Sum(g => g.Detalles.Count(d => d.Activa));
+}

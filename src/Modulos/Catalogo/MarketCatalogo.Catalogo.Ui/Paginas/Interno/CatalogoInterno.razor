@@ -16,15 +16,26 @@
 <div class="mk-int" id="mk-int-top">
 
     <header class="mk-int-cab">
-        <h1>Catálogo interno</h1>
+        <div class="mk-int-cab-tit">
+            <h1>Catálogo interno</h1>
+            @if (_pagina is not null)
+            {
+                <p class="mk-int-totales mk-rotulo">
+                    <span>@_pagina.TotalUniverso en total</span>
+                    <span>@_pagina.Publicados publicados</span>
+                    <span>@_pagina.EnDeposito en depósito</span>
+                    <span>@_pagina.SoloDeposito sólo depósito</span>
+                </p>
+            }
+        </div>
+
         @if (_pagina is not null)
         {
-            <p class="mk-int-totales mk-rotulo">
-                <span>@_pagina.TotalUniverso en total</span>
-                <span>@_pagina.Publicados publicados</span>
-                <span>@_pagina.EnDeposito en depósito</span>
-                <span>@_pagina.SoloDeposito sólo depósito</span>
-            </p>
+            <form class="mk-int-actualizar" method="post" action="/interno/actualizar">
+                <input type="hidden" name="volver" value="@UrlInterno.Pagina(_filtros, _pagina.Pagina)" />
+                <span class="mk-rotulo">@Antiguedad(_pagina.BaseActualizada)</span>
+                <button type="submit" title="Reconstruir la base ahora">Actualizar</button>
+            </form>
         }
     </header>
 
@@ -59,23 +70,8 @@
                     <label for="mk-toggle-filtros" class="mk-filtros-cerrar" aria-label="Cerrar filtros">×</label>
                 </div>
 
-                @* Búsqueda (form GET: mantiene el resto de los filtros con hidden). *@
-                <form class="mk-int-buscar" method="get" action="/interno">
-                    @foreach (var (k, v) in CamposOcultos("q")) { <input type="hidden" name="@k" value="@v" /> }
-                    <input name="q" value="@_filtros.Texto" placeholder="Código, nombre, proveedor…" />
-                    <button type="submit">Buscar</button>
-                </form>
-
-                @* Sucursal (Luro/Peralta/Depósito) vive arriba en la toolbar, como el público. Acá queda
-                   el cruce fino depósito/local. *@
-                <div class="mk-int-grupo">
-                    <h2 class="mk-rotulo">Depósito</h2>
-                    <a class="mk-int-radio @(_filtros.CruceDepoLocal == "solo-deposito" ? "activa" : "")"
-                       href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "solo-deposito" ? null : "solo-deposito")">En depósito sin local</a>
-                    <a class="mk-int-radio @(_filtros.CruceDepoLocal == "en-local" ? "activa" : "")"
-                       href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "en-local" ? null : "en-local")">En algún local</a>
-                </div>
-
+                @* El buscador vive arriba en el header (modo interno); Sucursal, Combo y Depósito en la
+                   toolbar. Acá quedan sólo las facetas. *@
                 <div class="mk-int-grupo">
                     <h2 class="mk-rotulo">Publicación</h2>
                     <a class="mk-int-radio @(_filtros.Publicado == true ? "activa" : "")"
@@ -119,7 +115,7 @@
                            Togglea el mismo filtro "ubic" que antes estaba en el sidebar. *@
                         <div class="mk-sucursales">
                             <span class="mk-rotulo">Sucursal</span>
-                            @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta"), ("deposito", "Depósito") })
+                            @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta") })
                             {
                                 <a class="mk-suc @(UrlInterno.CsvContiene(_filtros.Ubicaciones, val) ? "activa" : "")"
                                    href="@UrlInterno.Alternar(_filtros, "ubic", val)">
@@ -130,21 +126,73 @@
 
                         @* Combo: dropdown de dos niveles, igual que el público. *@
                         <ComboDropdownInterno Opciones="_pagina.Combos" Filtros="_filtros" />
+
+                        @* Depósito: TODO lo de depósito adentro de un solo dropdown (reusa el CSS del combo):
+                           estar en depósito + el cruce depósito/local. *@
+                        @{
+                            var enDepo = UrlInterno.CsvContiene(_filtros.Ubicaciones, "deposito");
+                            var depoActivos = (enDepo ? 1 : 0) + (_filtros.CruceDepoLocal is not null ? 1 : 0);
+                        }
+                        <div class="mk-combo-dropdown">
+                            <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" checked="@(depoActivos > 0)" />
+                            <label for="mk-depo-toggle" class="mk-combo-dropdown-boton">
+                                <span class="mk-rotulo">Depósito</span>
+                                @if (depoActivos > 0) { <span class="mk-combo-dropdown-contador">@depoActivos</span> }
+                            </label>
+                            <label for="mk-depo-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
+                            <div class="mk-combo-dropdown-panel">
+                                <ul class="mk-faceta-combo-detalles">
+                                    <li>
+                                        <a class="mk-faceta-opcion @(enDepo ? "activa" : "")"
+                                           href="@UrlInterno.Alternar(_filtros, "ubic", "deposito")">
+                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                            <span class="mk-faceta-nombre">En depósito</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "solo-deposito" ? "activa" : "")"
+                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "solo-deposito" ? null : "solo-deposito")">
+                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                            <span class="mk-faceta-nombre">En depósito sin local</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "en-local" ? "activa" : "")"
+                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "en-local" ? null : "en-local")">
+                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                            <span class="mk-faceta-nombre">En algún local</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
-                    <form class="mk-int-actualizar" method="post" action="/interno/actualizar">
-                        <input type="hidden" name="volver" value="@UrlInterno.Pagina(_filtros, _pagina.Pagina)" />
-                        <span class="mk-rotulo">@Antiguedad(_pagina.BaseActualizada)</span>
-                        <button type="submit" title="Reconstruir la base ahora">Actualizar</button>
-                    </form>
-
-                    <div class="mk-orden">
-                        <span class="mk-rotulo">Orden</span>
-                        @foreach (var (val, et) in new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("nombre", "Nombre") })
-                        {
-                            <a class="mk-orden-opcion @(_filtros.Orden == val ? "activa" : "")"
-                               href="@UrlInterno.Set(_filtros, "orden", val)">@et</a>
-                        }
+                    @{
+                        var ordenes = new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("nombre", "Nombre") };
+                        var ordenActual = ordenes.FirstOrDefault(o => o.Item1 == _filtros.Orden).Item2 ?? "Código";
+                    }
+                    <div class="mk-combo-dropdown mk-orden-dd">
+                        <input type="checkbox" id="mk-orden-toggle" class="mk-combo-toggle-check" />
+                        <label for="mk-orden-toggle" class="mk-combo-dropdown-boton">
+                            <span class="mk-rotulo">Orden</span>
+                            <span class="mk-orden-dd-actual">@ordenActual</span>
+                        </label>
+                        <label for="mk-orden-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
+                        <div class="mk-combo-dropdown-panel">
+                            <ul class="mk-faceta-combo-detalles">
+                                @foreach (var (val, et) in ordenes)
+                                {
+                                    <li>
+                                        <a class="mk-faceta-opcion @(_filtros.Orden == val ? "activa" : "")"
+                                           href="@UrlInterno.Set(_filtros, "orden", val)">
+                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                            <span class="mk-faceta-nombre">@et</span>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
                     </div>
                 </div>
 

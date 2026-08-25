@@ -38,8 +38,24 @@
         </div>
     }
 
-    <NavLink class="mk-nav-link" href="nosotros">Nosotros</NavLink>
-    <NavLink class="mk-nav-link" href="noticias">Noticias</NavLink>
+    @if (_interno)
+    {
+        @* Logueado = todo interno: en vez de Nosotros/Noticias, el buscador por código/nombre. *@
+        <form class="mk-nav-buscar" method="get" action="/interno" role="search">
+            <input name="q" placeholder="Código, nombre, proveedor…" aria-label="Buscar en el catálogo interno" />
+            <button type="submit" aria-label="Buscar">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="16.5" y1="16.5" x2="21" y2="21" />
+                </svg>
+            </button>
+        </form>
+    }
+    else
+    {
+        <NavLink class="mk-nav-link" href="nosotros">Nosotros</NavLink>
+        <NavLink class="mk-nav-link" href="noticias">Noticias</NavLink>
+    }
 
 </nav>
 

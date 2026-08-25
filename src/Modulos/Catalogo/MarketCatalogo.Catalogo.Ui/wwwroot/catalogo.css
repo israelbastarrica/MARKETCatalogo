@@ -1125,6 +1125,11 @@
 }
 
 .mk-int-cab {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
     margin-bottom: 1.5rem;
 }
 
@@ -1157,13 +1162,19 @@
 
 .mk-int-filtros {
     position: sticky;
-    top: calc(var(--mk-header-alto) + 1rem);
+    top: var(--mk-header-alto);
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    max-height: calc(100vh - var(--mk-header-alto) - 2rem);
+    max-height: calc(100vh - var(--mk-header-alto));
     overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+
+.mk-int-filtros::-webkit-scrollbar { width: 0; height: 0; }
 
 .mk-int-buscar {
     display: flex;
@@ -1198,10 +1209,12 @@
     gap: .4rem;
 }
 
+/* Mismo alto que el título de faceta del público (.mk-faceta-titulo): así el primer divisor del
+   sidebar coincide con la línea inferior del toolbar. */
 .mk-int-grupo h2 {
-    margin: 0 0 .5rem;
-    padding: 0 0 .55rem;
-    line-height: 1.4;
+    margin: 0 0 .75rem;
+    padding: .8rem 0;
+    line-height: 1.5rem;
     color: var(--mk-tinta-70);
     border-bottom: 1px solid var(--mk-tinta-20);
 }
@@ -1285,10 +1298,17 @@
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: .75rem;
+    gap: .6rem 1.25rem;
     margin-bottom: 1.25rem;
-    padding-bottom: .75rem;
+    padding-top: .5rem;
+    padding-bottom: .5rem;
     border-bottom: 1px solid var(--mk-tinta-20);
+
+    /* Sticky como el público: queda fijo arriba al scrollear la grilla. */
+    position: sticky;
+    top: var(--mk-header-alto);
+    z-index: 5;
+    background: var(--mk-fondo);
 }
 
 .mk-int-total {
@@ -1301,6 +1321,13 @@
     flex-wrap: wrap;
     align-items: center;
     gap: .6rem 1.75rem;
+}
+
+/* Orden como dropdown: muestra la opción actual al lado del rótulo. */
+.mk-orden-dd-actual {
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--mk-tinta-100);
 }
 
 .mk-int-actualizar {
@@ -1970,6 +1997,23 @@
 
     .mk-int-buscar {
         flex-basis: 100%;
+    }
+
+    /* Toolbar en mobile: no sticky (apilado ocuparía mucho al quedar fijo) y en columna cómoda:
+       total + sucursal/combo/depósito arriba, después Actualizar, después Orden. */
+    .mk-int-toolbar {
+        position: static;
+        flex-direction: column;
+        align-items: stretch;
+        gap: .8rem;
+    }
+
+    .mk-int-toolbar-izq {
+        gap: .5rem 1.1rem;
+    }
+
+    .mk-int-actualizar {
+        justify-content: flex-start;
     }
 
     .mk-int-grilla {

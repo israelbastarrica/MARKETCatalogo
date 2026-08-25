@@ -43,6 +43,59 @@
     border-bottom-color: var(--mk-tinta-100);
 }
 
+/* Buscador del header en modo interno (reemplaza Nosotros/Noticias): pill con input + lupa. */
+.mk-nav-buscar {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--mk-tinta-40);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.mk-nav-buscar:focus-within {
+    border-color: var(--mk-tinta-100);
+}
+
+.mk-nav-buscar input {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--mk-tinta-100);
+    font: inherit;
+    font-size: .8rem;
+    padding: .4rem .3rem .4rem .95rem;
+    width: 12rem;
+    min-width: 0;
+}
+
+.mk-nav-buscar input::placeholder {
+    color: var(--mk-tinta-40);
+}
+
+.mk-nav-buscar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: var(--mk-tinta-70);
+    cursor: pointer;
+    padding: .35rem .7rem .35rem .35rem;
+}
+
+.mk-nav-buscar button:hover {
+    color: var(--mk-tinta-100);
+}
+
+.mk-nav-buscar button svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+
 /* --- Mega-menú de géneros -------------------------------------------------
    Dropdown CSS puro: se abre con :hover (desktop) y con :focus-within (celular:
    al tocar el <button> toma foco y el panel aparece). Sin una línea de JS. */

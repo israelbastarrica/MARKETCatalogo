@@ -280,6 +280,9 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Rubro                nvarchar(60)      NULL,
                 Genero               nvarchar(60)      NULL,
                 Prenda               nvarchar(60)      NULL,
+                RubroSlug            varchar(80)       NULL,
+                GeneroSlug           varchar(80)       NULL,
+                PrendaSlug           varchar(80)       NULL,
                 PrecioVenta          decimal(18,2)     NULL,
                 PrecioCompra         decimal(18,2)     NULL,
                 ComboCantidad        int               NULL,
@@ -299,15 +302,20 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 TextoBusqueda        nvarchar(600)     NULL
             );
             """;
-        await cn.ExecuteAsync(new CommandDefinition(crearStage, cancellationToken: ct));
+        // Stage base + stages de las tablas hijas (talle/color), todas #temp de esta conexión.
+        const string crearStageHijos = """
+            CREATE TABLE #stageTalle (Codigo varchar(20) NOT NULL, Talle nvarchar(40) NOT NULL, Orden int NOT NULL);
+            CREATE TABLE #stageColor (Codigo varchar(20) NOT NULL, Color nvarchar(80) NOT NULL);
+            """;
+        await cn.ExecuteAsync(new CommandDefinition(crearStage + "\n" + crearStageHijos, cancellationToken: ct));
 
-        // 2) Bulk-copy de las filas a #stage.
+        // 2) Bulk-copy de las filas a #stage y de talles/colores a sus stages.
         using var tabla = ArmarDataTable(filas);
-        using (var bulk = new SqlBulkCopy(cn) { DestinationTableName = "#stage", BulkCopyTimeout = 120 })
-        {
-            foreach (DataColumn c in tabla.Columns) bulk.ColumnMappings.Add(c.ColumnName, c.ColumnName);
-            await bulk.WriteToServerAsync(tabla, ct);
-        }
+        await BulkAsync(cn, "#stage", tabla, ct);
+        using var tablaTalle = ArmarDataTableTalles(filas);
+        await BulkAsync(cn, "#stageTalle", tablaTalle, ct);
+        using var tablaColor = ArmarDataTableColores(filas);
+        await BulkAsync(cn, "#stageColor", tablaColor, ct);
 
         // 3) MERGE: update base (revive Eliminado=0), insert nuevos, marca Eliminado=1 los que ya no están.
         //    OcultarManual y Auditoria NO se tocan en el update: son la decisión humana, la preserva. El
@@ -320,6 +328,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Publicado = CASE WHEN T.OcultarManual = 1 THEN 0 ELSE S.PublicadoBase END,
                 Slug = S.Slug,
                 Descripcion = S.Descripcion, Rubro = S.Rubro, Genero = S.Genero, Prenda = S.Prenda,
+                RubroSlug = S.RubroSlug, GeneroSlug = S.GeneroSlug, PrendaSlug = S.PrendaSlug,
                 PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra,
                 ComboCantidad = S.ComboCantidad, ComboTotal = S.ComboTotal,
                 EnLuro = S.EnLuro, EnPeralta = S.EnPeralta, EnDeposito = S.EnDeposito,
@@ -329,15 +338,50 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 TextoBusqueda = S.TextoBusqueda
             WHEN NOT MATCHED BY TARGET THEN INSERT
                 (Codigo, Publicado, Eliminado, Slug, Descripcion, Rubro, Genero, Prenda,
+                 RubroSlug, GeneroSlug, PrendaSlug,
                  PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito, TallesCsv, ColoresCsv,
                  TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, Anio, TextoBusqueda)
                 VALUES
                 (S.Codigo, S.PublicadoBase, 0, S.Slug, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
+                 S.RubroSlug, S.GeneroSlug, S.PrendaSlug,
                  S.PrecioVenta, S.PrecioCompra, S.ComboCantidad, S.ComboTotal, S.EnLuro, S.EnPeralta, S.EnDeposito, S.TallesCsv, S.ColoresCsv,
                  S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.Anio, S.TextoBusqueda)
             WHEN NOT MATCHED BY SOURCE AND T.Eliminado = 0 THEN UPDATE SET Eliminado = 1;
             """;
-        await cn.ExecuteAsync(new CommandDefinition(merge, commandTimeout: 120, cancellationToken: ct));
+
+        // Reemplazo total de las tablas hijas (reflejan el universo vigente). DISTINCT/GROUP BY por si una
+        // fila trajera el mismo talle/color repetido (respeta la PK compuesta).
+        const string rebuildHijos = """
+            DELETE FROM dbo.CatalogoTalle;
+            INSERT INTO dbo.CatalogoTalle (Codigo, Talle, Orden)
+                SELECT Codigo, Talle, MIN(Orden) FROM #stageTalle GROUP BY Codigo, Talle;
+            DELETE FROM dbo.CatalogoColor;
+            INSERT INTO dbo.CatalogoColor (Codigo, Color)
+                SELECT DISTINCT Codigo, Color FROM #stageColor;
+            """;
+
+        // MERGE de la base + reconstrucción de las hijas en UNA transacción: un lector nunca ve las hijas a
+        // medio reconstruir (por eso la grilla las consulta sin NOLOCK). El rebuild es esporádico (TTL) y breve.
+        using var tx = (SqlTransaction)await cn.BeginTransactionAsync(ct);
+        try
+        {
+            await cn.ExecuteAsync(new CommandDefinition(merge, transaction: tx, commandTimeout: 120, cancellationToken: ct));
+            await cn.ExecuteAsync(new CommandDefinition(rebuildHijos, transaction: tx, commandTimeout: 120, cancellationToken: ct));
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    // Bulk-copy de una DataTable a una tabla (temp) mapeando por nombre de columna.
+    private static async Task BulkAsync(SqlConnection cn, string destino, DataTable tabla, CancellationToken ct)
+    {
+        using var bulk = new SqlBulkCopy(cn) { DestinationTableName = destino, BulkCopyTimeout = 120 };
+        foreach (DataColumn c in tabla.Columns) bulk.ColumnMappings.Add(c.ColumnName, c.ColumnName);
+        await bulk.WriteToServerAsync(tabla, ct);
     }
 
     /// <summary>MARKET: lee las filas base de dbo.Catalogo. El público pide soloPublicados=true (subset
@@ -752,6 +796,9 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         t.Columns.Add("Rubro", typeof(string));
         t.Columns.Add("Genero", typeof(string));
         t.Columns.Add("Prenda", typeof(string));
+        t.Columns.Add("RubroSlug", typeof(string));
+        t.Columns.Add("GeneroSlug", typeof(string));
+        t.Columns.Add("PrendaSlug", typeof(string));
         t.Columns.Add("PrecioVenta", typeof(decimal));
         t.Columns.Add("PrecioCompra", typeof(decimal));
         t.Columns.Add("ComboCantidad", typeof(int));
@@ -775,12 +822,40 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             t.Rows.Add(
                 f.Codigo, f.PublicadoBase, N(f.Slug), N(f.Descripcion),
                 N(f.Rubro), N(f.Genero), N(f.Prenda),
+                N(f.RubroSlug), N(f.GeneroSlug), N(f.PrendaSlug),
                 N(f.PrecioVenta), N(f.PrecioCompra), N(f.ComboCantidad), N(f.ComboTotal),
                 f.EnLuro, f.EnPeralta, f.EnDeposito,
                 N(f.TallesCsv), N(f.ColoresCsv),
                 f.TieneFoto, N(f.FotoPrincipalVersion), N(f.FotosJson),
                 N(f.Proveedor), N(f.Temporada), N(f.Marca), N(f.Anio),
                 N(f.TextoBusqueda));
+        return t;
+    }
+
+    // DataTable para #stageTalle: una fila por (código, talle) con su orden de curva.
+    private static DataTable ArmarDataTableTalles(IReadOnlyList<CatalogoFilaBase> filas)
+    {
+        var t = new DataTable();
+        t.Columns.Add("Codigo", typeof(string));
+        t.Columns.Add("Talle", typeof(string));
+        t.Columns.Add("Orden", typeof(int));
+        foreach (var f in filas)
+            foreach (var talle in f.Talles)
+                if (!string.IsNullOrWhiteSpace(talle.Talle))
+                    t.Rows.Add(f.Codigo, talle.Talle, talle.Orden);
+        return t;
+    }
+
+    // DataTable para #stageColor: una fila por (código, color).
+    private static DataTable ArmarDataTableColores(IReadOnlyList<CatalogoFilaBase> filas)
+    {
+        var t = new DataTable();
+        t.Columns.Add("Codigo", typeof(string));
+        t.Columns.Add("Color", typeof(string));
+        foreach (var f in filas)
+            foreach (var color in f.Colores)
+                if (!string.IsNullOrWhiteSpace(color))
+                    t.Rows.Add(f.Codigo, color);
         return t;
     }
 

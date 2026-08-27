@@ -63,6 +63,11 @@ BEGIN
         Rubro                nvarchar(60)      NULL,   -- TIPOART.DESCRIP  (ej 'Indumentaria')
         Genero               nvarchar(60)      NULL,   -- CATEGART.DESCRIP (ej 'Mujer')
         Prenda               nvarchar(60)      NULL,   -- FAMILIA.DESCRIP  (ej 'Chomba')
+        -- Slugs de la taxonomía: los filtros de la grilla viajan por slug; materializados se filtra/agrupa
+        -- en SQL sin traducir en C#. Los computa el rebuild (Texto.Slug, que saca acentos).
+        RubroSlug            varchar(80)       NULL,   -- ej 'indumentaria'
+        GeneroSlug           varchar(80)       NULL,   -- ej 'mujer'
+        PrendaSlug           varchar(80)       NULL,   -- ej 'chomba'
 
         -- Precio / combo
         PrecioVenta          decimal(18,2)     NULL,   -- PRECIOAR LISTA1 (1 unidad suelta, trae recargo)
@@ -104,12 +109,45 @@ BEGIN
     );
 
     -- Índices para los filtros más comunes (tabla chica ~1.554 filas, pero prolijo).
-    CREATE INDEX IX_Catalogo_Publicado ON dbo.Catalogo (Publicado, Eliminado);
-    CREATE INDEX IX_Catalogo_Taxonomia ON dbo.Catalogo (Rubro, Genero, Prenda);
-    CREATE INDEX IX_Catalogo_Ubicacion ON dbo.Catalogo (EnDeposito, EnLuro, EnPeralta);
-    CREATE INDEX IX_Catalogo_Slug      ON dbo.Catalogo (Slug);
+    CREATE INDEX IX_Catalogo_Publicado    ON dbo.Catalogo (Publicado, Eliminado);
+    CREATE INDEX IX_Catalogo_Taxonomia    ON dbo.Catalogo (Rubro, Genero, Prenda);
+    CREATE INDEX IX_Catalogo_TaxonomiaSlug ON dbo.Catalogo (RubroSlug, GeneroSlug, PrendaSlug);
+    CREATE INDEX IX_Catalogo_Ubicacion    ON dbo.Catalogo (EnDeposito, EnLuro, EnPeralta);
+    CREATE INDEX IX_Catalogo_Combo        ON dbo.Catalogo (ComboCantidad, ComboTotal);
+    CREATE INDEX IX_Catalogo_Anio         ON dbo.Catalogo (Anio);
+    CREATE INDEX IX_Catalogo_Slug         ON dbo.Catalogo (Slug);
 END
 GO
 
-PRINT 'Tabla materializada del catálogo lista: dbo.Catalogo.';
+-- ===== Tablas hijas para talle/color (multi-valor) =====
+-- Talle y color son N por artículo. La CSV de la fila se conserva para MOSTRAR (card/ficha); estas
+-- tablas son para CONSULTAR: filtro con EXISTS y faceteo con GROUP BY, indexados. La faceta de talle
+-- se ordena por Orden (curva de Talles.cs / DCTALLE). Las repuebla el rebuild en la misma transacción
+-- que el MERGE de la base.
+IF OBJECT_ID('dbo.CatalogoTalle', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CatalogoTalle
+    (
+        Codigo varchar(20)  NOT NULL,
+        Talle  nvarchar(40) NOT NULL,
+        Orden  int          NOT NULL,
+        CONSTRAINT PK_CatalogoTalle PRIMARY KEY CLUSTERED (Codigo, Talle)
+    );
+    CREATE INDEX IX_CatalogoTalle_Talle ON dbo.CatalogoTalle (Talle) INCLUDE (Codigo, Orden);
+END
+GO
+
+IF OBJECT_ID('dbo.CatalogoColor', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CatalogoColor
+    (
+        Codigo varchar(20)  NOT NULL,
+        Color  nvarchar(80) NOT NULL,
+        CONSTRAINT PK_CatalogoColor PRIMARY KEY CLUSTERED (Codigo, Color)
+    );
+    CREATE INDEX IX_CatalogoColor_Color ON dbo.CatalogoColor (Color) INCLUDE (Codigo);
+END
+GO
+
+PRINT 'Tabla materializada del catálogo lista: dbo.Catalogo (+ CatalogoTalle/CatalogoColor).';
 GO

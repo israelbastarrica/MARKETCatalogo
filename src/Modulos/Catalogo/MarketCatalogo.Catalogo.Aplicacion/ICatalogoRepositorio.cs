@@ -157,12 +157,18 @@ public sealed record ComboTierRow(int Cantidad, int Total);
 public sealed record CatalogoFilaBase(
     string Codigo, bool PublicadoBase, string Slug, string Descripcion,
     string Rubro, string Genero, string Prenda,
+    string RubroSlug, string GeneroSlug, string? PrendaSlug,
     decimal? PrecioVenta, decimal? PrecioCompra, int? ComboCantidad, int? ComboTotal,
     bool EnLuro, bool EnPeralta, bool EnDeposito,
     string TallesCsv, string ColoresCsv,
+    IReadOnlyList<TalleBase> Talles, IReadOnlyList<string> Colores,
     bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
     string? Proveedor, string? Temporada, string? Marca, int? Anio,
     string TextoBusqueda);
+
+/// <summary>Un talle de un artículo para la tabla hija <c>CatalogoTalle</c>: etiqueta mostrable + su orden
+/// de curva (Talles.cs / DCTALLE), para poder ordenar la faceta de talles en SQL.</summary>
+public sealed record TalleBase(string Talle, int Orden);
 
 /// <summary>Fila leída de <c>dbo.Catalogo</c> (columnas base). La consume <c>LectorCatalogo</c> para
 /// mapearla a <c>ArticuloDto</c> y armar el snapshot. Los derivados (slugs, combo parseado, locales desde

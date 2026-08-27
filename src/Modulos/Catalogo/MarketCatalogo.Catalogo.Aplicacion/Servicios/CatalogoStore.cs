@@ -175,13 +175,15 @@ public sealed class CatalogoStore
             // Color/talle: mismo criterio que el público, con la excepción Lencería (datos inconsistentes
             // en las tres fuentes -> talle y color "Único" fijos).
             var esLenceria = Texto.SinAcentos(rubro) == "lenceria";
-            List<string> talles;
+            // Talles con su orden de curva (para la tabla hija CatalogoTalle y el orden de la faceta SQL);
+            // la CSV mostrable sale de esta misma lista, en el mismo orden.
+            List<TalleBase> talles;
             List<string> colores;
             var tieneVariantes = variantesPorCodigo.ContainsKey(a.ArtCod);
 
             if (esLenceria)
             {
-                talles = ["Único"];
+                talles = [new TalleBase("Único", 0)];
                 colores = ["Único"];
             }
             else
@@ -215,17 +217,18 @@ public sealed class CatalogoStore
                 talles = variantesDto
                     .Where(v => !Talles.EsSinTalle(v.Talle))
                     .GroupBy(v => v.TalleMostrar)
-                    .OrderBy(g => g.Min(v => v.TalleOrden))
-                    .Select(g => g.Key).ToList();
+                    .Select(g => new TalleBase(g.Key, g.Min(v => v.TalleOrden)))
+                    .OrderBy(t => t.Orden).ToList();
 
                 // Fallback a la curva definida cuando las compras dejaron todo sin talle (ya en orden DCTALLE).
                 if (talles.Count == 0 && curvaArt is not null)
                 {
                     talles = curvaArt
                         .Where(c => !Talles.EsSinTalle(c.Talle))
-                        .Select(c => Talles.Mostrar(c.Talle))
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
+                        .Select(c => new TalleBase(Talles.Mostrar(c.Talle), c.Orden))
+                        .GroupBy(t => t.Talle, StringComparer.OrdinalIgnoreCase)
+                        .Select(g => new TalleBase(g.Key, g.Min(t => t.Orden)))
+                        .OrderBy(t => t.Orden).ToList();
                 }
 
                 colores = variantesDto
@@ -254,6 +257,9 @@ public sealed class CatalogoStore
                 Rubro: rubro,
                 Genero: genero,
                 Prenda: familia,
+                RubroSlug: Texto.Slug(rubro),
+                GeneroSlug: Texto.Slug(genero),
+                PrendaSlug: string.IsNullOrWhiteSpace(familia) ? null : Texto.Slug(familia),
                 PrecioVenta: a.PrecioSuelta > 0 ? a.PrecioSuelta : null,
                 PrecioCompra: a.PrecioCompra > 0 ? a.PrecioCompra : null,
                 ComboCantidad: combo?.Cantidad,
@@ -261,8 +267,10 @@ public sealed class CatalogoStore
                 EnLuro: enLuro,
                 EnPeralta: enPeralta,
                 EnDeposito: enDeposito,
-                TallesCsv: string.Join(',', talles),
+                TallesCsv: string.Join(',', talles.Select(t => t.Talle)),
                 ColoresCsv: string.Join(',', colores),
+                Talles: talles,
+                Colores: colores,
                 TieneFoto: tieneFoto,
                 FotoPrincipalVersion: fotoVersion,
                 FotosJson: ArmarFotosJson(ruta, fotoVersion),

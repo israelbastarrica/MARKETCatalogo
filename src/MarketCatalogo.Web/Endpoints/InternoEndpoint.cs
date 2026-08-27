@@ -33,6 +33,28 @@ public static class InternoEndpoint
         .RequireAuthorization(PoliticasAuth.Interno)
         .DisableAntiforgery();
 
+        // Bloquear/desbloquear un artículo para reposición (RepoArticulosBloqueados en MARKET). POST de
+        // formulario, gateado por "Interno". Audita quién lo hizo (mail o usuario del claim).
+        app.MapPost("/interno/bloqueo", async (HttpContext ctx, ICatalogoInternoConsulta interno) =>
+        {
+            var form = await ctx.Request.ReadFormAsync();
+            var codigo = (form["codigo"].ToString() ?? "").Trim();
+            var bloquear = form["accion"].ToString().Equals("bloquear", StringComparison.OrdinalIgnoreCase);
+            var volver = form["volver"].ToString();
+            if (string.IsNullOrWhiteSpace(volver) || !volver.StartsWith('/') || volver.StartsWith("//"))
+                volver = "/interno";
+
+            if (codigo.Length > 0)
+            {
+                var origen = ctx.User.FindFirst(ClaimTypes.Email)?.Value
+                             ?? ctx.User.Identity?.Name ?? "interno";
+                await interno.CambiarBloqueoAsync(codigo, bloquear, origen);
+            }
+            return Results.Redirect(volver);
+        })
+        .RequireAuthorization(PoliticasAuth.Interno)
+        .DisableAntiforgery();
+
         // Botón "Actualizar": fuerza el rebuild de la base ahora y vuelve a la grilla.
         app.MapPost("/interno/actualizar", async (HttpContext ctx, ICatalogoInternoConsulta interno) =>
         {

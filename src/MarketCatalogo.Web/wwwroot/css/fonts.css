@@ -1,17 +1,6 @@
 ﻿/* ============================================================================
-   Tipografías de marca — Poppins (títulos) y Open Sans (texto).
-   Manual de Marca; ver docs/DISENO.md §2. Licencia SIL Open Font.
-
+   Tipografías: Poppins (títulos) y Open Sans (texto), auto-hospedadas.
    ARCHIVO GENERADO — no editar a mano.
-   Sale del CSS que sirve Google Fonts, con las url() reescritas a wwwroot/fonts/
-   para auto-hospedar los .woff2: así el sitio no depende del CDN de Google ni le
-   filtra la IP del visitante, y es una conexión menos que negociar.
-
-   Se conservan los unicode-range de Google tal cual: son los que hacen que el
-   browser baje el subset latin-ext (acentos, ñ) sólo si la página lo necesita.
-
-   14 archivos, 297 KB en total: Poppins 400/500/600/700 y Open Sans 400/600/700,
-   cada uno en subset latin y latin-ext.
    ============================================================================ */
 
 /* Open Sans 400 - latin-ext */

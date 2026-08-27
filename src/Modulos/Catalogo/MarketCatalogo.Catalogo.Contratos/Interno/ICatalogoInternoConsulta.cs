@@ -26,6 +26,11 @@ public interface ICatalogoInternoConsulta
     /// lo hizo (para la auditoría).</summary>
     Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default);
 
+    /// <summary>Bloquea o desbloquea un artículo para reposición (tabla <c>RepoArticulosBloqueados</c> de
+    /// MARKET, la misma que usa MARKETweb en "Consultar artículo"). Bloquear = alta de una fila activa;
+    /// desbloquear = baja lógica de la fila activa. <paramref name="origen"/> = quién lo hizo (auditoría).</summary>
+    Task CambiarBloqueoAsync(string codigo, bool bloquear, string origen, CancellationToken ct = default);
+
     /// <summary>Fuerza la reconstrucción de la base ahora (botón "Actualizar"). Espera a que termine
     /// (single-flight: si ya hay una en curso, espera esa).</summary>
     Task RefrescarAsync(CancellationToken ct = default);

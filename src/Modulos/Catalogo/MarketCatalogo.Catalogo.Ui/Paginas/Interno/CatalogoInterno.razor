@@ -71,7 +71,11 @@
                 </div>
 
                 @* El buscador vive arriba en el header (modo interno); Sucursal, Combo y Depósito en la
-                   toolbar. Acá quedan sólo las facetas. *@
+                   toolbar. Acá quedan sólo las facetas. Género arriba de todo, pero SÓLO en el drawer de
+                   celular (mk-int-solo-mobile): en desktop se elige por el mega-menú del header, igual que
+                   las "Secciones" del filtro mobile público. *@
+                @FacetaBloque("Género", "gen", _pagina.Generos, "mk-int-solo-mobile")
+
                 <div class="mk-int-grupo">
                     <h2 class="mk-rotulo">Publicación</h2>
                     <a class="mk-int-radio @(_filtros.Publicado == true ? "activa" : "")"
@@ -85,6 +89,17 @@
                 @FacetaBloque("Proveedor", "prov", _pagina.Proveedores)
                 @FacetaBloque("Marca", "marca", _pagina.Marcas)
                 @FacetaBloque("Temporada", "temp", _pagina.Temporadas)
+
+                @* Orden: sólo en el drawer de celular (en desktop vive en la toolbar). Mismo mecanismo
+                   solo-mobile que Género. *@
+                <div class="mk-int-grupo mk-int-solo-mobile">
+                    <h2 class="mk-rotulo">Orden</h2>
+                    @foreach (var (val, et) in new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("margen-desc", "Mayor margen"), ("nombre", "Nombre") })
+                    {
+                        <a class="mk-int-radio @(_filtros.Orden == val ? "activa" : "")"
+                           href="@UrlInterno.Set(_filtros, "orden", val)">@et</a>
+                    }
+                </div>
             </aside>
 
             @* Fondo oscuro del drawer; tocarlo lo cierra. *@
@@ -109,8 +124,6 @@
 
                 <div class="mk-int-toolbar">
                     <div class="mk-int-toolbar-izq">
-                        <span class="mk-int-total mk-rotulo">@_pagina.Total @(_pagina.Total == 1 ? "artículo" : "artículos")</span>
-
                         @* Sucursal como ticks, igual que el público. Multi-selección; ninguna = todas.
                            Togglea el mismo filtro "ubic" que antes estaba en el sidebar. *@
                         <div class="mk-sucursales">
@@ -127,11 +140,10 @@
                         @* Combo: dropdown de dos niveles, igual que el público. *@
                         <ComboDropdownInterno Opciones="_pagina.Combos" Filtros="_filtros" />
 
-                        @* Depósito: TODO lo de depósito adentro de un solo dropdown (reusa el CSS del combo):
-                           estar en depósito + el cruce depósito/local. *@
+                        @* Depósito: un solo filtro de SELECCIÓN ÚNICA (todo en "cruce"): estar en depósito o
+                           el cruce depósito/local. Elegir uno deselecciona el otro. *@
                         @{
-                            var enDepo = UrlInterno.CsvContiene(_filtros.Ubicaciones, "deposito");
-                            var depoActivos = (enDepo ? 1 : 0) + (_filtros.CruceDepoLocal is not null ? 1 : 0);
+                            var depoActivos = _filtros.CruceDepoLocal is not null ? 1 : 0;
                         }
                         <div class="mk-combo-dropdown">
                             <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" checked="@(depoActivos > 0)" />
@@ -143,8 +155,8 @@
                             <div class="mk-combo-dropdown-panel">
                                 <ul class="mk-faceta-combo-detalles">
                                     <li>
-                                        <a class="mk-faceta-opcion @(enDepo ? "activa" : "")"
-                                           href="@UrlInterno.Alternar(_filtros, "ubic", "deposito")">
+                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "deposito" ? "activa" : "")"
+                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "deposito" ? null : "deposito")">
                                             <span class="mk-faceta-marca" aria-hidden="true"></span>
                                             <span class="mk-faceta-nombre">En depósito</span>
                                         </a>
@@ -153,23 +165,59 @@
                                         <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "solo-deposito" ? "activa" : "")"
                                            href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "solo-deposito" ? null : "solo-deposito")">
                                             <span class="mk-faceta-marca" aria-hidden="true"></span>
-                                            <span class="mk-faceta-nombre">En depósito sin local</span>
+                                            <span class="mk-faceta-nombre">En depósito y ningún local</span>
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "en-local" ? "activa" : "")"
-                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "en-local" ? null : "en-local")">
+                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "deposito-luro" ? "activa" : "")"
+                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "deposito-luro" ? null : "deposito-luro")">
                                             <span class="mk-faceta-marca" aria-hidden="true"></span>
-                                            <span class="mk-faceta-nombre">En algún local</span>
+                                            <span class="mk-faceta-nombre">En depósito y Luro</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "deposito-peralta" ? "activa" : "")"
+                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "deposito-peralta" ? null : "deposito-peralta")">
+                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                            <span class="mk-faceta-nombre">En depósito y Peralta</span>
                                         </a>
                                     </li>
                                 </ul>
                             </div>
                         </div>
+
+                        @* Año: dropdown multi-selección (mismo CSS que Combo/Depósito), al lado de Depósito. *@
+                        @if (_pagina.Anios.Count > 0)
+                        {
+                            var aniosOrden = _pagina.Anios.OrderByDescending(o => o.Valor, StringComparer.Ordinal).ToList();
+                            <div class="mk-combo-dropdown">
+                                <input type="checkbox" id="mk-anio-toggle" class="mk-combo-toggle-check" checked="@(_filtros.Anios.Count > 0)" />
+                                <label for="mk-anio-toggle" class="mk-combo-dropdown-boton">
+                                    <span class="mk-rotulo">Año</span>
+                                    @if (_filtros.Anios.Count > 0) { <span class="mk-combo-dropdown-contador">@_filtros.Anios.Count</span> }
+                                </label>
+                                <label for="mk-anio-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
+                                <div class="mk-combo-dropdown-panel">
+                                    <ul class="mk-faceta-combo-detalles">
+                                        @foreach (var o in aniosOrden)
+                                        {
+                                            <li>
+                                                <a class="mk-faceta-opcion @(o.Activa ? "activa" : "")"
+                                                   href="@UrlInterno.Alternar(_filtros, "anio", o.Valor)">
+                                                    <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                                    <span class="mk-faceta-nombre">@o.Etiqueta</span>
+                                                    <span class="mk-faceta-cant">@o.Cantidad</span>
+                                                </a>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        }
                     </div>
 
                     @{
-                        var ordenes = new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("nombre", "Nombre") };
+                        var ordenes = new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("margen-desc", "Mayor margen"), ("nombre", "Nombre") };
                         var ordenActual = ordenes.FirstOrDefault(o => o.Item1 == _filtros.Orden).Item2 ?? "Código";
                     }
                     <div class="mk-combo-dropdown mk-orden-dd">
@@ -258,6 +306,7 @@
     [SupplyParameterFromQuery(Name = "prov")] public string? Prov { get; set; }
     [SupplyParameterFromQuery(Name = "marca")] public string? Marca { get; set; }
     [SupplyParameterFromQuery(Name = "temp")] public string? Temp { get; set; }
+    [SupplyParameterFromQuery(Name = "anio")] public string? Anio { get; set; }
     [SupplyParameterFromQuery(Name = "combo")] public string? Combo { get; set; }
     [SupplyParameterFromQuery(Name = "pub")] public string? Pub { get; set; }
     [SupplyParameterFromQuery(Name = "margenMax")] public decimal? MargenMax { get; set; }
@@ -283,6 +332,7 @@
             Proveedores = Csv(Prov),
             Marcas = Csv(Marca),
             Temporadas = Csv(Temp),
+            Anios = Csv(Anio),
             ComboDetalles = Csv(Combo),
             Publicado = Pub is null ? null : Pub.Equals("si", StringComparison.OrdinalIgnoreCase) ? true
                        : Pub.Equals("no", StringComparison.OrdinalIgnoreCase) ? false : null,
@@ -292,16 +342,27 @@
             Pagina = Pag is > 0 ? Pag.Value : 1,
         };
 
-        _chips = UrlInterno.Chips(_filtros).ToList();
-
         try { _pagina = await Interno.BuscarAsync(_filtros); }
         catch { _pagina = null; }
+
+        _chips = ArmarChips().ToList();
     }
 
-    private RenderFragment FacetaBloque(string titulo, string clave, IReadOnlyList<OpcionFacetaInterna> ops) => __builder =>
+    // Chips de filtros activos. Los de género van primero, con su NOMBRE mostrable (la faceta trae el
+    // mapeo slug→nombre); el resto los arma UrlInterno, que sólo tiene los slugs.
+    private IEnumerable<(string Etiqueta, string UrlQuitar)> ArmarChips()
+    {
+        if (_pagina is not null)
+            foreach (var g in _pagina.Generos.Where(o => o.Activa))
+                yield return (g.Etiqueta, UrlInterno.Alternar(_filtros, "gen", g.Valor));
+        foreach (var c in UrlInterno.Chips(_filtros))
+            yield return c;
+    }
+
+    private RenderFragment FacetaBloque(string titulo, string clave, IReadOnlyList<OpcionFacetaInterna> ops, string? claseExtra = null) => __builder =>
     {
         if (ops.Count == 0) return;
-        <div class="mk-int-grupo">
+        <div class="mk-int-grupo @claseExtra">
             <h2 class="mk-rotulo">@titulo</h2>
             <div class="mk-int-faceta">
                 @foreach (var o in ops.Take(12))

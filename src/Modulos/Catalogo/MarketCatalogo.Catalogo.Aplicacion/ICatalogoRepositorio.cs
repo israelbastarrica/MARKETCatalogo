@@ -34,6 +34,14 @@ public interface ICatalogoRepositorio
     /// todo el universo (vista interna). Siempre excluye <c>Eliminado = 1</c>.</summary>
     Task<IReadOnlyList<CatalogoFilaLeida>> LeerBaseAsync(bool soloPublicados, CancellationToken ct = default);
 
+    /// <summary>MARKET: UNA fila de <c>dbo.Catalogo</c> por su código (lookup por PK). Para la ficha, que
+    /// no necesita traer todo el universo para mostrar un solo artículo. null si no existe/está eliminado.</summary>
+    Task<CatalogoFilaLeida?> LeerFilaAsync(string codigo, CancellationToken ct = default);
+
+    /// <summary>MARKET: los códigos del universo que comparten la misma Prenda (Familia). Para el promedio
+    /// de facturado por familia de la ficha, sin traer toda la tabla a memoria.</summary>
+    Task<IReadOnlyList<string>> LeerCodigosPorPrendaAsync(string prenda, CancellationToken ct = default);
+
     /// <summary>MARKET: la ruta en disco de la foto principal de un artículo, leída de <c>dbo.Catalogo</c>.
     /// Con <paramref name="soloPublicado"/> sólo la devuelve si el artículo está publicado — así el endpoint
     /// público no puede servir la foto de un artículo que el catálogo no muestra. null si no hay foto o no
@@ -49,12 +57,42 @@ public interface ICatalogoRepositorio
     /// sin OPENQUERY ni JOIN cross-DB. A demanda al abrir la ficha, no en el rebuild.</summary>
     Task<FichaDatosRow> TraerFichaStockVentasAsync(string codigo, int dias, CancellationToken ct = default);
 
+    /// <summary>DRAGON: características extendidas de UN artículo, a demanda al abrir la ficha (no se
+    /// materializan en <c>dbo.Catalogo</c>: son sólo para el detalle, no para filtrar/ordenar la grilla).
+    /// Salen de <c>ZooLogic.ART</c> + sus maestros (LINEA/GRUPO/MAT/PCOLOR/CTALLE). Tratamiento =
+    /// <c>ART.ARTDESADIC</c>; Característica = <c>ART.UNIMED</c> (unidad de medida). null si el código no
+    /// está en Dragon.</summary>
+    Task<CaracteristicasRow?> TraerCaracteristicasAsync(string codigo, CancellationToken ct = default);
+
+    /// <summary>MARKET: las ubicaciones ACTUALES de UN artículo (mueble/módulo/pasillo/fila/posición) por
+    /// local y depósito, a demanda al abrir la ficha. Mismas tablas que <see cref="TraerUbicacionesAsync"/>
+    /// (Mapeo/Ubicaciones) pero con el detalle de posición, para un solo código.</summary>
+    Task<IReadOnlyList<UbicacionDetalleRow>> TraerUbicacionesDetalleAsync(string codigo, CancellationToken ct = default);
+
+    /// <summary>DRAGON (réplicas Luro+Peralta): facturado TOTAL de un conjunto de códigos en los últimos
+    /// <paramref name="dias"/> días. Para el promedio por familia de la ficha: se pasan los códigos de la
+    /// misma Familia y en C# se divide por la cantidad de artículos. Batched (500) y tolerante a que una
+    /// réplica no responda (suma lo que pudo leer). A demanda al abrir la ficha.</summary>
+    Task<decimal> TraerFacturadoTotalAsync(IReadOnlyCollection<string> codigos, int dias, CancellationToken ct = default);
+
+    /// <summary>MARKET: órdenes de pedido (<c>PedidosOrdenes</c>) asociadas a UN artículo — número, tipo
+    /// (NACIONAL/IMPORTADO…), estado del workflow y si está finalizada. A demanda al abrir la ficha.</summary>
+    Task<IReadOnlyList<OrdenPedidoRow>> TraerOrdenesPedidoAsync(string codigo, CancellationToken ct = default);
+
     /// <summary>MARKET: oculta o muestra un artículo del catálogo PÚBLICO — la ÚNICA escritura de la app.
     /// Escribe <c>OcultarManual</c> + auditoría directamente en <c>dbo.Catalogo</c> (una sola tabla) y
     /// refleja el cambio al instante en <c>Publicado</c> (<paramref name="publicadoSiVisible"/> = si, de
     /// no estar oculto, cumpliría las condiciones de publicación). El rebuild PRESERVA <c>OcultarManual</c>
     /// (no lo pisa) y recomputa <c>Publicado</c> = base AND NOT OcultarManual. Nunca toca Dragon ni logística.</summary>
     Task CambiarVisibilidadAsync(string codigo, bool ocultar, bool publicadoSiVisible, string origen, CancellationToken ct = default);
+
+    /// <summary>MARKET: ¿el artículo tiene una fila ACTIVA en <c>RepoArticulosBloqueados</c>? (bloqueado
+    /// para reposición). A demanda al abrir la ficha.</summary>
+    Task<bool> EstaBloqueadoAsync(string codigo, CancellationToken ct = default);
+
+    /// <summary>MARKET: bloquea (alta de fila activa) o desbloquea (baja lógica de la fila activa) un
+    /// artículo en <c>RepoArticulosBloqueados</c>. Convención MARKET: nunca DELETE físico.</summary>
+    Task CambiarBloqueoAsync(string codigo, bool bloquear, string origen, CancellationToken ct = default);
 
     /// <summary>DRAGON: cabecera, taxonomía, combo y precio vigente de los códigos pedidos.</summary>
     Task<IReadOnlyList<ArticuloRow>> TraerArticulosAsync(IReadOnlyCollection<string> codigos, CancellationToken ct = default);
@@ -101,7 +139,8 @@ public sealed record ArticuloRow(string ArtCod, string ArtDes, string Rubro, str
 // proveedor/temporada/marca. PrecioSuelta = LISTA1; PrecioCompra = LISTA0.
 public sealed record ArticuloBaseRow(string ArtCod, string ArtDes, string Rubro, string Genero,
                                      string Familia, string Combo, decimal? PrecioSuelta,
-                                     decimal? PrecioCompra, string Proveedor, string Temporada, string Marca);
+                                     decimal? PrecioCompra, string Proveedor, string Temporada, string Marca,
+                                     int? Anio);
 public sealed record VarianteRow(string ArtCod, string ColorCod, string Color, string Talle);
 // Un talle de la curva definida del artículo (DCTALLE). Orden es el ORDEN de DCTALLE, que ya viene
 // bien de fábrica (2XL antes que 3XL); no se re-ordena con Talles.cs.
@@ -118,11 +157,11 @@ public sealed record ComboTierRow(int Cantidad, int Total);
 public sealed record CatalogoFilaBase(
     string Codigo, bool PublicadoBase, string Slug, string Descripcion,
     string Rubro, string Genero, string Prenda,
-    decimal? PrecioVenta, decimal? PrecioCompra, string? Combo,
+    decimal? PrecioVenta, decimal? PrecioCompra, int? ComboCantidad, int? ComboTotal,
     bool EnLuro, bool EnPeralta, bool EnDeposito,
     string TallesCsv, string ColoresCsv,
     bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
-    string? Proveedor, string? Temporada, string? Marca,
+    string? Proveedor, string? Temporada, string? Marca, int? Anio,
     string TextoBusqueda);
 
 /// <summary>Fila leída de <c>dbo.Catalogo</c> (columnas base). La consume <c>LectorCatalogo</c> para
@@ -154,7 +193,8 @@ public sealed record PrecioHistRow(DateTime FechaVig, string? HoraMod, decimal P
 /// Unidades/facturado firmados por SIGNOMOV; costo = Σ(costo vigente a la fecha × unidades del día).</summary>
 public sealed record VentasPeriodoRow(
     int Dias, decimal Vendido, decimal VendidoLuro, decimal VendidoPeralta,
-    decimal Facturado, decimal Costo, DateTime? UltimaVenta)
+    decimal Facturado, decimal Costo, DateTime? UltimaVenta,
+    IReadOnlyList<decimal> SemanasUnidades)
 {
     public bool HuboVentas => Vendido != 0 || Facturado != 0;
     public decimal MargenPesos => Facturado - Costo;
@@ -165,12 +205,25 @@ public sealed record VentasPeriodoRow(
 /// una consulta por réplica (stock + ventas/costo juntos en la misma conexión).</summary>
 public sealed record FichaDatosRow(StockDetalleRow Stock, VentasPeriodoRow Ventas);
 
+/// <summary>Características extendidas de la ficha (de Dragon, a demanda). Todas resueltas a su texto
+/// mostrable ("" si el maestro no matchea). Tratamiento = ART.ARTDESADIC; Caracteristica = ART.UNIMED.</summary>
+public sealed record CaracteristicasRow(
+    string? Tratamiento, string? Linea, string? Subfamilia, string? Material,
+    string? Paleta, string? CurvaTalles, string? Caracteristica,
+    string? DescEcommerce, bool PubEcommerce);
+
+/// <summary>Una posición mapeada del artículo (fila de Mapeo). Tipo = LOCAL/DEPOSITO.</summary>
+public sealed record UbicacionDetalleRow(
+    string Local, string Tipo, string? Mobiliario, string? Modulo, string? Pasillo, int? Fila, int? Posicion);
+
+/// <summary>Una orden de pedido de PedidosOrdenes asociada al artículo.</summary>
+public sealed record OrdenPedidoRow(int NroOrden, string? Tipo, string? Estado, bool Finalizada, DateTime? FechaMod);
+
 public sealed record CatalogoFilaLeida(
     string Codigo, bool Publicado, string? Slug, string? Descripcion,
     string? Rubro, string? Genero, string? Prenda,
-    decimal? PrecioVenta, decimal? PrecioCompra, string? Combo,
+    decimal? PrecioVenta, decimal? PrecioCompra, int? ComboCantidad, int? ComboTotal,
     bool EnLuro, bool EnPeralta, bool EnDeposito,
     string? TallesCsv, string? ColoresCsv,
     bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
-    string? Proveedor, string? Temporada, string? Marca, int? Anio, DateTime? FechaAlta,
-    decimal? StockTotal, bool TopVentas, string? TextoBusqueda);
+    string? Proveedor, string? Temporada, string? Marca, int? Anio, string? TextoBusqueda);

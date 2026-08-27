@@ -77,11 +77,135 @@ else
                         <h1>@_a.Descripcion</h1>
                     </div>
 
-                    <div class="mk-if-estado @(_a.Publicado ? "publicado" : "oculto")">
-                        <span></span>
-                        @(_a.Publicado ? "Publicado" : "Oculto")
+                    <div class="mk-if-header-acciones">
+                        <div class="mk-if-estado @(_a.Bloqueado ? "es-bloqueado" : "")">
+                            <span></span>
+                            @(_a.Bloqueado ? "Bloqueado" : "Sin bloqueo")
+                        </div>
+                        @if (TieneCaracteristicas)
+                        {
+                            <label for="mk-if-carac-toggle" class="mk-if-carac-boton">Características</label>
+                        }
+                        @if (_a.Ubicaciones.Count > 0)
+                        {
+                            <label for="mk-if-ubic-toggle" class="mk-if-carac-boton">Ubicaciones</label>
+                        }
+                        @* Órdenes SIEMPRE visible (aunque no tenga: el panel avisa), para que no parezca
+                           que falta el dato. *@
+                        <label for="mk-if-orden-toggle" class="mk-if-carac-boton">Órdenes</label>
                     </div>
                 </header>
+
+                @* Un solo panel abierto a la vez: grupo de radios ("ninguno" por defecto). Los botones
+                   seleccionan su radio (abrir uno cierra el otro); la × y el fondo vuelven a "ninguno".
+                   Todo sin JS. Siempre presente porque el botón Órdenes siempre está. *@
+                <input type="radio" name="mk-if-panel" id="mk-if-panel-none" class="mk-if-carac-check" checked />
+
+                @* Panel de características (sólo INFO, no editable). Espeja el "EDITAR INFO" de MARKETweb
+                   pero de lectura. Los datos vienen a demanda de Dragon al abrir la ficha. *@
+                @if (TieneCaracteristicas)
+                {
+                    <input type="radio" name="mk-if-panel" id="mk-if-carac-toggle" class="mk-if-carac-check" />
+                    <label for="mk-if-panel-none" class="mk-if-carac-backdrop" aria-hidden="true"></label>
+
+                    <section class="mk-if-carac mk-if-panel-carac" aria-label="Características del artículo">
+                        <div class="mk-if-carac-cab">
+                            <span class="mk-rotulo">Características · @_a.Codigo</span>
+                            <label for="mk-if-panel-none" class="mk-if-carac-cerrar" aria-label="Cerrar">×</label>
+                        </div>
+
+                        <dl class="mk-if-carac-grid">
+                            @Dato("Descripción", _a.Descripcion)
+                            @Dato("Tratamiento", _a.Tratamiento)
+                            @Dato("Tipo", _a.Rubro)
+                            @Dato("Categoría / Género", _a.Genero)
+                            @Dato("Línea", _a.Linea)
+                            @Dato("Familia", _a.Prenda)
+                            @Dato("Subfamilia", _a.Subfamilia)
+                            @Dato("Material", _a.Material)
+                            @Dato("Característica", _a.Caracteristica)
+                            @Dato("Curva de talles", _a.CurvaTalles)
+                            @Dato("Paleta de colores", _a.Paleta)
+                            @Dato("Marca", _a.Marca)
+                            @Dato("Temporada", _a.Temporada)
+                            @Dato("Proveedor", _a.Proveedor)
+                        </dl>
+
+                        @if (!string.IsNullOrWhiteSpace(_a.DescEcommerce))
+                        {
+                            <div class="mk-if-carac-eco">
+                                <span class="mk-rotulo">Descripción e-commerce</span>
+                                <p>@_a.DescEcommerce</p>
+                            </div>
+                        }
+                    </section>
+                }
+
+                @* Panel de ubicaciones (sólo INFO): agrupa las posiciones por local/depósito. Mismo toggle
+                   sin JS que características. Las posiciones vienen a demanda de MARKET al abrir la ficha. *@
+                @if (_a.Ubicaciones.Count > 0)
+                {
+                    <input type="radio" name="mk-if-panel" id="mk-if-ubic-toggle" class="mk-if-carac-check" />
+                    <label for="mk-if-panel-none" class="mk-if-carac-backdrop" aria-hidden="true"></label>
+
+                    <section class="mk-if-carac mk-if-panel-ubic" aria-label="Ubicaciones del artículo">
+                        <div class="mk-if-carac-cab">
+                            <span class="mk-rotulo">Ubicaciones · @_a.Codigo</span>
+                            <label for="mk-if-panel-none" class="mk-if-carac-cerrar" aria-label="Cerrar">×</label>
+                        </div>
+
+                        <div class="mk-if-ubic">
+                            @foreach (var grupo in _a.Ubicaciones.GroupBy(u => u.Local).OrderBy(g => g.Key))
+                            {
+                                <div class="mk-if-ubic-local">
+                                    <div class="mk-if-ubic-cab">
+                                        <strong>@grupo.Key</strong>
+                                        <span class="mk-rotulo">@grupo.Count() @(grupo.Count() == 1 ? "posición" : "posiciones")</span>
+                                    </div>
+                                    <div class="mk-if-chips">
+                                        @foreach (var u in grupo)
+                                        {
+                                            <span class="mk-if-chip">@PosicionTexto(u)</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+
+                @* Panel de órdenes de pedido (PedidosOrdenes). Mismo grupo de radios (uno solo abierto).
+                   Siempre presente; si no hay órdenes, avisa. *@
+                <input type="radio" name="mk-if-panel" id="mk-if-orden-toggle" class="mk-if-carac-check" />
+                <label for="mk-if-panel-none" class="mk-if-carac-backdrop" aria-hidden="true"></label>
+
+                <section class="mk-if-carac mk-if-panel-orden" aria-label="Órdenes de pedido del artículo">
+                    <div class="mk-if-carac-cab">
+                        <span class="mk-rotulo">Órdenes de pedido · @_a.Codigo</span>
+                        <label for="mk-if-panel-none" class="mk-if-carac-cerrar" aria-label="Cerrar">×</label>
+                    </div>
+
+                    @if (_a.Ordenes.Count > 0)
+                    {
+                        <ul class="mk-if-ordenes">
+                            @foreach (var o in _a.Ordenes)
+                            {
+                                <li class="mk-if-orden @(o.Finalizada ? "es-fin" : "")">
+                                    <span class="mk-if-orden-nro">#@o.NroOrden</span>
+                                    <div class="mk-if-orden-centro">
+                                        <span class="mk-if-orden-estado">@(string.IsNullOrWhiteSpace(o.Estado) ? "—" : o.Estado)</span>
+                                        @if (o.FechaMod is DateTime fm) { <span class="mk-if-orden-fecha mk-rotulo">Actualizada @fm.ToString("dd/MM/yyyy")</span> }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(o.Tipo)) { <span class="mk-if-orden-tipo mk-rotulo">@o.Tipo</span> }
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="mk-if-nota">Este artículo no tiene órdenes de pedido.</p>
+                    }
+                </section>
 
 
                 @* ========================================================
@@ -106,10 +230,26 @@ else
                                 <div class="mk-if-margen"><dt>Margen real</dt><dd>@(_a.MargenRealPct is decimal mpc ? $"{mpc:0.#}%" : "—")</dd></div>
                                 @if (_a.UltimaVenta is DateTime uv) { <div><dt>Última venta</dt><dd>@uv.ToString("dd/MM/yyyy")</dd></div> }
                             </dl>
+
+                            @LineaVentas()
                         }
                         else
                         {
                             <p class="mk-if-nota">Sin ventas en el período.</p>
+                        }
+
+                        @if (_a.FamiliaFacturadoProm is decimal prom && _a.Prenda is not null)
+                        {
+                            <div class="mk-if-benchmark @(_a.SuperaPromedioFamilia == true ? "es-arriba" : "es-abajo")">
+                                <div class="mk-if-benchmark-info">
+                                    <span class="mk-rotulo">Promedio familia · @_a.Prenda</span>
+                                    <strong>@Plata(prom)</strong>
+                                    <span class="mk-if-benchmark-nota">facturado prom. sobre @_a.FamiliaArticulos artículos</span>
+                                </div>
+                                <span class="mk-if-benchmark-flag">
+                                    @(_a.SuperaPromedioFamilia == true ? "▲ sobre el promedio" : "▼ bajo el promedio")
+                                </span>
+                            </div>
                         }
 
                     </section>
@@ -125,40 +265,71 @@ else
                         <span class="mk-rotulo">STOCK</span>
                     </div>
 
-                    @if (_a.StockTotal is not null)
-                    {
-                        <div class="mk-if-stock">
-                            <div class="mk-if-stock-head">
-                                <span>Origen</span>
-                                <span>Stock</span>
-                                <span>Tránsito</span>
-                            </div>
-                            <div class="mk-if-stock-row">
-                                <strong>Luro</strong>
-                                <span>@Unid(_a.StockLuro)</span>
-                                <span>@Unid(_a.TransitoLuro)</span>
-                            </div>
-                            <div class="mk-if-stock-row">
-                                <strong>Peralta</strong>
-                                <span>@Unid(_a.StockPeralta)</span>
-                                <span>@Unid(_a.TransitoPeralta)</span>
-                            </div>
-                            <div class="mk-if-stock-row">
-                                <strong>Depósito</strong>
-                                <span>@Unid(_a.StockCentral)</span>
-                                <span>@Unid(_a.TransitoCentral)</span>
-                            </div>
-                            <div class="mk-if-stock-total">
-                                <strong>Total</strong>
-                                <strong>@Unid(_a.StockTotal)</strong>
-                                <strong>@Unid(_a.EnTransito)</strong>
-                            </div>
+                    <div class="mk-if-stock-fila">
+                        <div class="mk-if-stock-donas">
+                            @if (_a.StockTotal is not null)
+                            {
+                                <div class="mk-if-donas">
+                                    @Dona("Stock", new (string, decimal, string)[]
+                                    {
+                                        ("Luro", _a.StockLuro ?? 0, "--mk-tinta-100"),
+                                        ("Peralta", _a.StockPeralta ?? 0, "--mk-tinta-70"),
+                                        ("Depósito", _a.StockCentral ?? 0, "--mk-tinta-40"),
+                                    }, _a.StockTotal ?? 0)
+
+                                    @Dona("Tránsito", new (string, decimal, string)[]
+                                    {
+                                        ("Luro", _a.TransitoLuro ?? 0, "--mk-tinta-100"),
+                                        ("Peralta", _a.TransitoPeralta ?? 0, "--mk-tinta-70"),
+                                        ("Depósito", _a.TransitoCentral ?? 0, "--mk-tinta-40"),
+                                    }, _a.EnTransito ?? 0)
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="mk-if-nota">No se pudo consultar el stock en este momento.</p>
+                            }
                         </div>
-                    }
-                    else
-                    {
-                        <p class="mk-if-nota">No se pudo consultar el stock en este momento.</p>
-                    }
+
+                        @* Acciones al lado del stock (aprovecha el ancho): público + reposición. *@
+                        <div class="mk-if-acciones">
+                            <section class="mk-if-visibilidad @(_a.Publicado ? "es-visible" : "es-oculto")">
+                                <div class="mk-if-visibilidad-estado">
+                                    <span class="mk-if-visibilidad-punto"></span>
+                                    <div>
+                                        <span class="mk-rotulo">CATÁLOGO PÚBLICO</span>
+                                        <strong>@(_a.Publicado ? "El artículo está visible" : "El artículo está oculto")</strong>
+                                    </div>
+                                </div>
+                                <form method="post" action="/interno/visibilidad">
+                                    <input type="hidden" name="codigo" value="@_a.Codigo" />
+                                    <input type="hidden" name="volver" value="/interno/producto/@_a.Codigo" />
+                                    <input type="hidden" name="accion" value="@(_a.Publicado ? "ocultar" : "mostrar")" />
+                                    <button type="submit" class="mk-if-boton">
+                                        @(_a.Publicado ? "Ocultar del público" : "Mostrar en el público")
+                                    </button>
+                                </form>
+                            </section>
+
+                            <section class="mk-if-visibilidad @(_a.Bloqueado ? "es-oculto" : "es-visible")">
+                                <div class="mk-if-visibilidad-estado">
+                                    <span class="mk-if-visibilidad-punto"></span>
+                                    <div>
+                                        <span class="mk-rotulo">REPOSICIÓN</span>
+                                        <strong>@(_a.Bloqueado ? "El artículo está bloqueado" : "El artículo no está bloqueado")</strong>
+                                    </div>
+                                </div>
+                                <form method="post" action="/interno/bloqueo">
+                                    <input type="hidden" name="codigo" value="@_a.Codigo" />
+                                    <input type="hidden" name="volver" value="/interno/producto/@_a.Codigo" />
+                                    <input type="hidden" name="accion" value="@(_a.Bloqueado ? "desbloquear" : "bloquear")" />
+                                    <button type="submit" class="mk-if-boton">
+                                        @(_a.Bloqueado ? "Desbloquear" : "Bloquear para reposición")
+                                    </button>
+                                </form>
+                            </section>
+                        </div>
+                    </div>
 
                 </section>
 
@@ -196,50 +367,41 @@ else
                 </section>
 
 
-                @* ========================================================
-                   DATOS DEL ARTÍCULO
-                   ======================================================== *@
-                <section class="mk-if-bloque">
-
-                    <div class="mk-if-bloque-titulo">
-                        <span class="mk-rotulo">DATOS</span>
-                    </div>
-
-                    <dl class="mk-if-datos-grid">
-                        <div><dt>Proveedor</dt><dd>@(_a.Proveedor ?? "—")</dd></div>
-                        <div><dt>Marca</dt><dd>@(_a.Marca ?? "—")</dd></div>
-                        <div><dt>Temporada</dt><dd>@(_a.Temporada ?? "—")</dd></div>
-                    </dl>
-
-                </section>
-
+                @* Proveedor/Marca/Temporada ya no van acá: viven en el panel "Ver características".
+                   Talles y colores SÍ quedan en la ficha principal. *@
 
                 @* ========================================================
                    TALLES / COLORES
                    ======================================================== *@
-                @if (_a.Talles.Count > 0 || _a.Colores.Count > 0)
-                {
-                    <section class="mk-if-bloque mk-if-atributos">
-                        @if (_a.Talles.Count > 0)
-                        {
-                            <div class="mk-if-atributo">
-                                <span class="mk-rotulo">TALLES</span>
-                                <div class="mk-if-chips">
-                                    @foreach (var talle in _a.Talles) { <span class="mk-if-chip">@talle</span> }
-                                </div>
-                            </div>
-                        }
-                        @if (_a.Colores.Count > 0)
-                        {
-                            <div class="mk-if-atributo">
-                                <span class="mk-rotulo">COLORES</span>
-                                <div class="mk-if-chips">
-                                    @foreach (var color in _a.Colores) { <span class="mk-if-chip">@color</span> }
-                                </div>
-                            </div>
-                        }
-                    </section>
-                }
+                @* Talles y colores SIEMPRE, aunque estén vacíos (talle único = "Único"). *@
+                <section class="mk-if-bloque mk-if-atributos">
+                    <div class="mk-if-atributo">
+                        <span class="mk-rotulo">TALLES</span>
+                        <div class="mk-if-chips">
+                            @if (_a.Talles.Count > 0)
+                            {
+                                @foreach (var talle in _a.Talles) { <span class="mk-if-chip">@talle</span> }
+                            }
+                            else
+                            {
+                                <span class="mk-if-chip">Único</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="mk-if-atributo">
+                        <span class="mk-rotulo">COLORES</span>
+                        <div class="mk-if-chips">
+                            @if (_a.Colores.Count > 0)
+                            {
+                                @foreach (var color in _a.Colores) { <span class="mk-if-chip">@color</span> }
+                            }
+                            else
+                            {
+                                <span class="mk-if-chip">Único</span>
+                            }
+                        </div>
+                    </div>
+                </section>
 
 
                 @* Nota técnica *@
@@ -248,30 +410,6 @@ else
                     histórico (LISTA0) a la fecha de cada venta.
                 </p>
 
-
-                @* ========================================================
-                   VISIBILIDAD (única escritura de la app)
-                   ======================================================== *@
-                <section class="mk-if-visibilidad @(_a.Publicado ? "es-visible" : "es-oculto")">
-
-                    <div class="mk-if-visibilidad-estado">
-                        <span class="mk-if-visibilidad-punto"></span>
-                        <div>
-                            <span class="mk-rotulo">CATÁLOGO PÚBLICO</span>
-                            <strong>@(_a.Publicado ? "El artículo está visible" : "El artículo está oculto")</strong>
-                        </div>
-                    </div>
-
-                    <form method="post" action="/interno/visibilidad">
-                        <input type="hidden" name="codigo" value="@_a.Codigo" />
-                        <input type="hidden" name="volver" value="/interno/producto/@_a.Codigo" />
-                        <input type="hidden" name="accion" value="@(_a.Publicado ? "ocultar" : "mostrar")" />
-                        <button type="submit" class="mk-if-boton">
-                            @(_a.Publicado ? "Ocultar del público" : "Mostrar en el público")
-                        </button>
-                    </form>
-
-                </section>
 
             </section>
 
@@ -298,6 +436,122 @@ else
             _a = null;
         }
     }
+
+    // Hay algo que mostrar en el panel si al menos una característica extendida vino de Dragon.
+    private bool TieneCaracteristicas => _a is not null &&
+        (_a.Tratamiento is not null || _a.Linea is not null || _a.Subfamilia is not null
+         || _a.Material is not null || _a.Paleta is not null || _a.CurvaTalles is not null
+         || _a.Caracteristica is not null || !string.IsNullOrWhiteSpace(_a.DescEcommerce));
+
+    // Fila del panel: rótulo + valor ("—" si no hay). RenderFragment para no repetir el markup 14 veces.
+    private RenderFragment Dato(string rotulo, string? valor) => __builder =>
+    {
+        <div>
+            <dt>@rotulo</dt>
+            <dd>@(string.IsNullOrWhiteSpace(valor) ? "—" : valor)</dd>
+        </div>;
+    };
+
+    // Texto de una posición: mueble + módulo si están; si no, se arma con pasillo/fila/posición.
+    private static string PosicionTexto(UbicacionInternaDto u)
+    {
+        var partes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(u.Mobiliario)) partes.Add(u.Mobiliario!);
+        if (!string.IsNullOrWhiteSpace(u.Modulo)) partes.Add(u.Modulo!);
+        if (partes.Count == 0)
+        {
+            if (!string.IsNullOrWhiteSpace(u.Pasillo)) partes.Add($"Pasillo {u.Pasillo}");
+            if (u.Fila is int f) partes.Add($"Fila {f}");
+            if (u.Posicion is int p) partes.Add($"Pos {p}");
+        }
+        return partes.Count > 0 ? string.Join(" · ", partes) : "—";
+    }
+
+    private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    // Dona de stock por ubicación (Luro/Peralta/Depósito), monocroma (opacidades). SVG inline, sin JS.
+    // Técnica clásica: r=15.915 → circunferencia ≈ 100, así el dasharray es el % directo.
+    // Dona genérica (Luro/Peralta/Depósito), monocroma. El anillo usa sólo los valores POSITIVOS (un
+    // negativo por sobreventa no es una porción); la leyenda muestra el número real de cada uno y el centro
+    // el total real. Se usa para stock y para tránsito.
+    private static RenderFragment Dona(string titulo, (string Label, decimal Valor, string Var)[] segs, decimal total) => __builder =>
+    {
+        var positivos = segs.Where(s => s.Valor > 0).ToArray();
+        var totalPos = positivos.Sum(s => s.Valor);
+
+        <div class="mk-if-grafico">
+            <div class="mk-if-dona-wrap">
+                <span class="mk-rotulo">@titulo</span>
+                <svg class="mk-if-dona" viewBox="0 0 42 42" role="img" aria-label="@titulo por ubicación">
+                    <circle class="mk-if-dona-track" cx="21" cy="21" r="15.915"></circle>
+                    @{ decimal acum = 0; }
+                    @foreach (var s in positivos)
+                    {
+                        var len = Math.Round(s.Valor / totalPos * 100m, 2);
+                        var offset = Math.Round(25 - acum, 2);
+                        <circle class="mk-if-dona-seg" cx="21" cy="21" r="15.915"
+                                style="stroke: var(@s.Var)"
+                                stroke-dasharray="@len.ToString(Inv) @((100 - len).ToString(Inv))"
+                                stroke-dashoffset="@offset.ToString(Inv)">
+                            <title>@s.Label: @Unid(s.Valor)</title>
+                        </circle>
+                        acum += len;
+                    }
+                    <text x="21" y="21" class="mk-if-dona-centro">@Unid(total)</text>
+                </svg>
+            </div>
+            <ul class="mk-if-leyenda">
+                @foreach (var s in segs)
+                {
+                    <li>
+                        <span class="mk-if-leyenda-punto" style="background: var(@s.Var)"></span>
+                        @s.Label <strong>@Unid(s.Valor)</strong>
+                    </li>
+                }
+            </ul>
+        </div>;
+    };
+
+    // Ventas por semana como gráfico de LÍNEA + área (une todas las semanas). preserveAspectRatio=none para
+    // llenar el ancho; los trazos usan non-scaling-stroke para no deformarse. Rects invisibles por semana
+    // dan el tooltip al pasar el mouse. SVG inline, sin JS.
+    private RenderFragment LineaVentas() => __builder =>
+    {
+        if (_a is null) return;
+        var datos = _a.VentasSemanales;
+        if (datos.Count == 0) return;
+        var max = datos.Max();
+        if (max <= 0) return;
+        var n = datos.Count;
+        const double W = 300, top = 10, baseY = 66;
+        const double px = 10;
+        double X(int i) => n == 1 ? W / 2 : px + i * (W - 2 * px) / (n - 1);
+        double Y(decimal v) => baseY - (double)(v / max) * (baseY - top);
+
+        var pts = string.Join(" ", Enumerable.Range(0, n).Select(i => $"{X(i).ToString(Inv)},{Y(datos[i]).ToString(Inv)}"));
+        var area = $"{X(0).ToString(Inv)},{baseY.ToString(Inv)} {pts} {X(n - 1).ToString(Inv)},{baseY.ToString(Inv)}";
+
+        <div class="mk-if-grafico-ventas">
+            <span class="mk-rotulo">Unidades por semana</span>
+            <div class="mk-if-linea-wrap">
+                <svg class="mk-if-linea" viewBox="0 0 300 76" preserveAspectRatio="none" role="img" aria-label="Ventas por semana">
+                    <line class="mk-if-linea-base" x1="0" y1="@baseY.ToString(Inv)" x2="300" y2="@baseY.ToString(Inv)"></line>
+                    <polygon class="mk-if-linea-area" points="@area"></polygon>
+                    <polyline class="mk-if-linea-trazo" points="@pts"></polyline>
+                </svg>
+                @* Overlay HTML: una columna por semana. Al pasar el mouse resalta y muestra el número
+                   (texto nítido, sin JS). *@
+                <div class="mk-if-linea-hover">
+                    @for (var i = 0; i < n; i++)
+                    {
+                        <div class="mk-if-semana" title="Semana @(i + 1)">
+                            <span class="mk-if-semana-num">@datos[i].ToString("0.##", Inv) u.</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>;
+    };
 
     private static string Plata(decimal monto)
         => monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));

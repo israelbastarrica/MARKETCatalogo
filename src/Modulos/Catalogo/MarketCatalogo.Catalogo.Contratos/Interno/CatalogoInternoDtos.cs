@@ -32,12 +32,38 @@ public sealed class ArticuloInternoDto
     /// <summary>Se está mostrando en el catálogo PÚBLICO. El staff lo ve para saber qué ve el cliente.</summary>
     public bool Publicado { get; init; }
 
+    /// <summary>Está bloqueado para reposición (existe una fila activa en RepoArticulosBloqueados).</summary>
+    public bool Bloqueado { get; init; }
+
     public required IReadOnlyList<string> Talles { get; init; }
     public required IReadOnlyList<string> Colores { get; init; }
 
     public string? Proveedor { get; init; }
     public string? Temporada { get; init; }
     public string? Marca { get; init; }
+    /// <summary>Año del artículo (ART.ANO). Materializado en dbo.Catalogo; se usa para filtrar la grilla.</summary>
+    public int? Anio { get; init; }
+
+    // Características extendidas — sólo en la ficha (a demanda desde Dragon; null = no se consultó, como
+    // el stock/ventas). No se materializan ni se usan para filtrar la grilla. Tratamiento = ARTDESADIC;
+    // Caracteristica = UNIMED (unidad de medida).
+    public string? Tratamiento { get; init; }
+    public string? Linea { get; init; }
+    public string? Subfamilia { get; init; }
+    public string? Material { get; init; }
+    public string? Paleta { get; init; }
+    public string? CurvaTalles { get; init; }
+    public string? Caracteristica { get; init; }
+    public string? DescEcommerce { get; init; }
+    public bool? PubEcommerce { get; init; }
+
+    /// <summary>Ubicaciones ACTUALES del artículo (mueble/módulo/pasillo/fila/posición), por local y
+    /// depósito. Sólo en la ficha (a demanda desde MARKET). Vacío = no se consultó o no está mapeado.</summary>
+    public IReadOnlyList<UbicacionInternaDto> Ubicaciones { get; init; } = [];
+
+    /// <summary>Órdenes de pedido (PedidosOrdenes) asociadas al artículo. Sólo en la ficha. Vacío = no
+    /// se consultó o no tiene órdenes.</summary>
+    public IReadOnlyList<OrdenPedidoDto> Ordenes { get; init; } = [];
 
     public bool TieneFoto { get; init; }
     public string? FotoVersion { get; init; }
@@ -57,6 +83,9 @@ public sealed class ArticuloInternoDto
     // Ventas realizadas de la ventana (últimas N semanas), sólo en la ficha. null = no se consultó.
     // Facturado y costo firmados (las devoluciones restan); el margen realizado se deriva de ambos.
     public int? VentasDias { get; init; }
+    /// <summary>Unidades vendidas por semana en la ventana (bucket 0 = la más vieja, último = la más
+    /// reciente), Luro + Peralta. Para el gráfico de barras de la ficha. Vacío = no se consultó.</summary>
+    public IReadOnlyList<decimal> VentasSemanales { get; init; } = [];
     public decimal? Vendido { get; init; }
     public decimal? VendidoLuro { get; init; }
     public decimal? VendidoPeralta { get; init; }
@@ -66,6 +95,14 @@ public sealed class ArticuloInternoDto
     public decimal? MargenRealPct { get; init; }
     public DateTime? UltimaVenta { get; init; }
     public bool HuboVentas => Vendido is decimal v && v != 0;
+
+    // Benchmark vs la FAMILIA (Prenda): promedio de facturado por artículo de la familia en la misma
+    // ventana, y cuántos artículos la componen. Sólo en la ficha. null = no se consultó / sin familia.
+    public decimal? FamiliaFacturadoProm { get; init; }
+    public int? FamiliaArticulos { get; init; }
+    /// <summary>true si el facturado de este artículo supera el promedio de su familia.</summary>
+    public bool? SuperaPromedioFamilia =>
+        Facturado is decimal f && FamiliaFacturadoProm is decimal p ? f > p : null;
 }
 
 /// <summary>Filtros de la grilla interna. Todo multi-selección es unión (OR dentro de la faceta). Estado
@@ -87,6 +124,8 @@ public sealed record FiltrosInterno
     public IReadOnlyList<string> Proveedores { get; init; } = [];
     public IReadOnlyList<string> Marcas { get; init; } = [];
     public IReadOnlyList<string> Temporadas { get; init; } = [];
+    /// <summary>Años seleccionados (ART.ANO como texto, ej. "2025"). Multi-selección (unión).</summary>
+    public IReadOnlyList<string> Anios { get; init; } = [];
 
     /// <summary>Filtro de combo, dos niveles (cantidad + precio del tramo): cada valor es "{cantidad}-{total}"
     /// (ej. "2-15000"). Mismo formato que el público. Vacío = sin filtrar por combo.</summary>
@@ -106,6 +145,15 @@ public sealed record FiltrosInterno
 
 public sealed record OpcionFacetaInterna(string Valor, string Etiqueta, int Cantidad, bool Activa);
 
+/// <summary>Una posición mapeada del artículo (una fila de Mapeo). <c>Tipo</c> = LOCAL/DEPOSITO;
+/// <c>Modulo</c> es el código de posición legible (ej. "G1-1", "J03-5"); <c>Mobiliario</c> el mueble
+/// (ej. "Perchero"), presente sobre todo en locales.</summary>
+public sealed record UbicacionInternaDto(
+    string Local, string Tipo, string? Mobiliario, string? Modulo, string? Pasillo, int? Fila, int? Posicion);
+
+/// <summary>Una orden de pedido asociada al artículo (de PedidosOrdenes).</summary>
+public sealed record OrdenPedidoDto(int NroOrden, string? Tipo, string? Estado, bool Finalizada, DateTime? FechaMod);
+
 public sealed class PaginaInternaDto
 {
     public required IReadOnlyList<ArticuloInternoDto> Items { get; init; }
@@ -123,11 +171,15 @@ public sealed class PaginaInternaDto
     /// no se armó en esta instancia. Para el "datos de hace X min".</summary>
     public DateTime? BaseActualizada { get; init; }
 
+    /// <summary>Géneros como faceta: el <c>Valor</c> es el SLUG (ej. "mujer"), la <c>Etiqueta</c> el nombre
+    /// mostrable. Va arriba de todo en el drawer, igual que las secciones del filtro mobile público.</summary>
+    public required IReadOnlyList<OpcionFacetaInterna> Generos { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Rubros { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Prendas { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Proveedores { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Marcas { get; init; }
     public required IReadOnlyList<OpcionFacetaInterna> Temporadas { get; init; }
+    public required IReadOnlyList<OpcionFacetaInterna> Anios { get; init; }
 
     /// <summary>Faceta de combo de dos niveles (cantidad → tramos de precio), igual que el público
     /// (reusa <see cref="OpcionFacetaCombo"/> del contrato). Los tramos salen de la grilla de márgenes.</summary>

@@ -190,11 +190,25 @@ public sealed class CatalogoStore
                 foreach (var v in vs)
                     if (Talles.EsDesconocido(v.Talle) && v.Talle.Length > 0) tallesDesconocidos.Add(v.Talle);
 
+                // Orden de talles: PRIMERO el orden de la curva definida en Dragon (ART.CURTALL -> DCTALLE),
+                // así talles que Talles.cs no conoce (bebé: RN, 0-2, 2-4…) salen bien; fallback a Talles.cs.
+                curvasPorCodigo.TryGetValue(a.ArtCod, out var curvaArt);
+                var ordenCurva = curvaArt?
+                    .GroupBy(c => Talles.Mostrar(c.Talle), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.Min(c => c.Orden), StringComparer.OrdinalIgnoreCase);
+                int OrdenTalle(string mostrar, string raw) =>
+                    ordenCurva is not null && ordenCurva.TryGetValue(mostrar, out var o)
+                        ? o : 1000 + Talles.Resolver(raw).Orden;
+
                 var variantesDto = vs
-                    .Select(v => (Color: LimpiarColor(Texto.RepararEnie(v.Color), v.ColorCod),
-                                  Talle: v.Talle,
-                                  TalleMostrar: Talles.Mostrar(v.Talle),
-                                  TalleOrden: Talles.Resolver(v.Talle).Orden))
+                    .Select(v =>
+                    {
+                        var mostrar = Talles.Mostrar(v.Talle);
+                        return (Color: LimpiarColor(Texto.RepararEnie(v.Color), v.ColorCod),
+                                Talle: v.Talle,
+                                TalleMostrar: mostrar,
+                                TalleOrden: OrdenTalle(mostrar, v.Talle));
+                    })
                     .OrderBy(v => v.TalleOrden).ThenBy(v => v.Color, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
@@ -204,10 +218,10 @@ public sealed class CatalogoStore
                     .OrderBy(g => g.Min(v => v.TalleOrden))
                     .Select(g => g.Key).ToList();
 
-                // Fallback a la curva definida cuando las compras dejaron todo sin talle.
-                if (talles.Count == 0 && curvasPorCodigo.TryGetValue(a.ArtCod, out var curva))
+                // Fallback a la curva definida cuando las compras dejaron todo sin talle (ya en orden DCTALLE).
+                if (talles.Count == 0 && curvaArt is not null)
                 {
-                    talles = curva
+                    talles = curvaArt
                         .Where(c => !Talles.EsSinTalle(c.Talle))
                         .Select(c => Talles.Mostrar(c.Talle))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -242,7 +256,8 @@ public sealed class CatalogoStore
                 Prenda: familia,
                 PrecioVenta: a.PrecioSuelta > 0 ? a.PrecioSuelta : null,
                 PrecioCompra: a.PrecioCompra > 0 ? a.PrecioCompra : null,
-                Combo: combo is null ? null : combo.Texto,
+                ComboCantidad: combo?.Cantidad,
+                ComboTotal: combo is null ? null : (int)combo.Total,
                 EnLuro: enLuro,
                 EnPeralta: enPeralta,
                 EnDeposito: enDeposito,
@@ -254,6 +269,7 @@ public sealed class CatalogoStore
                 Proveedor: string.IsNullOrWhiteSpace(a.Proveedor) ? null : Texto.RepararEnie(a.Proveedor),
                 Temporada: string.IsNullOrWhiteSpace(a.Temporada) ? null : a.Temporada,
                 Marca: string.IsNullOrWhiteSpace(a.Marca) ? null : a.Marca,
+                Anio: a.Anio,
                 TextoBusqueda: Texto.SinAcentos($"{titulo} {artDes} {a.ArtCod} {familia}")));
         }
 

@@ -1,11 +1,5 @@
 /* ============================================================================
-   MÓDULO INSTITUCIONAL — estilos de presentación
-   Layout de las páginas de contenido (Nosotros, Noticias): hero, bloques de
-   texto, secciones editoriales y grilla de valores. Se sirve como
-   _content/MarketCatalogo.Institucional.Ui/institucional.css.
-
-   Depende de los tokens y átomos del sistema de diseño (app.css del host):
-   --mk-*, .mk-negativo, .mk-cta, .mk-rotulo. Monocromático (ver DISENO.md).
+   Institucional (Nosotros, Noticias) — estilos. Monocromático; tokens --mk-*.
    ============================================================================ */
 
 .mk-institucional {

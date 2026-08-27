@@ -24,6 +24,7 @@ public static class UrlInterno
         if (f.Proveedores.Count > 0) m["prov"] = string.Join(',', f.Proveedores);
         if (f.Marcas.Count > 0) m["marca"] = string.Join(',', f.Marcas);
         if (f.Temporadas.Count > 0) m["temp"] = string.Join(',', f.Temporadas);
+        if (f.Anios.Count > 0) m["anio"] = string.Join(',', f.Anios);
         if (f.ComboDetalles.Count > 0) m["combo"] = string.Join(',', f.ComboDetalles);
         if (f.Publicado is bool p) m["pub"] = p ? "si" : "no";
         if (f.MargenMax is decimal mm) m["margenMax"] = mm.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -92,7 +93,10 @@ public static class UrlInterno
     public static IEnumerable<(string Etiqueta, string UrlQuitar)> Chips(FiltrosInterno f)
     {
         foreach (var v in f.Ubicaciones) yield return (EtiquetaUbicacion(v), Alternar(f, "ubic", v));
-        if (f.CruceDepoLocal == "solo-deposito") yield return ("En depósito sin local", Set(f, "cruce", null));
+        if (f.CruceDepoLocal == "deposito") yield return ("En depósito", Set(f, "cruce", null));
+        if (f.CruceDepoLocal == "solo-deposito") yield return ("En depósito y ningún local", Set(f, "cruce", null));
+        if (f.CruceDepoLocal == "deposito-luro") yield return ("En depósito y Luro", Set(f, "cruce", null));
+        if (f.CruceDepoLocal == "deposito-peralta") yield return ("En depósito y Peralta", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "en-local") yield return ("En algún local", Set(f, "cruce", null));
         if (f.Publicado == true) yield return ("Se ve en el público", Set(f, "pub", null));
         if (f.Publicado == false) yield return ("No se ve", Set(f, "pub", null));
@@ -101,6 +105,7 @@ public static class UrlInterno
         foreach (var v in f.Proveedores) yield return (v, Alternar(f, "prov", v));
         foreach (var v in f.Marcas) yield return (v, Alternar(f, "marca", v));
         foreach (var v in f.Temporadas) yield return (v, Alternar(f, "temp", v));
+        foreach (var v in f.Anios) yield return ($"Año {v}", Alternar(f, "anio", v));
         foreach (var v in f.ComboDetalles) yield return (EtiquetaCombo(v), Alternar(f, "combo", v));
         if (f.MargenMax is decimal mm) yield return ($"Margen ≤ {mm:0.#}%", Set(f, "margenMax", null));
         if (!string.IsNullOrWhiteSpace(f.Texto)) yield return ($"“{f.Texto!.Trim()}”", Set(f, "q", null));

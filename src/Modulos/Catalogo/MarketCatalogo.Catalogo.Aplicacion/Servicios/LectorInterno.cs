@@ -36,17 +36,47 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         catch { return null; }
     }
 
+    // Igual que TraerSeguro pero para bool (no admite null): false si falla.
+    private static async Task<bool> TraerBoolSeguro(Func<Task<bool>> consulta)
+    {
+        try { return await consulta(); }
+        catch { return false; }
+    }
+
     public async Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
         if (cod.Length == 0) return null;
-        var filas = await _repo.LeerBaseAsync(soloPublicados: false, ct);
-        var fila = filas.FirstOrDefault(f => f.Codigo.Equals(cod, StringComparison.OrdinalIgnoreCase));
+        // Lookup por PK: no hace falta traer todo el universo para mostrar un solo artículo.
+        var fila = await _repo.LeerFilaAsync(cod, ct);
         if (fila is null) return null;
-        // Stock (por local) y ventas realizadas de la ventana, a demanda, sólo para la ficha. Una consulta
-        // por réplica (stock + ventas juntos); si falla, la ficha se muestra sin esos datos.
-        var datos = await TraerSeguro(() => _repo.TraerFichaStockVentasAsync(cod, _semanasVentas * 7, ct));
-        return Mapear(fila, datos?.Stock, datos?.Ventas);
+        // Datos de ficha a demanda, TODOS en paralelo (cada fuente su conexión; ninguno tumba la ficha):
+        //   · stock + ventas realizadas de la ventana (una consulta por réplica),
+        //   · características extendidas (Dragon central),
+        //   · ubicaciones actuales con detalle de posición (MARKET).
+        var datosT = TraerSeguro(() => _repo.TraerFichaStockVentasAsync(cod, _semanasVentas * 7, ct));
+        var caracT = TraerSeguro(() => _repo.TraerCaracteristicasAsync(cod, ct));
+        var ubicT = TraerSeguro(() => _repo.TraerUbicacionesDetalleAsync(cod, ct));
+        var ordT = TraerSeguro(() => _repo.TraerOrdenesPedidoAsync(cod, ct));
+        var bloqT = TraerBoolSeguro(() => _repo.EstaBloqueadoAsync(cod, ct));
+
+        // Benchmark de familia (Prenda): facturado promedio por artículo de la misma familia. Los códigos
+        // de la familia salen por SQL (por Prenda), no de traer todo a memoria; la suma de facturado va a
+        // Dragon (tolerante a fallo).
+        var codigosFamilia = string.IsNullOrWhiteSpace(fila.Prenda)
+            ? (IReadOnlyList<string>)Array.Empty<string>()
+            : await _repo.LeerCodigosPorPrendaAsync(fila.Prenda!, ct);
+        var famT = codigosFamilia.Count > 0
+            ? _repo.TraerFacturadoTotalAsync(codigosFamilia, _semanasVentas * 7, ct)
+            : Task.FromResult(0m);
+
+        await Task.WhenAll(datosT, caracT, ubicT, ordT, famT, bloqT);
+
+        decimal? famProm = codigosFamilia.Count > 0 ? famT.Result / codigosFamilia.Count : null;
+        int? famArt = codigosFamilia.Count > 0 ? codigosFamilia.Count : null;
+
+        return Mapear(fila, datosT.Result?.Stock, datosT.Result?.Ventas, caracT.Result, ubicT.Result,
+            famProm, famArt, ordT.Result, bloqT.Result);
     }
 
     public async Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default)
@@ -80,6 +110,9 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         await _repo.CambiarVisibilidadAsync(codigo, ocultar, publicadoSiVisible, origen, ct);
     }
 
+    public Task CambiarBloqueoAsync(string codigo, bool bloquear, string origen, CancellationToken ct = default)
+        => _repo.CambiarBloqueoAsync(codigo, bloquear, origen, ct);
+
     public Task RefrescarAsync(CancellationToken ct = default) => _store.ReconstruirBaseAsync(ct);
 
     public async Task<PaginaInternaDto> BuscarAsync(FiltrosInterno f, CancellationToken ct = default)
@@ -99,8 +132,11 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         }
         bool PasaCruce(ArticuloInternoDto a) => f.CruceDepoLocal switch
         {
+            "deposito" => a.EnDeposito,
             "solo-deposito" => a.EnDeposito && !a.EnAlgunLocal,
-            "en-local" => a.EnAlgunLocal,
+            "deposito-luro" => a.EnDeposito && a.EnLuro,
+            "deposito-peralta" => a.EnDeposito && a.EnPeralta,
+            "en-local" => a.EnAlgunLocal, // compat con URLs viejas; ya no está en la UI
             _ => true,
         };
         bool PasaRubro(ArticuloInternoDto a) => f.Rubros.Count == 0 || f.Rubros.Contains(a.Rubro, StringComparer.OrdinalIgnoreCase);
@@ -109,6 +145,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         bool PasaProveedor(ArticuloInternoDto a) => f.Proveedores.Count == 0 || (a.Proveedor is not null && f.Proveedores.Contains(a.Proveedor, StringComparer.OrdinalIgnoreCase));
         bool PasaMarca(ArticuloInternoDto a) => f.Marcas.Count == 0 || (a.Marca is not null && f.Marcas.Contains(a.Marca, StringComparer.OrdinalIgnoreCase));
         bool PasaTemporada(ArticuloInternoDto a) => f.Temporadas.Count == 0 || (a.Temporada is not null && f.Temporadas.Contains(a.Temporada, StringComparer.OrdinalIgnoreCase));
+        bool PasaAnio(ArticuloInternoDto a) => f.Anios.Count == 0 || (a.Anio is int y && f.Anios.Contains(y.ToString(), StringComparer.OrdinalIgnoreCase));
         bool PasaTalle(ArticuloInternoDto a) => f.Talles.Count == 0 || a.Talles.Any(t => f.Talles.Contains(t, StringComparer.OrdinalIgnoreCase));
         bool PasaColor(ArticuloInternoDto a) => f.Colores.Count == 0 || a.Colores.Any(c => f.Colores.Contains(c, StringComparer.OrdinalIgnoreCase));
         bool PasaCombo(ArticuloInternoDto a) => f.ComboDetalles.Count == 0
@@ -121,12 +158,14 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
 
         // "excepto" deja fuera una faceta para poder contarla sin encerrar al usuario (igual que el público).
         IEnumerable<ArticuloInternoDto> Aplicar(string? excepto) => todos.Where(a =>
-            PasaUbicacion(a) && PasaCruce(a) && PasaGenero(a) &&
+            PasaUbicacion(a) && PasaCruce(a) &&
+            (excepto == "genero" || PasaGenero(a)) &&
             (excepto == "rubro" || PasaRubro(a)) &&
             (excepto == "prenda" || PasaPrenda(a)) &&
             (excepto == "proveedor" || PasaProveedor(a)) &&
             (excepto == "marca" || PasaMarca(a)) &&
             (excepto == "temporada" || PasaTemporada(a)) &&
+            (excepto == "anio" || PasaAnio(a)) &&
             (excepto == "combo" || PasaCombo(a)) &&
             PasaTalle(a) && PasaColor(a) && PasaPublicado(a) && PasaMargen(a) && PasaTexto(a));
 
@@ -166,6 +205,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             "precio-asc" => filtrados.OrderBy(a => a.PrecioUnidadCombo ?? a.PrecioVenta ?? decimal.MaxValue).ThenBy(a => a.Codigo),
             "precio-desc" => filtrados.OrderByDescending(a => a.PrecioUnidadCombo ?? a.PrecioVenta ?? decimal.MinValue).ThenBy(a => a.Codigo),
             "margen" => filtrados.OrderBy(a => a.MargenTeorico ?? decimal.MaxValue).ThenBy(a => a.Codigo),
+            "margen-desc" => filtrados.OrderByDescending(a => a.MargenTeorico ?? decimal.MinValue).ThenBy(a => a.Codigo),
             "nombre" => filtrados.OrderBy(a => a.Descripcion, StringComparer.CurrentCultureIgnoreCase).ThenBy(a => a.Codigo),
             _ => filtrados.OrderBy(a => a.Codigo, StringComparer.OrdinalIgnoreCase),
         };
@@ -183,11 +223,13 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             SoloDeposito = todos.Count(a => a.EnDeposito && !a.EnAlgunLocal),
             Publicados = todos.Count(a => a.Publicado),
             BaseActualizada = _store.BaseActualizada,
+            Generos = FacetaGenero(Aplicar("genero"), f.Generos),
             Rubros = Faceta(Aplicar("rubro"), a => a.Rubro, f.Rubros),
             Prendas = Faceta(Aplicar("prenda"), a => a.Prenda, f.Prendas),
             Proveedores = Faceta(Aplicar("proveedor"), a => a.Proveedor, f.Proveedores),
             Marcas = Faceta(Aplicar("marca"), a => a.Marca, f.Marcas),
             Temporadas = Faceta(Aplicar("temporada"), a => a.Temporada, f.Temporadas),
+            Anios = Faceta(Aplicar("anio"), a => a.Anio?.ToString(), f.Anios),
             Combos = combos,
         };
     }
@@ -201,10 +243,26 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
                .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta, StringComparer.CurrentCultureIgnoreCase)
                .ToList();
 
-    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null, VentasPeriodoRow? ventas = null)
+    // Faceta de género: agrupa por SLUG (lo que viaja en la URL / matchea el header) pero muestra el nombre.
+    private static IReadOnlyList<OpcionFacetaInterna> FacetaGenero(
+        IEnumerable<ArticuloInternoDto> conj, IReadOnlyList<string> activos)
+        => conj.Where(a => !string.IsNullOrWhiteSpace(a.Genero))
+               .GroupBy(a => Texto.Slug(a.Genero))
+               .Select(g => new OpcionFacetaInterna(g.Key, g.First().Genero, g.Count(),
+                   activos.Contains(g.Key, StringComparer.OrdinalIgnoreCase)))
+               .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta, StringComparer.CurrentCultureIgnoreCase)
+               .ToList();
+
+    private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null,
+        VentasPeriodoRow? ventas = null, CaracteristicasRow? carac = null,
+        IReadOnlyList<UbicacionDetalleRow>? ubicaciones = null,
+        decimal? famFacturadoProm = null, int? famArticulos = null,
+        IReadOnlyList<OrdenPedidoRow>? ordenes = null, bool bloqueado = false)
     {
-        var combo = Combo.Parsear(f.Combo);
-        var precioUnidad = combo?.PrecioUnidad ?? (f.PrecioVenta > 0 ? f.PrecioVenta : null);
+        // Combo ya viene parseado en columnas (ComboCantidad/ComboTotal); el precio unitario se deriva.
+        decimal? precioUnidadCombo = (f.ComboCantidad is int cc && cc > 0 && f.ComboTotal is int ct)
+            ? (decimal)ct / cc : null;
+        var precioUnidad = precioUnidadCombo ?? (f.PrecioVenta > 0 ? f.PrecioVenta : null);
         // Margen teórico = como "Cambiar Precios": sobre el precio unitario del combo (o el suelto si no
         // hay combo), NO el LISTA1 con recargo. null si falta algún dato o el precio es 0.
         decimal? margen = (precioUnidad is > 0 && f.PrecioCompra is > 0)
@@ -221,20 +279,36 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             Prenda = string.IsNullOrWhiteSpace(f.Prenda) ? null : f.Prenda,
             PrecioVenta = f.PrecioVenta > 0 ? f.PrecioVenta : null,
             PrecioCompra = f.PrecioCompra > 0 ? f.PrecioCompra : null,
-            ComboTexto = combo is null ? null : Combo.Mostrar(combo.Cantidad, combo.Total),
-            ComboCantidad = combo?.Cantidad,
-            ComboTotal = combo?.Total,
-            PrecioUnidadCombo = combo?.PrecioUnidad,
+            ComboTexto = (f.ComboCantidad is int mc && f.ComboTotal is int mt) ? Combo.Mostrar(mc, mt) : null,
+            ComboCantidad = f.ComboCantidad,
+            ComboTotal = f.ComboTotal,
+            PrecioUnidadCombo = precioUnidadCombo,
             MargenTeorico = margen,
             EnLuro = f.EnLuro,
             EnPeralta = f.EnPeralta,
             EnDeposito = f.EnDeposito,
             Publicado = f.Publicado,
+            Bloqueado = bloqueado,
             Talles = PartirCsv(f.TallesCsv),
             Colores = PartirCsv(f.ColoresCsv),
             Proveedor = string.IsNullOrWhiteSpace(f.Proveedor) ? null : f.Proveedor,
             Temporada = string.IsNullOrWhiteSpace(f.Temporada) ? null : f.Temporada,
             Marca = string.IsNullOrWhiteSpace(f.Marca) ? null : f.Marca,
+            Anio = f.Anio,
+            Tratamiento = NuloSiVacio(carac?.Tratamiento),
+            Linea = NuloSiVacio(carac?.Linea),
+            Subfamilia = NuloSiVacio(carac?.Subfamilia),
+            Material = NuloSiVacio(carac?.Material),
+            Paleta = NuloSiVacio(carac?.Paleta),
+            CurvaTalles = NuloSiVacio(carac?.CurvaTalles),
+            Caracteristica = NuloSiVacio(carac?.Caracteristica),
+            DescEcommerce = NuloSiVacio(carac?.DescEcommerce),
+            PubEcommerce = carac?.PubEcommerce,
+            Ubicaciones = ubicaciones is null ? []
+                : ubicaciones.Select(u => new UbicacionInternaDto(
+                    u.Local, u.Tipo, u.Mobiliario, u.Modulo, u.Pasillo, u.Fila, u.Posicion)).ToList(),
+            Ordenes = ordenes is null ? []
+                : ordenes.Select(o => new OrdenPedidoDto(o.NroOrden, o.Tipo, o.Estado, o.Finalizada, o.FechaMod)).ToList(),
             TieneFoto = f.TieneFoto,
             FotoVersion = f.FotoPrincipalVersion,
             StockTotal = stock?.Total,
@@ -246,6 +320,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             StockCentral = stock?.Central,
             TransitoCentral = stock?.TransitoCentral,
             VentasDias = ventas?.Dias,
+            VentasSemanales = ventas?.SemanasUnidades ?? [],
             Vendido = ventas?.Vendido,
             VendidoLuro = ventas?.VendidoLuro,
             VendidoPeralta = ventas?.VendidoPeralta,
@@ -253,9 +328,13 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             CostoPeriodo = ventas?.Costo,
             MargenRealPesos = ventas?.MargenPesos,
             MargenRealPct = ventas?.MargenPct,
+            FamiliaFacturadoProm = famFacturadoProm,
+            FamiliaArticulos = famArticulos,
             UltimaVenta = ventas?.UltimaVenta,
         };
     }
+
+    private static string? NuloSiVacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     private static IReadOnlyList<string> PartirCsv(string? csv)
         => string.IsNullOrWhiteSpace(csv)

@@ -67,7 +67,8 @@ BEGIN
         -- Precio / combo
         PrecioVenta          decimal(18,2)     NULL,   -- PRECIOAR LISTA1 (1 unidad suelta, trae recargo)
         PrecioCompra         decimal(18,2)     NULL,   -- PRECIOAR LISTA0 (costo unitario — campo interno)
-        Combo                nvarchar(50)      NULL,   -- CLASIFART crudo (ej '2X15000'); cant/$u se derivan en C#
+        ComboCantidad        int               NULL,   -- CLASIFART parseado: N unidades del combo
+        ComboTotal           int               NULL,   -- CLASIFART parseado: precio total del combo
 
         -- Presencia por ubicación (mapeo) — filtros directos
         EnLuro               bit           NOT NULL CONSTRAINT DF_Catalogo_EnLuro     DEFAULT (0),
@@ -87,36 +88,17 @@ BEGIN
         Proveedor            nvarchar(80)      NULL,
         Temporada            nvarchar(80)      NULL,
         Marca                nvarchar(80)      NULL,
-        Anio                 int               NULL,
-        FechaAlta            datetime2         NULL,   -- para el filtro "novedades"
+        Anio                 int               NULL,   -- ART.ANO — se materializa para filtrar la grilla por año
 
-        -- Búsqueda / métricas base
+        -- Búsqueda
         TextoBusqueda        nvarchar(600)     NULL,   -- normalizado (sin acentos) para ?q=
-        StockTotal           decimal(18,2)     NULL,   -- RESERVADA (ver nota FICHA) — futuro filtro "con stock"
-        TopVentas            bit           NOT NULL CONSTRAINT DF_Catalogo_TopVentas DEFAULT (0),
-                                                       -- RESERVADA — futuro filtro/badge Top ventas
 
-        -- ===== FICHA — RESERVADAS. Hoy la ficha calcula stock/ventas EN VIVO contra las réplicas al
-        -- abrirla (no se persisten), así que estas columnas quedan en NULL a propósito. Están para el día
-        -- que se quiera FILTRAR/ORDENAR la grilla por stock o ventas: ahí un job las llena (read-through
-        -- con TTL por fila, columna FichaActualizada) y recién entonces se leen. No dropear. =====
-        Facturado            decimal(18,2)     NULL,   -- $ vendido en la ventana (precios reales c/desc)
-        CostoPeriodo         decimal(18,2)     NULL,   -- COGS de lo vendido (costo histórico)
-        StockLuro            decimal(18,2)     NULL,
-        StockPeralta         decimal(18,2)     NULL,
-        StockDeposito        decimal(18,2)     NULL,
-        EnTransito           decimal(18,2)     NULL,
-        StockDetalleJson     nvarchar(max)     NULL,   -- stock por talle/color
-        VentaPromSem         decimal(18,2)     NULL,   -- promedio semanal (ventana)
-        VentasSemCsv         nvarchar(200)     NULL,   -- baldes p/ sparkline, ej '3,5,2,0,1,4,6,2'
-        Vendido              decimal(18,2)     NULL,   -- unidades vendidas en la ventana
-        Comprado             decimal(18,2)     NULL,   -- unidades ingresadas (REMCOMPRA / enviado a locales)
-        PrecioInicial        decimal(18,2)     NULL,
-        Forzada              bit               NULL,
-        UltimaVenta          datetime2         NULL,
-        PrimeraVenta         datetime2         NULL,
-        UbicacionesJson      nvarchar(max)     NULL,   -- ubicaciones ACTUALES del mapeo (mueble/sector/fila/pos)
-        FichaActualizada     datetime2         NULL,   -- reloj de la ficha (por fila); NULL = nunca calculada
+        -- NOTA: los datos de FICHA (stock, ventas/margen realizado, características extendidas, ubicaciones)
+        -- NO se materializan: se consultan EN VIVO a Dragon/MARKET al abrir el artículo (ver LectorInterno +
+        -- CatalogoRepositorio.TraerFichaStockVentasAsync / TraerCaracteristicasAsync). Se quitaron las
+        -- columnas reservadas que quedaban 100% NULL (Anio, FechaAlta, StockTotal, TopVentas, Facturado,
+        -- CostoPeriodo, Stock*/EnTransito, *Json, Vendido/Comprado, etc.). Si algún día se quiere FILTRAR la
+        -- grilla por stock/ventas, se re-agregan como columnas BASE y un job las llena en el rebuild.
 
         CONSTRAINT PK_Catalogo PRIMARY KEY CLUSTERED (Codigo)
     );

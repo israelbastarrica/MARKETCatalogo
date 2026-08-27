@@ -68,7 +68,9 @@ public sealed class LectorCatalogo
         var rubro = f.Rubro ?? "";
         var genero = f.Genero ?? "";
         var familia = string.IsNullOrWhiteSpace(f.Prenda) ? null : f.Prenda;
-        var combo = Combo.Parsear(f.Combo);
+        // Combo ya viene parseado en columnas (ComboCantidad/ComboTotal); el precio unitario se deriva.
+        decimal? precioUnidadCombo = (f.ComboCantidad is int cc && cc > 0 && f.ComboTotal is int ct)
+            ? (decimal)ct / cc : null;
 
         var locales = new List<string>(2);
         if (f.EnLuro) locales.Add("LURO");
@@ -86,10 +88,10 @@ public sealed class LectorCatalogo
             GeneroSlug = Texto.Slug(genero),
             Familia = familia,
             FamiliaSlug = familia is null ? null : Texto.Slug(familia),
-            ComboTexto = combo is null ? null : Combo.Mostrar(combo.Cantidad, combo.Total),
-            ComboCantidad = combo?.Cantidad,
-            ComboTotal = combo?.Total,
-            PrecioUnidadCombo = combo?.PrecioUnidad,
+            ComboTexto = (f.ComboCantidad is int mc && f.ComboTotal is int mt) ? Combo.Mostrar(mc, mt) : null,
+            ComboCantidad = f.ComboCantidad,
+            ComboTotal = f.ComboTotal,
+            PrecioUnidadCombo = precioUnidadCombo,
             PrecioUnidadSuelta = f.PrecioVenta > 0 ? f.PrecioVenta : null,
             PrecioSueltaTexto = f.PrecioVenta > 0 ? Combo.Plata(f.PrecioVenta.Value) : null,
             TieneFoto = f.TieneFoto,

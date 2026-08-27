@@ -1,12 +1,6 @@
 /* ============================================================================
-   MARKET arg — sistema de diseño
-   Derivado del Manual de Marca oficial (docs/ManualDeMarca.pdf).
-   Ver docs/DISENO.md para las normas y su justificación.
-
-   REGLA CENTRAL: la marca es monocromática. Solo #000, #FFF y la escala de
-   opacidad 100/70/40/20%. El rosa y el verde menta que aparecen en material
-   viejo están PROHIBIDOS por el manual — no se usan ni para acentos ni para
-   estados. El único color de la pantalla es la foto del producto.
+   MARKET arg — sistema de diseño. Monocromático: #000, #FFF y opacidad
+   100/70/40/20%. El único color de la pantalla es la foto del producto.
    ============================================================================ */
 
 /* Las @font-face viven en wwwroot/css/fonts.css (generado, ver el encabezado de
@@ -110,9 +104,7 @@ h1:focus {
     outline: none;
 }
 
-/* --- Wordmark ------------------------------------------------------------
-   "MARKET" con tracking abierto. El ".ARG" se removió por decisión del cliente: la marca en el
-   sitio es sólo "MARKET". Prohibido usar la "M" sola. Stand-in hasta que llegue el SVG oficial. */
+/* --- Wordmark: "MARKET" con tracking abierto. --------------------------- */
 
 .mk-logo {
     font-family: var(--mk-font-titulo);
@@ -155,12 +147,7 @@ h1:focus {
     color: var(--mk-tinta-70);
 }
 
-/* --- Retema de Bootstrap ------------------------------------------------
-   Bootstrap trae su propio azul y su propia escala de grises, que contradicen
-   el manual. Se neutraliza acá vía sus custom properties en vez de pelearle
-   componente por componente.
-   PENDIENTE (ver PLAN.md): evaluar sacar Bootstrap del todo. Para un diseño
-   monocromático y editorial, la mitad de lo que aporta se termina sobrescribiendo. */
+/* --- Retema de Bootstrap: neutraliza su azul/grises vía custom properties. --- */
 
 :root {
     --bs-primary: #000;

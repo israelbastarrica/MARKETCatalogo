@@ -1,12 +1,5 @@
 /* ============================================================================
-   MÓDULO CATÁLOGO — estilos de presentación
-   Layout de la grilla, las cards, el panel de filtros y la ficha de producto.
-   Vive DENTRO del módulo (se sirve como _content/MarketCatalogo.Catalogo.Ui/
-   catalogo.css): el host no conoce estos internos, igual que no conoce su SQL.
-
-   Depende de los tokens y átomos del sistema de diseño (wwwroot/app.css del
-   host): --mk-*, .mk-rotulo, .mk-foto, .mk-migas, .mk-vacio, .mk-pastilla.
-   Paleta y normas: monocromático, la foto es el único color (ver DISENO.md).
+   Catálogo — grilla, cards, filtros y ficha. Monocromático; tokens --mk-*.
    ============================================================================ */
 
 
@@ -877,9 +870,10 @@
         position: static;
     }
 
+    /* Panel a ancho completo, anclado bajo la toolbar sticky. */
     .mk-combo-dropdown-panel {
-        left: 1rem;
-        right: 1rem;
+        left: 0;
+        right: 0;
         min-width: 0;
     }
 
@@ -1170,11 +1164,18 @@
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    /* Scrollbar fino visible: el menú scrollea solo. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--mk-tinta-40) transparent;
+    padding-right: .35rem;
 }
 
-.mk-int-filtros::-webkit-scrollbar { width: 0; height: 0; }
+.mk-int-filtros::-webkit-scrollbar { width: 6px; }
+.mk-int-filtros::-webkit-scrollbar-thumb {
+    background: var(--mk-tinta-40);
+    border-radius: 3px;
+}
+.mk-int-filtros::-webkit-scrollbar-track { background: transparent; }
 
 .mk-int-buscar {
     display: flex;
@@ -1209,8 +1210,11 @@
     gap: .4rem;
 }
 
-/* Mismo alto que el título de faceta del público (.mk-faceta-titulo): así el primer divisor del
-   sidebar coincide con la línea inferior del toolbar. */
+/* Sólo en el drawer de celular (se re-muestra en @media max-width 900px). */
+.mk-int-grupo.mk-int-solo-mobile {
+    display: none;
+}
+
 .mk-int-grupo h2 {
     margin: 0 0 .75rem;
     padding: .8rem 0;
@@ -1328,6 +1332,14 @@
     font-size: .82rem;
     font-weight: 600;
     color: var(--mk-tinta-100);
+}
+
+/* Orden está a la derecha: su panel abre hacia la izquierda para no cortarse (sólo desktop). */
+@media (min-width: 901px) {
+    .mk-orden-dd .mk-combo-dropdown-panel {
+        left: auto;
+        right: 0;
+    }
 }
 
 .mk-int-actualizar {
@@ -1480,19 +1492,18 @@
 }
 
 .mk-ic-precios {
-    display: flex;
-    align-items: baseline;
-    gap: .5rem;
-    flex-wrap: wrap;
+    margin: .25rem 0 0;
 }
 
 .mk-ic-combo {
     font-weight: 600;
+    margin: 0;
 }
 
 .mk-ic-venta {
     color: var(--mk-tinta-70);
     font-size: .85rem;
+    margin: 0;
 }
 
 
@@ -1537,7 +1548,7 @@
    ========================================================================== */
 
 .mk-if {
-    width: min(100% - 3rem, 72rem);
+    width: min(100% - 5rem, 108rem);
     margin: 0 auto;
     padding: 1.25rem 0 4rem;
 }
@@ -1701,6 +1712,382 @@
 
 .mk-if-estado.publicado span { background: var(--mk-tinta-100); }
 .mk-if-estado.oculto { border-style: dashed; }
+
+/* Badge de bloqueo en el header: BLOQUEADO = borde lleno y punto lleno; sin bloqueo = tenue. */
+.mk-if-estado.es-bloqueado {
+    border-color: var(--mk-tinta-100);
+    border-style: dashed;
+    color: var(--mk-tinta-100);
+}
+.mk-if-estado.es-bloqueado span { background: var(--mk-tinta-100); }
+
+/* Acciones del header: estado + botones "Ver características/ubicaciones", en FILA a la derecha. */
+.mk-if-header-acciones {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: .5rem;
+}
+
+/* El título cede espacio (envuelve) para que el badge y los botones no se recorten. */
+.mk-if-header > div:first-child { min-width: 0; flex: 1 1 auto; }
+
+/* Botones de panel: outline monocromo. */
+.mk-if-carac-boton {
+    display: inline-flex;
+    align-items: center;
+    padding: .35rem .7rem;
+    font-size: .66rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid var(--mk-tinta-100);
+    color: var(--mk-tinta-100);
+    background: var(--mk-fondo);
+    transition: background .15s ease, color .15s ease;
+}
+
+.mk-if-carac-boton:hover {
+    background: var(--mk-tinta-100);
+    color: var(--mk-fondo);
+}
+
+/* Checkbox/radio oculto que abre el panel (toggle sin JS). */
+.mk-if-carac-check {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* Panel: modal centrado (sólo INFO). Oculto por defecto; se muestra con el checkbox. */
+.mk-if-carac-backdrop { display: none; }
+
+#mk-if-carac-toggle:checked ~ .mk-if-carac-backdrop,
+#mk-if-ubic-toggle:checked ~ .mk-if-carac-backdrop,
+#mk-if-orden-toggle:checked ~ .mk-if-carac-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(0, 0, 0, .45);
+    cursor: default;
+}
+
+.mk-if-carac {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 71;
+    width: min(92vw, 640px);
+    max-height: 86dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--mk-fondo);
+    border: 1px solid var(--mk-tinta-20);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .28);
+    padding: 1.25rem 1.5rem 1.75rem;
+}
+
+#mk-if-carac-toggle:checked ~ .mk-if-panel-carac,
+#mk-if-ubic-toggle:checked ~ .mk-if-panel-ubic,
+#mk-if-orden-toggle:checked ~ .mk-if-panel-orden { display: block; }
+
+.mk-if-carac-cab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: .75rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+.mk-if-carac-cerrar {
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--mk-tinta-70);
+    padding: 0 .25rem;
+}
+
+.mk-if-carac-cerrar:hover { color: var(--mk-tinta-100); }
+
+/* Grilla de campos, dos columnas (una en mobile, ver responsive). */
+.mk-if-carac-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .9rem 1.5rem;
+    margin: 0;
+}
+
+.mk-if-carac-grid > div { min-width: 0; }
+
+.mk-if-carac-grid dt {
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--mk-tinta-40);
+    margin-bottom: .15rem;
+}
+
+.mk-if-carac-grid dd {
+    margin: 0;
+    font-size: .95rem;
+    color: var(--mk-tinta-100);
+    overflow-wrap: anywhere;
+}
+
+.mk-if-carac-eco {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--mk-tinta-20);
+}
+
+.mk-if-carac-eco .mk-rotulo { color: var(--mk-tinta-40); }
+.mk-if-carac-eco p { margin: .35rem 0 0; font-size: .92rem; line-height: 1.5; }
+
+/* Ubicaciones: un bloque por local/depósito, con sus posiciones como chips. */
+.mk-if-ubic {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.mk-if-ubic-cab {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .5rem;
+    padding-bottom: .35rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+
+.mk-if-ubic-cab strong { font-size: .95rem; }
+.mk-if-ubic-cab .mk-rotulo { color: var(--mk-tinta-40); }
+
+/* Órdenes de pedido: lista de filas nº + estado + tipo. Finalizada = tenue. */
+.mk-if-ordenes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.mk-if-orden {
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+    padding: .6rem 0;
+    border-bottom: 1px solid var(--mk-tinta-20);
+}
+.mk-if-orden:last-child { border-bottom: 0; }
+
+.mk-if-orden-nro { font-weight: 600; flex: 0 0 auto; }
+.mk-if-orden-centro { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.mk-if-orden-estado { color: var(--mk-tinta-70); font-size: .92rem; }
+.mk-if-orden-fecha { color: var(--mk-tinta-40); }
+.mk-if-orden-tipo { flex: 0 0 auto; color: var(--mk-tinta-40); }
+.mk-if-orden.es-fin { opacity: .55; }
+
+/* ---- Gráficos de la ficha (SVG inline, monocromo) ---- */
+
+/* Fila del stock: donas a la izquierda, acciones (público + reposición) a la derecha. */
+.mk-if-stock-fila {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.5rem 2.5rem;
+    margin-bottom: 1.25rem;
+}
+.mk-if-stock-donas { flex: 1 1 22rem; min-width: 0; }
+
+/* Acciones al lado del stock: apiladas, ancho acotado. */
+.mk-if-acciones {
+    flex: 0 1 24rem;
+    display: flex;
+    flex-direction: column;
+    gap: .8rem;
+}
+.mk-if-acciones .mk-if-visibilidad { margin: 0; }
+
+/* Dos donas (stock + tránsito) lado a lado. */
+.mk-if-donas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.75rem 2.5rem;
+}
+
+/* Cada dona: anillo (con su título arriba) + leyenda al lado. */
+.mk-if-grafico {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.mk-if-dona-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .35rem;
+    flex: 0 0 auto;
+}
+
+.mk-if-dona-wrap .mk-rotulo { color: var(--mk-tinta-40); }
+
+.mk-if-dona {
+    width: 120px;
+    height: 120px;
+    flex: 0 0 auto;
+    transform: rotate(0deg);
+}
+
+.mk-if-dona-track {
+    fill: none;
+    stroke: var(--mk-tinta-20);
+    stroke-width: 4;
+}
+
+.mk-if-dona-seg {
+    fill: none;
+    stroke-width: 4;
+}
+
+.mk-if-dona-centro {
+    font-size: 7px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    fill: var(--mk-tinta-100);
+}
+
+.mk-if-leyenda {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+}
+
+.mk-if-leyenda li {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .9rem;
+    color: var(--mk-tinta-70);
+}
+
+.mk-if-leyenda strong {
+    margin-left: auto;
+    color: var(--mk-tinta-100);
+}
+
+.mk-if-leyenda-punto {
+    width: .7rem;
+    height: .7rem;
+    border-radius: 2px;
+    flex: 0 0 auto;
+}
+
+/* Barras de ventas por semana. */
+.mk-if-grafico-ventas {
+    margin-top: 1rem;
+}
+
+.mk-if-grafico-ventas .mk-rotulo {
+    display: block;
+    color: var(--mk-tinta-40);
+    margin-bottom: .4rem;
+}
+
+.mk-if-linea {
+    width: 100%;
+    height: 96px;
+    display: block;
+}
+
+.mk-if-linea-base { stroke: var(--mk-tinta-20); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.mk-if-linea-area { fill: var(--mk-tinta-100); fill-opacity: .08; }
+.mk-if-linea-trazo {
+    fill: none;
+    stroke: var(--mk-tinta-100);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+/* Columnas por semana: hover resalta y muestra el número (sin JS). */
+.mk-if-linea-wrap { position: relative; }
+.mk-if-linea-hover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+}
+.mk-if-semana {
+    flex: 1 1 0;
+    position: relative;
+    cursor: default;
+}
+.mk-if-semana:hover { background: rgba(0, 0, 0, .06); }
+.mk-if-semana-num {
+    position: absolute;
+    top: -.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    white-space: nowrap;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--mk-tinta-100);
+    background: var(--mk-fondo);
+    padding: 0 .3rem;
+    pointer-events: none;
+    transition: opacity .1s ease;
+}
+.mk-if-semana:hover .mk-if-semana-num { opacity: 1; }
+
+/* Benchmark vs familia: monocromo. "arriba" = borde y bandera llenos; "abajo" = tenue/punteado. */
+.mk-if-benchmark {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.25rem;
+    padding: .75rem 1rem;
+    border: 1px solid var(--mk-tinta-20);
+    flex-wrap: wrap;
+}
+
+.mk-if-benchmark-info { display: flex; flex-direction: column; gap: .1rem; }
+.mk-if-benchmark-info .mk-rotulo { color: var(--mk-tinta-40); }
+.mk-if-benchmark-info strong { font-size: 1.05rem; }
+.mk-if-benchmark-nota { font-size: .78rem; color: var(--mk-tinta-40); }
+
+.mk-if-benchmark-flag {
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    padding: .3rem .6rem;
+    border: 1px solid var(--mk-tinta-40);
+    color: var(--mk-tinta-70);
+}
+
+.mk-if-benchmark.es-arriba { border-color: var(--mk-tinta-100); }
+.mk-if-benchmark.es-arriba .mk-if-benchmark-flag {
+    background: var(--mk-tinta-100);
+    color: var(--mk-fondo);
+    border-color: var(--mk-tinta-100);
+}
+.mk-if-benchmark.es-abajo .mk-if-benchmark-flag { border-style: dashed; }
 
 
 /* --------------------------------------------------------------------------
@@ -1964,8 +2351,7 @@
         gap: 1.5rem;
     }
 
-    /* Filtros internos como DRAWER deslizante (mismo mecanismo y chrome que el público:
-       el botón "Filtros", el backdrop y la cabecera con × son reglas genéricas mk-filtros-*). */
+    /* Drawer deslizante en celular. */
     .mk-int-filtros {
         position: fixed;
         top: 0;
@@ -1989,6 +2375,16 @@
         transform: translateX(0);
     }
 
+    /* Género y Orden: sólo visibles en el drawer de celular. */
+    .mk-int-grupo.mk-int-solo-mobile {
+        display: flex;
+    }
+
+    /* Orden vive en el drawer en mobile: se saca de la toolbar. */
+    .mk-int-toolbar .mk-orden-dd {
+        display: none;
+    }
+
     .mk-filtros-check:checked ~ .mk-int-cuerpo .mk-filtros-backdrop {
         display: block;
         opacity: 1;
@@ -1999,18 +2395,27 @@
         flex-basis: 100%;
     }
 
-    /* Toolbar en mobile: no sticky (apilado ocuparía mucho al quedar fijo) y en columna cómoda:
-       total + sucursal/combo/depósito arriba, después Actualizar, después Orden. */
+    /* Toolbar sticky en mobile (fila de dropdowns; Orden vive en el drawer). */
     .mk-int-toolbar {
-        position: static;
-        flex-direction: column;
-        align-items: stretch;
-        gap: .8rem;
+        position: sticky;
+        top: var(--mk-header-alto);
+        z-index: 5;
+        background: var(--mk-fondo);
+        justify-content: flex-start;
+        gap: .5rem 1rem;
     }
 
+    /* Filtros en una sola fila con scroll horizontal si no entran. */
     .mk-int-toolbar-izq {
-        gap: .5rem 1.1rem;
+        gap: .5rem 1rem;
+        align-items: center;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
     }
+    .mk-int-toolbar-izq::-webkit-scrollbar { display: none; }
+    .mk-int-toolbar-izq > * { flex: 0 0 auto; }
 
     .mk-int-actualizar {
         justify-content: flex-start;
@@ -2062,6 +2467,39 @@
         flex-direction: column;
         gap: .6rem;
     }
+
+    /* Compactos para entrar en una fila; envuelven si la pantalla es muy angosta. */
+    .mk-if-header-acciones {
+        flex-direction: row;
+        align-items: center;
+        align-self: stretch;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        overflow-x: visible;
+        gap: .3rem;
+    }
+    .mk-if-header-acciones .mk-if-carac-boton {
+        font-size: .58rem;
+        padding: .3rem .45rem;
+        letter-spacing: .02em;
+    }
+    .mk-if-header-acciones .mk-if-estado {
+        font-size: .58rem;
+        padding: .25rem .4rem;
+        gap: .3rem;
+    }
+    .mk-if-header-acciones .mk-if-estado span { width: .4rem; height: .4rem; }
+
+    /* Panel de características: una sola columna en celular. */
+    .mk-if-carac-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Stock centrado en mobile: donas + leyenda y acciones al medio. */
+    .mk-if-stock-fila { justify-content: center; }
+    .mk-if-donas { justify-content: center; }
+    .mk-if-grafico { justify-content: center; }
+    .mk-if-acciones { flex-basis: 100%; }
 
     .mk-if-visibilidad {
         flex-direction: column;

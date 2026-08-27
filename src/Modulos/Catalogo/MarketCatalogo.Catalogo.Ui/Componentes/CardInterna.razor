@@ -44,18 +44,20 @@
         <h3 class="mk-ic-titulo">@Articulo.Descripcion</h3>
         <p class="mk-ic-cod mk-rotulo">@Articulo.Codigo</p>
 
+        @* Precios apilados, igual que la card pública: combo en negrita arriba, precio unitario gris
+           abajo ("la unidad"). Sin combo, sólo el precio suelto. *@
         <div class="mk-ic-precios">
             @if (Articulo.ComboTexto is not null)
             {
-                <span class="mk-ic-combo">@Articulo.ComboTexto</span>
+                <p class="mk-ic-combo">@Articulo.ComboTexto</p>
             }
             @if (Articulo.PrecioUnidadCombo is decimal pu)
             {
-                <span class="mk-ic-venta">@Plata(pu) c/u</span>
+                <p class="mk-ic-venta">@Plata(pu) la unidad</p>
             }
             else if (Articulo.PrecioVenta is decimal pv)
             {
-                <span class="mk-ic-venta">@Plata(pv)</span>
+                <p class="mk-ic-venta">@Plata(pv)</p>
             }
         </div>
 

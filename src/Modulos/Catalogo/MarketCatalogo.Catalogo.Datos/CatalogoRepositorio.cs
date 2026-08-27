@@ -94,7 +94,16 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                    PrecioCompra = PC.PDIRECTO,
                    Proveedor = RTRIM(ISNULL(PROV.CLNOM, '')),
                    Temporada = RTRIM(ISNULL(TE.TDES, '')),
-                   Marca     = RTRIM(ISNULL(MK.DESCRIP, ''))
+                   Marca     = RTRIM(ISNULL(MK.DESCRIP, '')),
+                   -- ART.ANO viene mayormente en 2 dígitos (23=2023) con algo de basura (0/1/73…).
+                   -- Se normaliza a 4 dígitos; lo fuera de rango razonable queda NULL (sin año).
+                   -- CAST a int: A.ANO es numeric, y el record ArticuloBaseRow.Anio es int? (Dapper es
+                   -- estricto con el tipo del constructor del record).
+                   Anio      = CAST(CASE
+                                   WHEN A.ANO BETWEEN 2000 AND 2100 THEN A.ANO
+                                   WHEN A.ANO BETWEEN 15 AND 40    THEN 2000 + A.ANO
+                                   ELSE NULL
+                               END AS int)
             FROM ZooLogic.ART A WITH (NOLOCK)
             LEFT JOIN ZooLogic.TIPOART  TIPO WITH (NOLOCK) ON TIPO.COD = A.TIPOARTI
             LEFT JOIN ZooLogic.CATEGART CATE WITH (NOLOCK) ON CATE.COD = A.CATEARTI
@@ -273,7 +282,8 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Prenda               nvarchar(60)      NULL,
                 PrecioVenta          decimal(18,2)     NULL,
                 PrecioCompra         decimal(18,2)     NULL,
-                Combo                nvarchar(50)      NULL,
+                ComboCantidad        int               NULL,
+                ComboTotal           int               NULL,
                 EnLuro               bit           NOT NULL,
                 EnPeralta            bit           NOT NULL,
                 EnDeposito           bit           NOT NULL,
@@ -285,6 +295,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Proveedor            nvarchar(80)      NULL,
                 Temporada            nvarchar(80)      NULL,
                 Marca                nvarchar(80)      NULL,
+                Anio                 int               NULL,
                 TextoBusqueda        nvarchar(600)     NULL
             );
             """;
@@ -309,20 +320,21 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Publicado = CASE WHEN T.OcultarManual = 1 THEN 0 ELSE S.PublicadoBase END,
                 Slug = S.Slug,
                 Descripcion = S.Descripcion, Rubro = S.Rubro, Genero = S.Genero, Prenda = S.Prenda,
-                PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra, Combo = S.Combo,
+                PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra,
+                ComboCantidad = S.ComboCantidad, ComboTotal = S.ComboTotal,
                 EnLuro = S.EnLuro, EnPeralta = S.EnPeralta, EnDeposito = S.EnDeposito,
                 TallesCsv = S.TallesCsv, ColoresCsv = S.ColoresCsv,
                 TieneFoto = S.TieneFoto, FotoPrincipalVersion = S.FotoPrincipalVersion, FotosJson = S.FotosJson,
-                Proveedor = S.Proveedor, Temporada = S.Temporada, Marca = S.Marca,
+                Proveedor = S.Proveedor, Temporada = S.Temporada, Marca = S.Marca, Anio = S.Anio,
                 TextoBusqueda = S.TextoBusqueda
             WHEN NOT MATCHED BY TARGET THEN INSERT
                 (Codigo, Publicado, Eliminado, Slug, Descripcion, Rubro, Genero, Prenda,
-                 PrecioVenta, PrecioCompra, Combo, EnLuro, EnPeralta, EnDeposito, TallesCsv, ColoresCsv,
-                 TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, TextoBusqueda)
+                 PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito, TallesCsv, ColoresCsv,
+                 TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, Anio, TextoBusqueda)
                 VALUES
                 (S.Codigo, S.PublicadoBase, 0, S.Slug, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
-                 S.PrecioVenta, S.PrecioCompra, S.Combo, S.EnLuro, S.EnPeralta, S.EnDeposito, S.TallesCsv, S.ColoresCsv,
-                 S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.TextoBusqueda)
+                 S.PrecioVenta, S.PrecioCompra, S.ComboCantidad, S.ComboTotal, S.EnLuro, S.EnPeralta, S.EnDeposito, S.TallesCsv, S.ColoresCsv,
+                 S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.Anio, S.TextoBusqueda)
             WHEN NOT MATCHED BY SOURCE AND T.Eliminado = 0 THEN UPDATE SET Eliminado = 1;
             """;
         await cn.ExecuteAsync(new CommandDefinition(merge, commandTimeout: 120, cancellationToken: ct));
@@ -336,14 +348,42 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         var filtro = soloPublicados ? "AND Publicado = 1" : "";
         var sql = $"""
             SELECT Codigo, Publicado, Slug, Descripcion, Rubro, Genero, Prenda,
-                   PrecioVenta, PrecioCompra, Combo, EnLuro, EnPeralta, EnDeposito,
+                   PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito,
                    TallesCsv, ColoresCsv, TieneFoto, FotoPrincipalVersion, FotosJson,
-                   Proveedor, Temporada, Marca, Anio, FechaAlta, StockTotal, TopVentas, TextoBusqueda
+                   Proveedor, Temporada, Marca, Anio, TextoBusqueda
             FROM MARKET.dbo.Catalogo WITH (NOLOCK)
             WHERE Eliminado = 0 {filtro};
             """;
         using var cn = _db.CrearMarket();
         return (await cn.QueryAsync<CatalogoFilaLeida>(new CommandDefinition(sql, commandTimeout: 60, cancellationToken: ct))).ToList();
+    }
+
+    // Mismas columnas que LeerBaseAsync, reutilizadas por el lookup de una fila.
+    private const string ColumnasFila =
+        "Codigo, Publicado, Slug, Descripcion, Rubro, Genero, Prenda, " +
+        "PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito, " +
+        "TallesCsv, ColoresCsv, TieneFoto, FotoPrincipalVersion, FotosJson, " +
+        "Proveedor, Temporada, Marca, Anio, TextoBusqueda";
+
+    /// <inheritdoc/>
+    public async Task<CatalogoFilaLeida?> LeerFilaAsync(string codigo, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return null;
+        var sql = $"SELECT {ColumnasFila} FROM MARKET.dbo.Catalogo WITH (NOLOCK) WHERE Codigo = @cod AND Eliminado = 0;";
+        using var cn = _db.CrearMarket();
+        return await cn.QuerySingleOrDefaultAsync<CatalogoFilaLeida>(
+            new CommandDefinition(sql, new { cod }, commandTimeout: 30, cancellationToken: ct));
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> LeerCodigosPorPrendaAsync(string prenda, CancellationToken ct = default)
+    {
+        var p = (prenda ?? "").Trim();
+        if (p.Length == 0) return Array.Empty<string>();
+        const string sql = "SELECT Codigo FROM MARKET.dbo.Catalogo WITH (NOLOCK) WHERE Eliminado = 0 AND Prenda = @p;";
+        using var cn = _db.CrearMarket();
+        return (await cn.QueryAsync<string>(new CommandDefinition(sql, new { p }, commandTimeout: 30, cancellationToken: ct))).ToList();
     }
 
     /// <summary>MARKET: ruta de la foto principal de un artículo, sacada de FotosJson ($[0].link). Con
@@ -407,8 +447,9 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         var ventana = dias > 0 ? dias : 56;
         var hasta = DateTime.Today.AddDays(1);          // exclusivo → incluye todo el día de hoy
         var desde = DateTime.Today.AddDays(-ventana);
+        var semanas = Math.Max(1, ventana / 7);
         var stockVacio = new StockDetalleRow(0, 0, 0, 0, 0, 0);
-        var ventasVacio = new VentasPeriodoRow(ventana, 0, 0, 0, 0, 0, null);
+        var ventasVacio = new VentasPeriodoRow(ventana, 0, 0, 0, 0, 0, null, new decimal[semanas]);
         if (cod.Length == 0) return new FichaDatosRow(stockVacio, ventasVacio);
 
         // Una conexión por réplica (pico de 3): cada tienda resuelve stock + ventas juntos; central, stock +
@@ -447,9 +488,148 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                   + ventasPeralta.Sum(d => CostoDelDia(d.Dia, d.Unidades));
         DateTime? ultima = ventasLuro.Concat(ventasPeralta).Select(d => (DateTime?)d.Dia).DefaultIfEmpty(null).Max();
 
+        // Unidades por semana (bucket 0 = semana más vieja, N-1 = la más reciente), Luro + Peralta juntos.
+        // Es para el gráfico de barras de la ficha; el índice sale de los días transcurridos desde 'desde'.
+        var buckets = new decimal[semanas];
+        foreach (var d in ventasLuro.Concat(ventasPeralta))
+        {
+            var idx = (int)((d.Dia.Date - desde.Date).TotalDays / 7);
+            buckets[Math.Clamp(idx, 0, semanas - 1)] += d.Unidades;
+        }
+
         var ventas = new VentasPeriodoRow(ventana, vendidoLuro + vendidoPeralta, vendidoLuro, vendidoPeralta,
-            facturado, costo, ultima);
+            facturado, costo, ultima, buckets);
         return new FichaDatosRow(stock, ventas);
+    }
+
+    /// <inheritdoc/>
+    public async Task<CaracteristicasRow?> TraerCaracteristicasAsync(string codigo, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return null;
+
+        // Un solo código contra Dragon central. Tratamiento = ARTDESADIC (texto libre), Característica =
+        // UNIMED (unidad de medida). El resto se resuelve a su descripción por su maestro; "" si no matchea.
+        // OJO: CLASIFART NO se usa acá — en este sistema guarda el combo, no una clasificación.
+        const string sql = """
+            SELECT
+                Tratamiento   = RTRIM(ISNULL(A.ARTDESADIC, '')),
+                Linea         = RTRIM(ISNULL(LI.DESCRIP, '')),
+                Subfamilia    = RTRIM(ISNULL(GR.DESCRIP, '')),
+                Material      = RTRIM(ISNULL(MA.MATDES, '')),
+                Paleta        = RTRIM(ISNULL(PC.DESCRIP, '')),
+                CurvaTalles   = RTRIM(ISNULL(CT.DESCRIP, '')),
+                Caracteristica= RTRIM(ISNULL(UM.DESCRIP, '')),
+                DescEcommerce = CAST(A.DESECO AS nvarchar(max)),
+                PubEcommerce  = ISNULL(A.PUBECOM, 0)
+            FROM ZooLogic.ART A WITH (NOLOCK)
+            LEFT JOIN ZooLogic.LINEA  LI WITH (NOLOCK) ON LI.COD    = A.LINEA
+            LEFT JOIN ZooLogic.GRUPO  GR WITH (NOLOCK) ON GR.COD    = A.GRUPO
+            LEFT JOIN ZooLogic.MAT    MA WITH (NOLOCK) ON MA.MATCOD = A.MAT
+            LEFT JOIN ZooLogic.PCOLOR PC WITH (NOLOCK) ON PC.CODIGO = A.PALCOL
+            LEFT JOIN ZooLogic.CTALLE CT WITH (NOLOCK) ON CT.CODIGO = A.CURTALL
+            LEFT JOIN ZooLogic.UNMED  UM WITH (NOLOCK) ON UM.COD    = A.UNIMED
+            WHERE RTRIM(A.ARTCOD) = @cod;
+            """;
+        using var cn = _db.CrearDragon();
+        return await cn.QuerySingleOrDefaultAsync<CaracteristicasRow>(
+            new CommandDefinition(sql, new { cod }, commandTimeout: 60, cancellationToken: ct));
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<UbicacionDetalleRow>> TraerUbicacionesDetalleAsync(string codigo, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return Array.Empty<UbicacionDetalleRow>();
+
+        // Mismas tablas que TraerUbicacionesAsync, pero con el detalle de posición y para un solo código.
+        // DISTINCT porque un artículo puede tener varias filas de MapeoRegistro para la misma posición.
+        const string sql = """
+            SELECT DISTINCT
+                Local      = RTRIM(UB.Descripcion),
+                Tipo       = RTRIM(UT.Descripcion),
+                Mobiliario = NULLIF(RTRIM(ISNULL(MAP.Mobiliario, '')), ''),
+                Modulo     = NULLIF(RTRIM(ISNULL(MAP.Modulo, '')), ''),
+                Pasillo    = NULLIF(RTRIM(ISNULL(MAP.Pasillo, '')), ''),
+                Fila       = MAP.Fila,
+                Posicion   = MAP.Posicion
+            FROM MARKET.dbo.MapeoRegistro   REG WITH (NOLOCK)
+            JOIN MARKET.dbo.Mapeo           MAP WITH (NOLOCK) ON MAP.ID = REG.IDMapeo
+            JOIN MARKET.dbo.Ubicaciones     UB  WITH (NOLOCK) ON UB.ID  = MAP.IDUbicacion
+            JOIN MARKET.dbo.UbicacionesTipo UT  WITH (NOLOCK) ON UT.ID  = UB.IDTipo
+            WHERE REG.Eliminado = 0 AND MAP.Eliminado = 0 AND RTRIM(REG.ARTCOD) = @cod
+            ORDER BY Tipo, Local, Fila, Posicion;
+            """;
+        using var cn = _db.CrearMarket();
+        return (await cn.QueryAsync<UbicacionDetalleRow>(
+            new CommandDefinition(sql, new { cod }, commandTimeout: 60, cancellationToken: ct))).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<decimal> TraerFacturadoTotalAsync(IReadOnlyCollection<string> codigos, int dias, CancellationToken ct = default)
+    {
+        if (codigos.Count == 0) return 0m;
+        var ventana = dias > 0 ? dias : 56;
+        var hasta = DateTime.Today.AddDays(1);
+        var desde = DateTime.Today.AddDays(-ventana);
+
+        // Facturado (firmado por SIGNOMOV) de un conjunto de códigos, mismos filtros que SqlVentasDia.
+        const string sql = """
+            SELECT ISNULL(SUM(D.MNTPTOT * C.SIGNOMOV), 0)
+            FROM ZooLogic.COMPROBANTEV     C WITH (NOLOCK)
+            JOIN ZooLogic.COMPROBANTEVDET  D WITH (NOLOCK) ON C.CODIGO = D.CODIGO
+            WHERE RTRIM(D.FART) IN @codigos
+              AND C.ANULADO = 0 AND C.FLETRA <> 'R'
+              AND C.FFCH >= @desde AND C.FFCH < @hasta
+              AND LEFT(RTRIM(D.FART), 1) NOT IN ('Z', '1');
+            """;
+
+        // Una réplica: suma por lotes de 500 (límite de parámetros). Tolerante: si no responde, aporta 0.
+        async Task<decimal> PorReplica(Func<SqlConnection> abrir, string origen)
+        {
+            try
+            {
+                using var cn = abrir();
+                await cn.OpenAsync(ct);
+                decimal total = 0m;
+                foreach (var lote in codigos.Chunk(TamanioLote))
+                    total += await cn.ExecuteScalarAsync<decimal>(new CommandDefinition(
+                        sql, new { codigos = lote, desde, hasta }, commandTimeout: 120, cancellationToken: ct));
+                return total;
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "No se pudo leer facturado de familia en {Origen}; se toma 0.", origen);
+                return 0m;
+            }
+        }
+
+        var luro = PorReplica(_db.CrearLuro, "LURO");
+        var peralta = PorReplica(_db.CrearPeralta, "PERALTA");
+        await Task.WhenAll(luro, peralta);
+        return luro.Result + peralta.Result;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<OrdenPedidoRow>> TraerOrdenesPedidoAsync(string codigo, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return Array.Empty<OrdenPedidoRow>();
+
+        // Eliminado y Finalizada son int en PedidosOrdenes; Finalizada se normaliza a bit.
+        const string sql = """
+            SELECT NroOrden,
+                   Tipo       = RTRIM(ISNULL(Tipo, '')),
+                   Estado     = RTRIM(ISNULL(Estado, '')),
+                   Finalizada = CAST(CASE WHEN ISNULL(Finalizada, 0) <> 0 THEN 1 ELSE 0 END AS bit),
+                   FechaMod   = FechaModificacionAsana
+            FROM MARKET.dbo.PedidosOrdenes WITH (NOLOCK)
+            WHERE Eliminado = 0 AND RTRIM(ARTCOD) = @cod
+            ORDER BY NroOrden DESC;
+            """;
+        using var cn = _db.CrearMarket();
+        return (await cn.QueryAsync<OrdenPedidoRow>(
+            new CommandDefinition(sql, new { cod }, commandTimeout: 60, cancellationToken: ct))).ToList();
     }
 
     // Una tienda (Luro/Peralta) por UNA conexión: stock (COMB) + ventas por día en un solo QueryMultiple.
@@ -514,6 +694,52 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             new { cod, ocultar = ocultar ? 1 : 0, auditoria, publicado }, commandTimeout: 30, cancellationToken: ct));
     }
 
+    /// <inheritdoc/>
+    public async Task<bool> EstaBloqueadoAsync(string codigo, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return false;
+        using var cn = _db.CrearMarket();
+        return await cn.ExecuteScalarAsync<int>(new CommandDefinition("""
+            SELECT CASE WHEN EXISTS (
+                SELECT 1 FROM MARKET.dbo.RepoArticulosBloqueados WITH (NOLOCK)
+                WHERE RTRIM(ARTCOD) = @cod AND Eliminado = 0) THEN 1 ELSE 0 END;
+            """, new { cod }, commandTimeout: 30, cancellationToken: ct)) == 1;
+    }
+
+    /// <inheritdoc/>
+    public async Task CambiarBloqueoAsync(string codigo, bool bloquear, string origen, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return;
+        var auditoria = $"{(bloquear ? "Bloqueo" : "Desbloqueo")} | {origen} | {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
+
+        using var cn = _db.CrearMarket();
+        if (bloquear)
+        {
+            // Alta idempotente: sólo si no hay ya una fila activa (así no se duplican bloqueos).
+            await cn.ExecuteAsync(new CommandDefinition("""
+                IF NOT EXISTS (SELECT 1 FROM MARKET.dbo.RepoArticulosBloqueados
+                               WHERE RTRIM(ARTCOD) = @cod AND Eliminado = 0)
+                    INSERT INTO MARKET.dbo.RepoArticulosBloqueados
+                        (ARTCOD, Local, Motivo, FechaAlta, Usuario, Eliminado, Auditoria)
+                    VALUES (@cod, NULL, @motivo, GETDATE(), @origen, 0, @auditoria);
+                """,
+                new { cod, motivo = "Bloqueo manual desde catálogo interno", origen, auditoria },
+                commandTimeout: 30, cancellationToken: ct));
+        }
+        else
+        {
+            // Baja lógica de la(s) fila(s) activa(s).
+            await cn.ExecuteAsync(new CommandDefinition("""
+                UPDATE MARKET.dbo.RepoArticulosBloqueados
+                   SET Eliminado = 1, FechaBaja = GETDATE(), Auditoria = @auditoria
+                 WHERE RTRIM(ARTCOD) = @cod AND Eliminado = 0;
+                """,
+                new { cod, auditoria }, commandTimeout: 30, cancellationToken: ct));
+        }
+    }
+
     // DataTable con el mismo orden/nombres que #stage. Los nullables van como DBNull; los bits siempre
     // con valor. SqlBulkCopy mapea por nombre (ColumnMappings), no por posición, pero se respeta igual.
     private static DataTable ArmarDataTable(IReadOnlyList<CatalogoFilaBase> filas)
@@ -528,7 +754,8 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         t.Columns.Add("Prenda", typeof(string));
         t.Columns.Add("PrecioVenta", typeof(decimal));
         t.Columns.Add("PrecioCompra", typeof(decimal));
-        t.Columns.Add("Combo", typeof(string));
+        t.Columns.Add("ComboCantidad", typeof(int));
+        t.Columns.Add("ComboTotal", typeof(int));
         t.Columns.Add("EnLuro", typeof(bool));
         t.Columns.Add("EnPeralta", typeof(bool));
         t.Columns.Add("EnDeposito", typeof(bool));
@@ -540,6 +767,7 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         t.Columns.Add("Proveedor", typeof(string));
         t.Columns.Add("Temporada", typeof(string));
         t.Columns.Add("Marca", typeof(string));
+        t.Columns.Add("Anio", typeof(int));
         t.Columns.Add("TextoBusqueda", typeof(string));
 
         static object N(object? v) => v ?? DBNull.Value;
@@ -547,11 +775,11 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             t.Rows.Add(
                 f.Codigo, f.PublicadoBase, N(f.Slug), N(f.Descripcion),
                 N(f.Rubro), N(f.Genero), N(f.Prenda),
-                N(f.PrecioVenta), N(f.PrecioCompra), N(f.Combo),
+                N(f.PrecioVenta), N(f.PrecioCompra), N(f.ComboCantidad), N(f.ComboTotal),
                 f.EnLuro, f.EnPeralta, f.EnDeposito,
                 N(f.TallesCsv), N(f.ColoresCsv),
                 f.TieneFoto, N(f.FotoPrincipalVersion), N(f.FotosJson),
-                N(f.Proveedor), N(f.Temporada), N(f.Marca),
+                N(f.Proveedor), N(f.Temporada), N(f.Marca), N(f.Anio),
                 N(f.TextoBusqueda));
         return t;
     }

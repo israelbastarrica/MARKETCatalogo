@@ -55,7 +55,9 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         //   · características extendidas (Dragon central),
         //   · ubicaciones actuales con detalle de posición (MARKET).
         var datosT = TraerSeguro(() => _repo.TraerFichaStockVentasAsync(cod, _semanasVentas * 7, ct));
-        var caracT = TraerSeguro(() => _repo.TraerCaracteristicasAsync(cod, ct));
+        // El '!' es porque TraerCaracteristicasAsync puede devolver null (código no está en Dragon) y
+        // TraerSeguro<T> exige T no-anulable; el null real lo maneja Mapear (carac?.). Evita CS8634/CS8621.
+        var caracT = TraerSeguro(async () => (await _repo.TraerCaracteristicasAsync(cod, ct))!);
         var ubicT = TraerSeguro(() => _repo.TraerUbicacionesDetalleAsync(cod, ct));
         var ordT = TraerSeguro(() => _repo.TraerOrdenesPedidoAsync(cod, ct));
         var bloqT = TraerBoolSeguro(() => _repo.EstaBloqueadoAsync(cod, ct));

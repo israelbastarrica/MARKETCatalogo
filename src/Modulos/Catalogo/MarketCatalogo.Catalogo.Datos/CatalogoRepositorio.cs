@@ -16,7 +16,7 @@ namespace MarketCatalogo.Catalogo.Datos;
 ///
 /// Corre una vez cada 5 minutos, no por request.
 /// </summary>
-public sealed class CatalogoRepositorio : ICatalogoRepositorio
+public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
 {
     // Los códigos viajan como parámetros, en lotes: así la consulta no depende de que las dos bases
     // estén en la misma instancia. 500 por lote deja margen sobre el límite de 2100 parámetros de SQL
@@ -280,9 +280,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Rubro                nvarchar(60)      NULL,
                 Genero               nvarchar(60)      NULL,
                 Prenda               nvarchar(60)      NULL,
-                RubroSlug            varchar(80)       NULL,
-                GeneroSlug           varchar(80)       NULL,
-                PrendaSlug           varchar(80)       NULL,
                 PrecioVenta          decimal(18,2)     NULL,
                 PrecioCompra         decimal(18,2)     NULL,
                 ComboCantidad        int               NULL,
@@ -290,8 +287,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 EnLuro               bit           NOT NULL,
                 EnPeralta            bit           NOT NULL,
                 EnDeposito           bit           NOT NULL,
-                TallesCsv            nvarchar(400)     NULL,
-                ColoresCsv           nvarchar(800)     NULL,
                 TieneFoto            bit           NOT NULL,
                 FotoPrincipalVersion varchar(40)       NULL,
                 FotosJson            nvarchar(max)     NULL,
@@ -328,23 +323,19 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
                 Publicado = CASE WHEN T.OcultarManual = 1 THEN 0 ELSE S.PublicadoBase END,
                 Slug = S.Slug,
                 Descripcion = S.Descripcion, Rubro = S.Rubro, Genero = S.Genero, Prenda = S.Prenda,
-                RubroSlug = S.RubroSlug, GeneroSlug = S.GeneroSlug, PrendaSlug = S.PrendaSlug,
                 PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra,
                 ComboCantidad = S.ComboCantidad, ComboTotal = S.ComboTotal,
                 EnLuro = S.EnLuro, EnPeralta = S.EnPeralta, EnDeposito = S.EnDeposito,
-                TallesCsv = S.TallesCsv, ColoresCsv = S.ColoresCsv,
                 TieneFoto = S.TieneFoto, FotoPrincipalVersion = S.FotoPrincipalVersion, FotosJson = S.FotosJson,
                 Proveedor = S.Proveedor, Temporada = S.Temporada, Marca = S.Marca, Anio = S.Anio,
                 TextoBusqueda = S.TextoBusqueda
             WHEN NOT MATCHED BY TARGET THEN INSERT
                 (Codigo, Publicado, Eliminado, Slug, Descripcion, Rubro, Genero, Prenda,
-                 RubroSlug, GeneroSlug, PrendaSlug,
-                 PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito, TallesCsv, ColoresCsv,
+                 PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito,
                  TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, Anio, TextoBusqueda)
                 VALUES
                 (S.Codigo, S.PublicadoBase, 0, S.Slug, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
-                 S.RubroSlug, S.GeneroSlug, S.PrendaSlug,
-                 S.PrecioVenta, S.PrecioCompra, S.ComboCantidad, S.ComboTotal, S.EnLuro, S.EnPeralta, S.EnDeposito, S.TallesCsv, S.ColoresCsv,
+                 S.PrecioVenta, S.PrecioCompra, S.ComboCantidad, S.ComboTotal, S.EnLuro, S.EnPeralta, S.EnDeposito,
                  S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.Anio, S.TextoBusqueda)
             WHEN NOT MATCHED BY SOURCE AND T.Eliminado = 0 THEN UPDATE SET Eliminado = 1;
             """;
@@ -389,32 +380,34 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
     /// publicadas es una lectura local barata (el modelo tabla-como-caché: la tabla ES el caché).</summary>
     public async Task<IReadOnlyList<CatalogoFilaLeida>> LeerBaseAsync(bool soloPublicados, CancellationToken ct = default)
     {
-        var filtro = soloPublicados ? "AND Publicado = 1" : "";
+        var filtro = soloPublicados ? "AND c.Publicado = 1" : "";
         var sql = $"""
-            SELECT Codigo, Publicado, Slug, Descripcion, Rubro, Genero, Prenda,
-                   PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito,
-                   TallesCsv, ColoresCsv, TieneFoto, FotoPrincipalVersion, FotosJson,
-                   Proveedor, Temporada, Marca, Anio, TextoBusqueda
-            FROM MARKET.dbo.Catalogo WITH (NOLOCK)
-            WHERE Eliminado = 0 {filtro};
+            SELECT {ColumnasFila}
+            FROM MARKET.dbo.Catalogo c WITH (NOLOCK)
+            WHERE c.Eliminado = 0 {filtro};
             """;
         using var cn = _db.CrearMarket();
         return (await cn.QueryAsync<CatalogoFilaLeida>(new CommandDefinition(sql, commandTimeout: 60, cancellationToken: ct))).ToList();
     }
 
-    // Mismas columnas que LeerBaseAsync, reutilizadas por el lookup de una fila.
-    private const string ColumnasFila =
-        "Codigo, Publicado, Slug, Descripcion, Rubro, Genero, Prenda, " +
-        "PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito, " +
-        "TallesCsv, ColoresCsv, TieneFoto, FotoPrincipalVersion, FotosJson, " +
-        "Proveedor, Temporada, Marca, Anio, TextoBusqueda";
+    // Columnas que arman un CatalogoFilaLeida. Requiere el alias c en la tabla base. Talle/color ya no son
+    // columnas: se reconstruyen para MOSTRAR desde las tablas hijas con STRING_AGG (talle en orden de curva,
+    // color alfabético) — barato porque sólo corre para las filas seleccionadas.
+    private const string ColumnasFila = """
+        c.Codigo, c.Publicado, c.Slug, c.Descripcion, c.Rubro, c.Genero, c.Prenda,
+        c.PrecioVenta, c.PrecioCompra, c.ComboCantidad, c.ComboTotal, c.EnLuro, c.EnPeralta, c.EnDeposito,
+        TallesCsv = (SELECT STRING_AGG(t.Talle, ',') WITHIN GROUP (ORDER BY t.Orden) FROM dbo.CatalogoTalle t WHERE t.Codigo = c.Codigo),
+        ColoresCsv = (SELECT STRING_AGG(cc.Color, ',') WITHIN GROUP (ORDER BY cc.Color) FROM dbo.CatalogoColor cc WHERE cc.Codigo = c.Codigo),
+        c.TieneFoto, c.FotoPrincipalVersion, c.FotosJson,
+        c.Proveedor, c.Temporada, c.Marca, c.Anio, c.TextoBusqueda
+        """;
 
     /// <inheritdoc/>
     public async Task<CatalogoFilaLeida?> LeerFilaAsync(string codigo, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
         if (cod.Length == 0) return null;
-        var sql = $"SELECT {ColumnasFila} FROM MARKET.dbo.Catalogo WITH (NOLOCK) WHERE Codigo = @cod AND Eliminado = 0;";
+        var sql = $"SELECT {ColumnasFila} FROM MARKET.dbo.Catalogo c WITH (NOLOCK) WHERE c.Codigo = @cod AND c.Eliminado = 0;";
         using var cn = _db.CrearMarket();
         return await cn.QuerySingleOrDefaultAsync<CatalogoFilaLeida>(
             new CommandDefinition(sql, new { cod }, commandTimeout: 30, cancellationToken: ct));
@@ -796,9 +789,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         t.Columns.Add("Rubro", typeof(string));
         t.Columns.Add("Genero", typeof(string));
         t.Columns.Add("Prenda", typeof(string));
-        t.Columns.Add("RubroSlug", typeof(string));
-        t.Columns.Add("GeneroSlug", typeof(string));
-        t.Columns.Add("PrendaSlug", typeof(string));
         t.Columns.Add("PrecioVenta", typeof(decimal));
         t.Columns.Add("PrecioCompra", typeof(decimal));
         t.Columns.Add("ComboCantidad", typeof(int));
@@ -806,8 +796,6 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
         t.Columns.Add("EnLuro", typeof(bool));
         t.Columns.Add("EnPeralta", typeof(bool));
         t.Columns.Add("EnDeposito", typeof(bool));
-        t.Columns.Add("TallesCsv", typeof(string));
-        t.Columns.Add("ColoresCsv", typeof(string));
         t.Columns.Add("TieneFoto", typeof(bool));
         t.Columns.Add("FotoPrincipalVersion", typeof(string));
         t.Columns.Add("FotosJson", typeof(string));
@@ -822,10 +810,8 @@ public sealed class CatalogoRepositorio : ICatalogoRepositorio
             t.Rows.Add(
                 f.Codigo, f.PublicadoBase, N(f.Slug), N(f.Descripcion),
                 N(f.Rubro), N(f.Genero), N(f.Prenda),
-                N(f.RubroSlug), N(f.GeneroSlug), N(f.PrendaSlug),
                 N(f.PrecioVenta), N(f.PrecioCompra), N(f.ComboCantidad), N(f.ComboTotal),
                 f.EnLuro, f.EnPeralta, f.EnDeposito,
-                N(f.TallesCsv), N(f.ColoresCsv),
                 f.TieneFoto, N(f.FotoPrincipalVersion), N(f.FotosJson),
                 N(f.Proveedor), N(f.Temporada), N(f.Marca), N(f.Anio),
                 N(f.TextoBusqueda));

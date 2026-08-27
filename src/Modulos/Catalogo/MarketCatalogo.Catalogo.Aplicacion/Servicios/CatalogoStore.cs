@@ -31,6 +31,10 @@ public sealed class CatalogoStore
     private volatile bool _rebuildEnCurso;
     // Reloj de la base, en memoria. null = nunca construida en esta instancia del proceso.
     private DateTime? _baseActualizada;
+    // Mapa slug→valor de la taxonomía (rubro/género/prenda), rearmado con la base. Es lo ÚNICO que
+    // queda en RAM del catálogo: ~decenas de entradas, no las filas. Deja que la grilla filtre por slug
+    // (el de la URL) sin materializar columnas slug — el servicio traduce a valor y el repo filtra por él.
+    private volatile TaxonomiaMapa _taxonomia = TaxonomiaMapa.Vacio;
 
     public CatalogoStore(ICatalogoRepositorio repo, ILogger<CatalogoStore> log, IConfiguration cfg)
     {
@@ -44,6 +48,8 @@ public sealed class CatalogoStore
 
     public DateTime? BaseActualizada => _baseActualizada;
     public TimeSpan Ttl => _ttl;
+    /// <summary>Mapa slug→valor de la taxonomía, para traducir los filtros de la URL antes de consultar.</summary>
+    public TaxonomiaMapa Taxonomia => _taxonomia;
 
     /// <summary>Reconstruye la base y la persiste, esperando a que termine. La usa el warmup de arranque
     /// (arranque en frío) y el botón "Actualizar". Single-flight: si ya hay un rebuild en curso, espera a
@@ -94,6 +100,7 @@ public sealed class CatalogoStore
         var reloj = Stopwatch.StartNew();
         var filas = await ConstruirFilasAsync(ct);
         await _repo.GuardarBaseAsync(filas, ct);
+        _taxonomia = TaxonomiaMapa.Construir(filas);   // el mapita slug→valor, del mismo universo recién armado
         reloj.Stop();
 
         // Cuenta la base publicable (antes de aplicar el ocultar-manual, que el MERGE combina en la tabla).
@@ -257,9 +264,6 @@ public sealed class CatalogoStore
                 Rubro: rubro,
                 Genero: genero,
                 Prenda: familia,
-                RubroSlug: Texto.Slug(rubro),
-                GeneroSlug: Texto.Slug(genero),
-                PrendaSlug: string.IsNullOrWhiteSpace(familia) ? null : Texto.Slug(familia),
                 PrecioVenta: a.PrecioSuelta > 0 ? a.PrecioSuelta : null,
                 PrecioCompra: a.PrecioCompra > 0 ? a.PrecioCompra : null,
                 ComboCantidad: combo?.Cantidad,
@@ -267,8 +271,6 @@ public sealed class CatalogoStore
                 EnLuro: enLuro,
                 EnPeralta: enPeralta,
                 EnDeposito: enDeposito,
-                TallesCsv: string.Join(',', talles.Select(t => t.Talle)),
-                ColoresCsv: string.Join(',', colores),
                 Talles: talles,
                 Colores: colores,
                 TieneFoto: tieneFoto,
@@ -326,4 +328,58 @@ public sealed class CatalogoStore
         catch { /* sin acceso al disco: fallback */ }
         return ((uint)StringComparer.Ordinal.GetHashCode(rutaEnBase)).ToString("x");
     }
+}
+
+/// <summary>
+/// Mapa slug→valor de la taxonomía (rubro/género/prenda). Los filtros de la grilla viajan por slug (URL);
+/// la tabla guarda el valor. En vez de materializar columnas slug, se traduce con este mapita chico
+/// (~decenas de entradas), rearmado en cada rebuild desde el mismo universo. Un slug puede mapear a más de
+/// un valor (colisión rara), por eso cada uno guarda una lista.
+/// </summary>
+public sealed class TaxonomiaMapa
+{
+    public static readonly TaxonomiaMapa Vacio = new(
+        new Dictionary<string, IReadOnlyList<string>>(), new Dictionary<string, IReadOnlyList<string>>(),
+        new Dictionary<string, IReadOnlyList<string>>());
+
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<string>> _rubro;
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<string>> _genero;
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<string>> _prenda;
+
+    private TaxonomiaMapa(
+        IReadOnlyDictionary<string, IReadOnlyList<string>> rubro,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> genero,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> prenda)
+    {
+        _rubro = rubro; _genero = genero; _prenda = prenda;
+    }
+
+    public static TaxonomiaMapa Construir(IReadOnlyList<CatalogoFilaBase> filas) => new(
+        Armar(filas.Select(f => f.Rubro)),
+        Armar(filas.Select(f => f.Genero)),
+        Armar(filas.Select(f => f.Prenda)));
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> Armar(IEnumerable<string?> valores) =>
+        valores.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!.Trim())
+               .Distinct(StringComparer.OrdinalIgnoreCase)
+               .GroupBy(Texto.Slug, StringComparer.OrdinalIgnoreCase)
+               .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Valores de rubro para una lista de slugs (unión).</summary>
+    public IReadOnlyList<string> Rubros(IEnumerable<string> slugs) => Traducir(_rubro, slugs);
+    public IReadOnlyList<string> Generos(IEnumerable<string> slugs) => Traducir(_genero, slugs);
+    public IReadOnlyList<string> Prendas(IEnumerable<string> slugs) => Traducir(_prenda, slugs);
+
+    /// <summary>Valor único de rubro para un slug de ruta (el primero si hubiera colisión). null si no matchea.</summary>
+    public string? RubroUno(string? slug) => Uno(_rubro, slug);
+    public string? GeneroUno(string? slug) => Uno(_genero, slug);
+
+    private static IReadOnlyList<string> Traducir(
+        IReadOnlyDictionary<string, IReadOnlyList<string>> mapa, IEnumerable<string> slugs)
+        => slugs.SelectMany(s => mapa.GetValueOrDefault(s.Trim()) ?? Array.Empty<string>())
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    private static string? Uno(IReadOnlyDictionary<string, IReadOnlyList<string>> mapa, string? slug)
+        => string.IsNullOrWhiteSpace(slug) ? null
+           : mapa.GetValueOrDefault(slug.Trim()) is { Count: > 0 } vs ? vs[0] : null;
 }

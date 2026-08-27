@@ -63,11 +63,10 @@ BEGIN
         Rubro                nvarchar(60)      NULL,   -- TIPOART.DESCRIP  (ej 'Indumentaria')
         Genero               nvarchar(60)      NULL,   -- CATEGART.DESCRIP (ej 'Mujer')
         Prenda               nvarchar(60)      NULL,   -- FAMILIA.DESCRIP  (ej 'Chomba')
-        -- Slugs de la taxonomía: los filtros de la grilla viajan por slug; materializados se filtra/agrupa
-        -- en SQL sin traducir en C#. Los computa el rebuild (Texto.Slug, que saca acentos).
-        RubroSlug            varchar(80)       NULL,   -- ej 'indumentaria'
-        GeneroSlug           varchar(80)       NULL,   -- ej 'mujer'
-        PrendaSlug           varchar(80)       NULL,   -- ej 'chomba'
+        -- Los filtros de la grilla viajan por slug; NO hay columna slug: el rebuild arma un mapa slug→valor
+        -- en memoria (~decenas de entradas) y el servicio traduce antes de consultar. La tabla guarda sólo
+        -- el valor (que además es lo que se muestra); las facetas agrupan por valor y el servicio le calcula
+        -- el slug. Evita duplicar el valor y no mete lógica de slug en SQL.
 
         -- Precio / combo
         PrecioVenta          decimal(18,2)     NULL,   -- PRECIOAR LISTA1 (1 unidad suelta, trae recargo)
@@ -80,9 +79,9 @@ BEGIN
         EnPeralta            bit           NOT NULL CONSTRAINT DF_Catalogo_EnPeralta  DEFAULT (0),
         EnDeposito           bit           NOT NULL CONSTRAINT DF_Catalogo_EnDeposito DEFAULT (0),
 
-        -- Variantes (de las COMPRAS: PRECOMPRA->REMCOMPRA + fallback CURTALL)
-        TallesCsv            nvarchar(400)     NULL,   -- ej 'S,M,L,XL'
-        ColoresCsv           nvarchar(800)     NULL,   -- ej 'Negro,Blanco,Único'
+        -- Variantes (talle/color): NO viven acá — están normalizadas en las tablas hijas CatalogoTalle /
+        -- CatalogoColor (ver abajo). La card/ficha reconstruye la lista mostrable con STRING_AGG. Se sacó la
+        -- CSV para no duplicar el dato.
 
         -- Fotos (N por artículo)
         TieneFoto            bit           NOT NULL CONSTRAINT DF_Catalogo_TieneFoto DEFAULT (0),
@@ -111,7 +110,6 @@ BEGIN
     -- Índices para los filtros más comunes (tabla chica ~1.554 filas, pero prolijo).
     CREATE INDEX IX_Catalogo_Publicado    ON dbo.Catalogo (Publicado, Eliminado);
     CREATE INDEX IX_Catalogo_Taxonomia    ON dbo.Catalogo (Rubro, Genero, Prenda);
-    CREATE INDEX IX_Catalogo_TaxonomiaSlug ON dbo.Catalogo (RubroSlug, GeneroSlug, PrendaSlug);
     CREATE INDEX IX_Catalogo_Ubicacion    ON dbo.Catalogo (EnDeposito, EnLuro, EnPeralta);
     CREATE INDEX IX_Catalogo_Combo        ON dbo.Catalogo (ComboCantidad, ComboTotal);
     CREATE INDEX IX_Catalogo_Anio         ON dbo.Catalogo (Anio);

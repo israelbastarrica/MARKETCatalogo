@@ -34,6 +34,19 @@ public interface ICatalogoRepositorio
     /// todo el universo (vista interna). Siempre excluye <c>Eliminado = 1</c>.</summary>
     Task<IReadOnlyList<CatalogoFilaLeida>> LeerBaseAsync(bool soloPublicados, CancellationToken ct = default);
 
+    /// <summary>MARKET: resuelve la grilla PÚBLICA en SQL — filtra (<c>WHERE</c>), pagina
+    /// (<c>OFFSET/FETCH</c>), cuenta el total y cada faceta (un <c>GROUP BY</c> por dimensión, cada una
+    /// excluyendo su propio filtro) en un solo viaje. No trae toda la tabla: sólo la página + los conteos.
+    /// La taxonomía llega ya resuelta a VALORES (el servicio tradujo el slug de la URL con su mapa): el
+    /// repo filtra por <c>Rubro/Genero/Prenda</c>, no por slug. Devuelve datos crudos; el servicio los
+    /// mapea a DTO, calcula los slugs de las facetas y arma la de combo con los tramos.</summary>
+    Task<PaginaPublicaCruda> BuscarPublicoAsync(ConsultaPublica consulta, CancellationToken ct = default);
+
+    /// <summary>MARKET: ídem para la grilla INTERNA (universo completo, con costo/margen/depósito y las
+    /// facetas internas). Talle/color son filtros (no facetas) vía las tablas hijas; incluye los totales
+    /// del universo (total, en depósito, sólo-depósito, publicados). Taxonomía por valor, igual que arriba.</summary>
+    Task<PaginaInternaCruda> BuscarInternoAsync(ConsultaInterna consulta, CancellationToken ct = default);
+
     /// <summary>MARKET: UNA fila de <c>dbo.Catalogo</c> por su código (lookup por PK). Para la ficha, que
     /// no necesita traer todo el universo para mostrar un solo artículo. null si no existe/está eliminado.</summary>
     Task<CatalogoFilaLeida?> LeerFilaAsync(string codigo, CancellationToken ct = default);
@@ -157,10 +170,8 @@ public sealed record ComboTierRow(int Cantidad, int Total);
 public sealed record CatalogoFilaBase(
     string Codigo, bool PublicadoBase, string Slug, string Descripcion,
     string Rubro, string Genero, string Prenda,
-    string RubroSlug, string GeneroSlug, string? PrendaSlug,
     decimal? PrecioVenta, decimal? PrecioCompra, int? ComboCantidad, int? ComboTotal,
     bool EnLuro, bool EnPeralta, bool EnDeposito,
-    string TallesCsv, string ColoresCsv,
     IReadOnlyList<TalleBase> Talles, IReadOnlyList<string> Colores,
     bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
     string? Proveedor, string? Temporada, string? Marca, int? Anio,
@@ -169,6 +180,64 @@ public sealed record CatalogoFilaBase(
 /// <summary>Un talle de un artículo para la tabla hija <c>CatalogoTalle</c>: etiqueta mostrable + su orden
 /// de curva (Talles.cs / DCTALLE), para poder ordenar la faceta de talles en SQL.</summary>
 public sealed record TalleBase(string Talle, int Orden);
+
+// ===== Specs de consulta de la grilla (taxonomía ya resuelta a VALORES por el servicio) =====
+
+/// <summary>Lo que la grilla PÚBLICA le pide al repo, con la taxonomía ya traducida de slug a valor
+/// (el repo filtra por <c>Rubro/Genero/Prenda</c>). Talle/color/combo/locales viajan tal cual (no
+/// necesitan traducción). <c>TextoNorm</c> ya viene sin acentos (se compara contra TextoBusqueda).</summary>
+public sealed record ConsultaPublica(
+    string? RubroValor, string? GeneroValor, IReadOnlyList<string> GenerosValor,
+    IReadOnlyList<string> RubrosValor, IReadOnlyList<string> FamiliasValor,
+    IReadOnlyList<string> Talles, IReadOnlyList<string> Colores,
+    IReadOnlyList<string> Locales, IReadOnlyList<string> ComboDetalles,
+    decimal? PrecioMin, decimal? PrecioMax, string? TextoNorm,
+    string Orden, int Pagina);
+
+/// <summary>Lo que la grilla INTERNA le pide al repo. Rubro/prenda ya eran por valor en el interno;
+/// género se tradujo de slug a valor. Talle/color son filtros (no facetas). <c>Texto</c> viaja crudo
+/// (el repo hace la comparación insensible a mayúsculas/acentos con COLLATE).</summary>
+public sealed record ConsultaInterna(
+    IReadOnlyList<string> Ubicaciones, string? CruceDepoLocal,
+    IReadOnlyList<string> RubrosValor, IReadOnlyList<string> GenerosValor, IReadOnlyList<string> PrendasValor,
+    IReadOnlyList<string> Proveedores, IReadOnlyList<string> Marcas, IReadOnlyList<string> Temporadas,
+    IReadOnlyList<string> Anios, IReadOnlyList<string> Talles, IReadOnlyList<string> Colores,
+    IReadOnlyList<string> ComboDetalles,
+    bool? Publicado, decimal? MargenMax, string? Texto,
+    string Orden, int Pagina);
+
+// ===== Resultados crudos de la grilla resuelta en SQL (una página + conteos de facetas) =====
+
+/// <summary>Un conteo de faceta: el <c>Valor</c> (slug o valor, según la dimensión), su <c>Etiqueta</c>
+/// mostrable y cuántos artículos caen en él (con todos los filtros aplicados MENOS el suyo). El servicio
+/// los ordena y les pone el flag Activa.</summary>
+public sealed record FacetaConteo(string Valor, string Etiqueta, int Cantidad);
+
+/// <summary>Un conteo de tramo de combo: cantidad de unidades, precio total del tramo y cuántos artículos
+/// lo tienen (excluyendo el propio filtro de combo). El servicio los cruza con los tramos oficiales.</summary>
+public sealed record ComboConteo(int Cantidad, int Total, int Conteo);
+
+/// <summary>Un conteo de faceta de talle: incluye el <c>Orden</c> de curva (mínimo del grupo) para ordenar
+/// la faceta por talle sin depender de Talles.cs — usa el orden real de DCTALLE materializado.</summary>
+public sealed record TalleConteo(string Talle, int Cantidad, int Orden);
+
+/// <summary>Página de la grilla PÚBLICA resuelta en SQL: los ítems visibles + el total + los conteos de
+/// cada faceta (cada una excluyendo su propio filtro). El servicio mapea Items a DTO.</summary>
+public sealed record PaginaPublicaCruda(
+    IReadOnlyList<CatalogoFilaLeida> Items, int Total,
+    IReadOnlyList<FacetaConteo> Rubros, IReadOnlyList<FacetaConteo> Familias,
+    IReadOnlyList<TalleConteo> Talles, IReadOnlyList<FacetaConteo> Colores,
+    IReadOnlyList<FacetaConteo> Locales, IReadOnlyList<ComboConteo> Combos);
+
+/// <summary>Página de la grilla INTERNA resuelta en SQL: ídem, más los totales del universo. Talle y color
+/// no tienen faceta en el interno (son sólo filtros).</summary>
+public sealed record PaginaInternaCruda(
+    IReadOnlyList<CatalogoFilaLeida> Items, int Total,
+    int TotalUniverso, int EnDeposito, int SoloDeposito, int Publicados,
+    IReadOnlyList<FacetaConteo> Generos, IReadOnlyList<FacetaConteo> Rubros,
+    IReadOnlyList<FacetaConteo> Prendas, IReadOnlyList<FacetaConteo> Proveedores,
+    IReadOnlyList<FacetaConteo> Marcas, IReadOnlyList<FacetaConteo> Temporadas,
+    IReadOnlyList<FacetaConteo> Anios, IReadOnlyList<ComboConteo> Combos);
 
 /// <summary>Fila leída de <c>dbo.Catalogo</c> (columnas base). La consume <c>LectorCatalogo</c> para
 /// mapearla a <c>ArticuloDto</c> y armar el snapshot. Los derivados (slugs, combo parseado, locales desde

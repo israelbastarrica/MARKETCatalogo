@@ -1,35 +1,26 @@
 /* ============================================================================
-   MARKET Catálogo — filtrado/faceteo/paginado en SQL.
+   MARKET Catálogo — filtrado/faceteo/paginado en SQL (tablas hijas).
    Prepara dbo.Catalogo para que la grilla (pública e interna) resuelva WHERE +
    OFFSET/FETCH + GROUP BY en la base, en vez de traer todo a memoria:
 
-     · Columnas slug (RubroSlug/GeneroSlug/PrendaSlug): los filtros viajan por
-       slug; con la columna materializada se filtra/agrupa sin traducir en C#.
      · Tablas hijas CatalogoTalle / CatalogoColor: talle y color son
        multi-valor. Normalizados se filtran con EXISTS y se facetean con
        GROUP BY (la faceta de talle además respeta el orden de curva por Orden).
-       La CSV de la fila se conserva para MOSTRAR (card/ficha); las hijas son
-       sólo para consultar.
-     · Índices para los WHERE/GROUP BY frecuentes.
+       Son la ÚNICA fuente de talle/color: la card/ficha reconstruye la lista
+       mostrable con STRING_AGG (por eso NO hay TallesCsv/ColoresCsv — ver 06).
+     · Índices para los WHERE/GROUP BY de combo y año.
 
-   Las pobla el rebuild (CatalogoStore + CatalogoRepositorio.GuardarBaseAsync)
+   La taxonomía (rubro/género/prenda) NO lleva columnas slug: el rebuild arma un
+   mapa slug→valor en memoria y el servicio traduce el slug de la URL a valor
+   antes de consultar (se filtra por Rubro/Genero/Prenda).
+
+   Las tablas hijas las puebla el rebuild (CatalogoStore + GuardarBaseAsync)
    dentro de la misma transacción que el MERGE de la base.
 
-   Script ADITIVO e IDEMPOTENTE.
+   Script ADITIVO e IDEMPOTENTE. Correr ANTES de desplegar el código nuevo.
    ============================================================================ */
 
 USE MARKET;
-GO
-
--- ===== Columnas slug en dbo.Catalogo =====
-IF COL_LENGTH('dbo.Catalogo', 'RubroSlug') IS NULL
-    ALTER TABLE dbo.Catalogo ADD RubroSlug varchar(80) NULL;
-GO
-IF COL_LENGTH('dbo.Catalogo', 'GeneroSlug') IS NULL
-    ALTER TABLE dbo.Catalogo ADD GeneroSlug varchar(80) NULL;
-GO
-IF COL_LENGTH('dbo.Catalogo', 'PrendaSlug') IS NULL
-    ALTER TABLE dbo.Catalogo ADD PrendaSlug varchar(80) NULL;
 GO
 
 -- ===== Tablas hijas (multi-valor) =====
@@ -38,7 +29,7 @@ BEGIN
     CREATE TABLE dbo.CatalogoTalle
     (
         Codigo varchar(20)  NOT NULL,   -- = dbo.Catalogo.Codigo
-        Talle  nvarchar(40) NOT NULL,   -- etiqueta mostrable (la de la CSV)
+        Talle  nvarchar(40) NOT NULL,   -- etiqueta mostrable
         Orden  int          NOT NULL,   -- orden de curva (Talles.cs / DCTALLE) para ordenar la faceta
         CONSTRAINT PK_CatalogoTalle PRIMARY KEY CLUSTERED (Codigo, Talle)
     );
@@ -59,9 +50,6 @@ END
 GO
 
 -- ===== Índices para los filtros/orden de la grilla =====
-IF INDEXPROPERTY(OBJECT_ID('dbo.Catalogo'), 'IX_Catalogo_TaxonomiaSlug', 'IndexID') IS NULL
-    CREATE INDEX IX_Catalogo_TaxonomiaSlug ON dbo.Catalogo (RubroSlug, GeneroSlug, PrendaSlug);
-GO
 IF INDEXPROPERTY(OBJECT_ID('dbo.Catalogo'), 'IX_Catalogo_Combo', 'IndexID') IS NULL
     CREATE INDEX IX_Catalogo_Combo ON dbo.Catalogo (ComboCantidad, ComboTotal);
 GO
@@ -69,5 +57,5 @@ IF INDEXPROPERTY(OBJECT_ID('dbo.Catalogo'), 'IX_Catalogo_Anio', 'IndexID') IS NU
     CREATE INDEX IX_Catalogo_Anio ON dbo.Catalogo (Anio);
 GO
 
-PRINT 'dbo.Catalogo listo para faceteo SQL: slugs + CatalogoTalle/CatalogoColor + indices.';
+PRINT 'dbo.Catalogo listo para faceteo SQL: CatalogoTalle/CatalogoColor + indices combo/anio.';
 GO

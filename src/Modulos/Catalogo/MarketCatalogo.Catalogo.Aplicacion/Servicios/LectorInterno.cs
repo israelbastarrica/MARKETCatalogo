@@ -115,143 +115,88 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
 
     public Task RefrescarAsync(CancellationToken ct = default) => _store.ReconstruirBaseAsync(ct);
 
+    /// <summary>Grilla interna resuelta EN SQL: traduce el slug de género a valor con el mapa de taxonomía,
+    /// le pide al repo la página + facetas + totales del universo (un solo viaje) y arma el DTO. Rubro/prenda
+    /// ya viajan por valor en el interno; talle/color son filtros (no facetas). No trae toda la tabla.</summary>
     public async Task<PaginaInternaDto> BuscarAsync(FiltrosInterno f, CancellationToken ct = default)
     {
         _store.AsegurarBaseFresca();
 
-        var todos = (await _repo.LeerBaseAsync(soloPublicados: false, ct)).Select(fila => Mapear(fila)).ToList();
+        var consulta = new ConsultaInterna(
+            Ubicaciones: f.Ubicaciones, CruceDepoLocal: f.CruceDepoLocal,
+            RubrosValor: f.Rubros,                          // interno: rubro por valor
+            GenerosValor: _store.Taxonomia.Generos(f.Generos),  // género slug→valor
+            PrendasValor: f.Prendas,                        // interno: prenda por valor
+            Proveedores: f.Proveedores, Marcas: f.Marcas, Temporadas: f.Temporadas,
+            Anios: f.Anios, Talles: f.Talles, Colores: f.Colores, ComboDetalles: f.ComboDetalles,
+            Publicado: f.Publicado, MargenMax: f.MargenMax, Texto: f.Texto,
+            Orden: f.Orden, Pagina: f.Pagina);
 
-        var textoNorm = string.IsNullOrWhiteSpace(f.Texto) ? null : Texto.SinAcentos(f.Texto);
-
-        bool PasaUbicacion(ArticuloInternoDto a)
-        {
-            if (f.Ubicaciones.Count == 0) return true;
-            return (f.Ubicaciones.Contains("luro", StringComparer.OrdinalIgnoreCase) && a.EnLuro)
-                || (f.Ubicaciones.Contains("peralta", StringComparer.OrdinalIgnoreCase) && a.EnPeralta)
-                || (f.Ubicaciones.Contains("deposito", StringComparer.OrdinalIgnoreCase) && a.EnDeposito);
-        }
-        bool PasaCruce(ArticuloInternoDto a) => f.CruceDepoLocal switch
-        {
-            "deposito" => a.EnDeposito,
-            "solo-deposito" => a.EnDeposito && !a.EnAlgunLocal,
-            "deposito-luro" => a.EnDeposito && a.EnLuro,
-            "deposito-peralta" => a.EnDeposito && a.EnPeralta,
-            "en-local" => a.EnAlgunLocal, // compat con URLs viejas; ya no está en la UI
-            _ => true,
-        };
-        bool PasaRubro(ArticuloInternoDto a) => f.Rubros.Count == 0 || f.Rubros.Contains(a.Rubro, StringComparer.OrdinalIgnoreCase);
-        bool PasaGenero(ArticuloInternoDto a) => f.Generos.Count == 0 || f.Generos.Contains(Texto.Slug(a.Genero), StringComparer.OrdinalIgnoreCase);
-        bool PasaPrenda(ArticuloInternoDto a) => f.Prendas.Count == 0 || (a.Prenda is not null && f.Prendas.Contains(a.Prenda, StringComparer.OrdinalIgnoreCase));
-        bool PasaProveedor(ArticuloInternoDto a) => f.Proveedores.Count == 0 || (a.Proveedor is not null && f.Proveedores.Contains(a.Proveedor, StringComparer.OrdinalIgnoreCase));
-        bool PasaMarca(ArticuloInternoDto a) => f.Marcas.Count == 0 || (a.Marca is not null && f.Marcas.Contains(a.Marca, StringComparer.OrdinalIgnoreCase));
-        bool PasaTemporada(ArticuloInternoDto a) => f.Temporadas.Count == 0 || (a.Temporada is not null && f.Temporadas.Contains(a.Temporada, StringComparer.OrdinalIgnoreCase));
-        bool PasaAnio(ArticuloInternoDto a) => f.Anios.Count == 0 || (a.Anio is int y && f.Anios.Contains(y.ToString(), StringComparer.OrdinalIgnoreCase));
-        bool PasaTalle(ArticuloInternoDto a) => f.Talles.Count == 0 || a.Talles.Any(t => f.Talles.Contains(t, StringComparer.OrdinalIgnoreCase));
-        bool PasaColor(ArticuloInternoDto a) => f.Colores.Count == 0 || a.Colores.Any(c => f.Colores.Contains(c, StringComparer.OrdinalIgnoreCase));
-        bool PasaCombo(ArticuloInternoDto a) => f.ComboDetalles.Count == 0
-            || (a.ComboCantidad is not null && a.ComboTotal is not null
-                && f.ComboDetalles.Contains($"{a.ComboCantidad}-{(int)a.ComboTotal.Value}"));
-        bool PasaPublicado(ArticuloInternoDto a) => f.Publicado is null || a.Publicado == f.Publicado.Value;
-        bool PasaMargen(ArticuloInternoDto a) => f.MargenMax is null || (a.MargenTeorico is not null && a.MargenTeorico <= f.MargenMax);
-        bool PasaTexto(ArticuloInternoDto a) => textoNorm is null
-            || Texto.SinAcentos($"{a.Descripcion} {a.Codigo} {a.Prenda} {a.Proveedor} {a.Marca}").Contains(textoNorm, StringComparison.Ordinal);
-
-        // "excepto" deja fuera una faceta para poder contarla sin encerrar al usuario (igual que el público).
-        IEnumerable<ArticuloInternoDto> Aplicar(string? excepto) => todos.Where(a =>
-            PasaUbicacion(a) && PasaCruce(a) &&
-            (excepto == "genero" || PasaGenero(a)) &&
-            (excepto == "rubro" || PasaRubro(a)) &&
-            (excepto == "prenda" || PasaPrenda(a)) &&
-            (excepto == "proveedor" || PasaProveedor(a)) &&
-            (excepto == "marca" || PasaMarca(a)) &&
-            (excepto == "temporada" || PasaTemporada(a)) &&
-            (excepto == "anio" || PasaAnio(a)) &&
-            (excepto == "combo" || PasaCombo(a)) &&
-            PasaTalle(a) && PasaColor(a) && PasaPublicado(a) && PasaMargen(a) && PasaTexto(a));
-
-        var filtrados = Aplicar(null).ToList();
-
-        // Faceta de combo, dos niveles (mismo criterio que el público): los GRUPOS (cantidad) y TRAMOS
-        // (precio) salen de la grilla oficial de márgenes (PruebaCombos), no de agrupar lo armado; el
-        // conteo de cada tramo sí sale de los artículos filtrados.
+        var r = await _repo.BuscarInternoAsync(consulta, ct);
         var comboTiers = await _repo.TraerComboTiersAsync(ct);
-        var conteoPorTramo = Aplicar("combo")
-            .Where(a => a.ComboCantidad is > 0 && a.ComboTotal is > 0)
-            .GroupBy(a => (Cantidad: a.ComboCantidad!.Value, Total: (int)a.ComboTotal!.Value))
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        var combos = comboTiers
-            .GroupBy(t => t.Cantidad)
-            .OrderBy(g => g.Key)
-            .Select(g =>
-            {
-                var detalles = g
-                    .Select(t =>
-                    {
-                        var valor = $"{g.Key}-{t.Total}";
-                        var cantidad = conteoPorTramo.GetValueOrDefault((g.Key, t.Total));
-                        return new OpcionFaceta(valor, Combo.Mostrar(g.Key, t.Total), cantidad, f.ComboDetalles.Contains(valor));
-                    })
-                    .Where(d => d.Cantidad > 0)
-                    .ToList();
-                return new OpcionFacetaCombo(g.Key, $"Combo de {g.Key}",
-                    detalles.Sum(d => d.Cantidad), detalles.Any(d => d.Activa), detalles);
-            })
-            .Where(gc => gc.Detalles.Count > 0)
-            .ToList();
-
-        var ordenados = f.Orden switch
-        {
-            "precio-asc" => filtrados.OrderBy(a => a.PrecioUnidadCombo ?? a.PrecioVenta ?? decimal.MaxValue).ThenBy(a => a.Codigo),
-            "precio-desc" => filtrados.OrderByDescending(a => a.PrecioUnidadCombo ?? a.PrecioVenta ?? decimal.MinValue).ThenBy(a => a.Codigo),
-            "margen" => filtrados.OrderBy(a => a.MargenTeorico ?? decimal.MaxValue).ThenBy(a => a.Codigo),
-            "margen-desc" => filtrados.OrderByDescending(a => a.MargenTeorico ?? decimal.MinValue).ThenBy(a => a.Codigo),
-            "nombre" => filtrados.OrderBy(a => a.Descripcion, StringComparer.CurrentCultureIgnoreCase).ThenBy(a => a.Codigo),
-            _ => filtrados.OrderBy(a => a.Codigo, StringComparer.OrdinalIgnoreCase),
-        };
-
-        var pagina = Math.Max(1, f.Pagina);
-        var items = ordenados.Skip((pagina - 1) * FiltrosInterno.PorPagina).Take(FiltrosInterno.PorPagina).ToList();
 
         return new PaginaInternaDto
         {
-            Items = items,
-            Total = filtrados.Count,
-            Pagina = pagina,
-            TotalUniverso = todos.Count,
-            EnDeposito = todos.Count(a => a.EnDeposito),
-            SoloDeposito = todos.Count(a => a.EnDeposito && !a.EnAlgunLocal),
-            Publicados = todos.Count(a => a.Publicado),
+            Items = r.Items.Select(fila => Mapear(fila)).ToList(),
+            Total = r.Total,
+            Pagina = Math.Max(1, f.Pagina),
+            TotalUniverso = r.TotalUniverso,
+            EnDeposito = r.EnDeposito,
+            SoloDeposito = r.SoloDeposito,
+            Publicados = r.Publicados,
             BaseActualizada = _store.BaseActualizada,
-            Generos = FacetaGenero(Aplicar("genero"), f.Generos),
-            Rubros = Faceta(Aplicar("rubro"), a => a.Rubro, f.Rubros),
-            Prendas = Faceta(Aplicar("prenda"), a => a.Prenda, f.Prendas),
-            Proveedores = Faceta(Aplicar("proveedor"), a => a.Proveedor, f.Proveedores),
-            Marcas = Faceta(Aplicar("marca"), a => a.Marca, f.Marcas),
-            Temporadas = Faceta(Aplicar("temporada"), a => a.Temporada, f.Temporadas),
-            Anios = Faceta(Aplicar("anio"), a => a.Anio?.ToString(), f.Anios),
-            Combos = combos,
+            Generos = FacetaGenero(r.Generos, f.Generos),
+            Rubros = FacetaValor(r.Rubros, f.Rubros),
+            Prendas = FacetaValor(r.Prendas, f.Prendas),
+            Proveedores = FacetaValor(r.Proveedores, f.Proveedores),
+            Marcas = FacetaValor(r.Marcas, f.Marcas),
+            Temporadas = FacetaValor(r.Temporadas, f.Temporadas),
+            Anios = FacetaValor(r.Anios, f.Anios),
+            Combos = ArmarCombos(comboTiers, r.Combos, f.ComboDetalles),
         };
     }
 
-    private static IReadOnlyList<OpcionFacetaInterna> Faceta(
-        IEnumerable<ArticuloInternoDto> conj, Func<ArticuloInternoDto, string?> sel, IReadOnlyList<string> activos)
-        => conj.Select(sel).Where(v => !string.IsNullOrWhiteSpace(v))
-               .GroupBy(v => v!, StringComparer.OrdinalIgnoreCase)
-               .Select(g => new OpcionFacetaInterna(g.Key, g.Key, g.Count(),
-                   activos.Contains(g.Key, StringComparer.OrdinalIgnoreCase)))
+    // Faceta cuyo Valor ES el valor (rubro/prenda/proveedor/marca/temporada/año en el interno).
+    private static IReadOnlyList<OpcionFacetaInterna> FacetaValor(
+        IReadOnlyList<FacetaConteo> conteos, IReadOnlyList<string> activos)
+        => conteos.Select(x => new OpcionFacetaInterna(x.Valor, x.Etiqueta, x.Cantidad,
+                activos.Contains(x.Valor, StringComparer.OrdinalIgnoreCase)))
                .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta, StringComparer.CurrentCultureIgnoreCase)
                .ToList();
 
-    // Faceta de género: agrupa por SLUG (lo que viaja en la URL / matchea el header) pero muestra el nombre.
+    // Faceta de género: el repo agrupó por valor; el Valor de la opción es el SLUG (lo que viaja en la URL).
     private static IReadOnlyList<OpcionFacetaInterna> FacetaGenero(
-        IEnumerable<ArticuloInternoDto> conj, IReadOnlyList<string> activos)
-        => conj.Where(a => !string.IsNullOrWhiteSpace(a.Genero))
-               .GroupBy(a => Texto.Slug(a.Genero))
-               .Select(g => new OpcionFacetaInterna(g.Key, g.First().Genero, g.Count(),
-                   activos.Contains(g.Key, StringComparer.OrdinalIgnoreCase)))
+        IReadOnlyList<FacetaConteo> conteos, IReadOnlyList<string> activos)
+        => conteos.Select(x =>
+            {
+                var slug = Texto.Slug(x.Valor);
+                return new OpcionFacetaInterna(slug, x.Etiqueta, x.Cantidad,
+                    activos.Contains(slug, StringComparer.OrdinalIgnoreCase));
+            })
                .OrderByDescending(o => o.Cantidad).ThenBy(o => o.Etiqueta, StringComparer.CurrentCultureIgnoreCase)
                .ToList();
+
+    // Faceta de combo de dos niveles: tramos de la grilla oficial (PruebaCombos), conteo del resultado SQL.
+    private static IReadOnlyList<OpcionFacetaCombo> ArmarCombos(
+        IReadOnlyList<ComboTierRow> tiers, IReadOnlyList<ComboConteo> conteos, IReadOnlyList<string> activos)
+    {
+        var porTramo = conteos.ToDictionary(x => (x.Cantidad, x.Total), x => x.Conteo);
+        return tiers.GroupBy(t => t.Cantidad).OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var detalles = g.OrderBy(t => t.Total)
+                    .Select(t =>
+                    {
+                        var valor = $"{g.Key}-{t.Total}";
+                        var cant = porTramo.GetValueOrDefault((g.Key, t.Total));
+                        return new OpcionFaceta(valor, Combo.Mostrar(g.Key, t.Total), cant, activos.Contains(valor));
+                    })
+                    .Where(d => d.Cantidad > 0).ToList();
+                return new OpcionFacetaCombo(g.Key, $"Combo de {g.Key}",
+                    detalles.Sum(d => d.Cantidad), detalles.Any(d => d.Activa), detalles);
+            })
+            .Where(gc => gc.Detalles.Count > 0).ToList();
+    }
 
     private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null,
         VentasPeriodoRow? ventas = null, CaracteristicasRow? carac = null,

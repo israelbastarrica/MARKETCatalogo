@@ -92,7 +92,10 @@ public sealed class LectorCatalogo
             // Facetas de taxonomía: el repo agrupó por VALOR; acá se calcula el slug (lo que viaja en la URL).
             Rubros = FacetaPorSlug(r.Rubros, f.Rubros),
             Familias = FacetaPorSlug(r.Familias, f.Familias),
-            Talles = r.Talles.OrderBy(t => t.Orden)
+            // Orden de la FACETA por la curva global de Talles.cs (Letra→Niño→Adulto→Lencería): agrupa por
+            // familia y no intercala S/M con 4/8/36 (el Orden DCTALLE por-artículo sí sirve para la lista de
+            // la card/ficha, pero agregado entre artículos mezcla familias). Talles desconocidos van al final.
+            Talles = r.Talles.OrderBy(t => Talles.OrdenEtiqueta(t.Talle)).ThenBy(t => t.Talle, StringComparer.OrdinalIgnoreCase)
                 .Select(t => new OpcionFaceta(t.Talle, t.Talle, t.Cantidad,
                     f.Talles.Contains(t.Talle, StringComparer.OrdinalIgnoreCase))).ToList(),
             Colores = FacetaPorValor(r.Colores, f.Colores),

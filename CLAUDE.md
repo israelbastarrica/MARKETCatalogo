@@ -63,39 +63,55 @@ and nothing outside a module reaches past its `Contratos` project.
 
 ### Data flow — two databases, merged in C#, never joined in SQL
 
-The catalog reads live from two SQL Server databases every refresh cycle — nothing is replicated
-except the materialized `dbo.Catalogo` table (`sql/02_catalogo_tabla.sql`):
+The catalog is rebuilt from two SQL Server databases and materialized into `MARKET.dbo.Catalogo`
+(schema `sql/01_catalogo_tabla.sql`) plus its child tables `dbo.CatalogoTalle`/`dbo.CatalogoColor`.
+Nothing else is replicated:
 
 - **MARKET**: `MapeoRegistro`/`Mapeo`/`Ubicaciones` (which article is stocked where), `PruebaCombos`
   (combo pricing), `GoogleDriveFotosArticulos` (photo paths). The catalog materializes into a single
   table `dbo.Catalogo`; the manual hide decision (`OcultarManual` + audit) lives in that same table and
   the rebuild MERGE preserves it (there is no longer a separate `CatalogoArticulo` overrides table).
-- **DRAGONFISH_CENTRAL** (`ZooLogic`, aliased "Dragon"): `ART`/`TIPOART`/`CATEARTI`/`FAMILIA`/
-  `PRECIOAR` (header, taxonomy, live price), `PRECOMPRADET`/`REMCOMPRADET` (color/talle variants,
-  cascading fallback between the two sources).
+- **DRAGONFISH** (`ZooLogic`, aliased "Dragon") — `_CENTRAL` for the rebuild and `_LURO`/`_PERALTA`
+  replicas for per-store stock/sales on the ficha: `ART`/`TIPOART`/`CATEARTI`/`FAMILIA`/`PRECIOAR`
+  (header, taxonomy, cost + live price), `PRECOMPRADET`/`REMCOMPRADET` (color/talle variants, cascading
+  fallback), `DCTALLE` (size curve), `COMB` (stock), `COMPROBANTEV*` (sales).
 
 `CatalogoRepositorio` (`Catalogo.Datos`) runs **one query per source, batched 500 codes at a time**
-to stay under SQL Server's 2100-param limit — explicitly never a cross-database JOIN. All merging
-happens in `CatalogoCache.ConstruirAsync` (`Catalogo.Aplicacion`). `SqlConnectionFactory`
-(`Compartido`) derives the Dragon connection string from `ConnectionStrings:MarketDb` by swapping
-`Initial Catalog` for `Catalogo:BaseDragon`, unless `ConnectionStrings:DragonDb` is set explicitly.
+to stay under SQL Server's 2100-param limit — explicitly never a cross-database JOIN. All merging for
+the rebuild happens in `CatalogoStore.ConstruirFilasAsync` (`Catalogo.Aplicacion`), which then persists
+via `GuardarBaseAsync` (bulk-copy to a stage table + one MERGE, with the child tables rebuilt inside the
+same transaction). `SqlConnectionFactory` (`Compartido`) derives the Dragon connections from
+`ConnectionStrings:MarketDb` by swapping `Initial Catalog` (`CrearDragon`/`CrearLuro`/`CrearPeralta`),
+overridable via `ConnectionStrings:DragonDb`/`DragonLuroDb`/`DragonPeraltaDb` or `Catalogo:Base*`.
 
-`CatalogoCache` is an in-memory singleton snapshot, refreshed by `CatalogoWarmup` (a `BackgroundService`
-on a `PeriodicTimer`, interval = `Catalogo:MinutosCache` config value minus 30s, default every ~4.5
-min). A failed refresh logs and keeps serving the previous snapshot — it never throws. This custom
-cache is the actual caching layer; there is **no** `AddOutputCache()`/`UseOutputCache()` anywhere
-despite older docs mentioning OutputCache.
+**The table IS the cache** (tabla-como-caché). There is no in-RAM snapshot and no `AddOutputCache()`.
+`CatalogoStore` owns the rebuild with **TTL + single-flight + stale-while-revalidate**: a read calls
+`AsegurarBaseFresca()`, and if the base is older than `Catalogo:MinutosTtl` (fallback `MinutosCache`,
+default 20) it rebuilds **in the background** while still serving the last good data. `CatalogoBaseWarmup`
+does one blocking rebuild at startup. A failed rebuild logs and keeps the previous data — it never throws.
+The one piece kept in RAM is a tiny slug→value taxonomy map (`TaxonomiaMapa`), rebuilt with the base.
 
-Only the `Indumentaria` rubro is currently published — a temporary hardcoded filter in
-`CatalogoCache.cs`, not a config toggle.
+**The grid is resolved in SQL, not in memory.** `LectorCatalogo.BuscarAsync` (public) and
+`LectorInterno.BuscarAsync` (internal) translate the URL slugs to values and call
+`CatalogoRepositorio.BuscarPublicoAsync`/`BuscarInternoAsync` (`CatalogoRepositorio.Busqueda.cs`), which
+does `WHERE` + `ORDER` + `OFFSET/FETCH` for the page, `COUNT` for the total, and one `GROUP BY` per facet
+(each excluding its own filter) — all in a single `QueryMultiple`. Talle/color filter via `EXISTS` on the
+child tables and the display list is rebuilt with `STRING_AGG`. The **internal ficha** loads live on
+demand (stock/sales/margin, características, ubicaciones, órdenes, bloqueo) via `LectorInterno.PorCodigoAsync`,
+with the page rendered by streaming (`[StreamRendering]`) and the family-average benchmark loaded
+afterwards (`BenchmarkFamiliaAsync`, cached per prenda).
+
+Only the `Indumentaria` rubro is currently published — a temporary hardcoded filter in the publish
+criteria (`CatalogoStore.ConstruirFilasAsync`), not a config toggle.
 
 ### Photo/thumbnail pipeline
 
 `GET /fotos/{codigo}_{ancho}.webp?v={version}` (`Endpoints/FotosEndpoint.cs`) → `FotosService`
 (`Catalogo.Aplicacion`). Widths are restricted to a closed list (400/1200px). Cache filename embeds
 the version token (`{codigo}_{ancho}_{version}.webp` under `Fotos:DirCache`); if it exists, it's
-served with no SQL involved. Otherwise the original is resolved from `CatalogoCache` (preferring
-`LinkIADisco` over `LinkDriveDisco` — "IA primero, disco después"), resized/encoded with **SkiaSharp**
+served with no SQL involved. Otherwise the original path is resolved by a PK lookup on `dbo.Catalogo`
+(`CatalogoRepositorio.LeerRutaFotoAsync`, reading `FotosJson`; the rebuild already picked `LinkIADisco`
+over `LinkDriveDisco` — "IA primero, disco después"), resized/encoded with **SkiaSharp**
 (not ImageSharp — v4 needs a paid license), and written atomically (temp file + `File.Move`). The
 `?v=` token comes from the source file's `LastWriteTimeUtc`, so old files auto-invalidate and stale
 versions are opportunistically deleted — this is what lets `Cache-Control: immutable, max-age=30d`

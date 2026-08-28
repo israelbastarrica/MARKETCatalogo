@@ -17,36 +17,45 @@ No hay sesión, ni cookie, ni JavaScript guardando qué filtros están puestos. 
 
 ---
 
-## 2. La decisión que cambia todo: el universo vive en memoria
+## 2. La decisión que cambia todo: la tabla materializada ES el caché
 
-El catálogo entero son **~981 artículos y ~14.225 variantes**. Eso son **~2 MB en RAM**.
+El catálogo no se replica ni se guarda en RAM. La **tabla materializada `MARKET.dbo.Catalogo`** —con sus
+tablas hijas `dbo.CatalogoTalle` y `dbo.CatalogoColor` para el talle/color (multi-valor)— **es el caché**:
+una copia derivada de Dragon y de los mapeos, mantenida por un rebuild. El universo interno son
+**~1.600 filas** (`Eliminado = 0`), de las cuales **~600 están publicadas**.
 
-Entonces no hace falta consultar SQL en cada request. El sitio mantiene el universo completo en
-`IMemoryCache` y lo refresca **cada 5 minutos**:
+Es un caché **read-through** con invalidación por tiempo, no un job que corra siempre:
 
 ```
-Arranque / cada 5 min ──► 1 query a SQL (~300 ms) ──► ~981 artículos + variantes en memoria (~2 MB)
+Arranque en frío ──► CatalogoBaseWarmup: 1 rebuild BLOQUEANTE ──► dbo.Catalogo poblada
+                     (ningún visitante paga el primer llenado)
 
-Cada request del usuario ──► filtra, cuenta facetas, ordena y pagina EN MEMORIA (LINQ) ──► HTML
-                              └── 0 consultas a SQL, microsegundos
+Cada request ──► AsegurarBaseFresca():
+                   ├─ base fresca (edad < TTL) → no hace nada, se lee la tabla
+                   └─ base vencida → dispara UN rebuild EN BACKGROUND y vuelve al instante
+                                     (se sigue sirviendo lo último bueno; stale-while-revalidate)
 ```
 
-**Consecuencia: el sitio hace una consulta a SQL cada 5 minutos, sin importar si lo visitan 10 personas
-o 10.000.** Es materializar el catálogo, pero en RAM en vez de en tablas — y a 981 artículos eso es lo
-proporcionado.
+**Política del rebuild: TTL + single-flight + stale-while-revalidate.**
 
-Ventajas sobre `OutputCache` por URL (que era el plan anterior):
+- **TTL**: `Catalogo:MinutosTtl` (fallback `Catalogo:MinutosCache`, default **20 min**). Un timestamp
+  global en memoria (`CatalogoStore._baseActualizada`) es el reloj; al reiniciar la app queda en null y
+  el primer acceso dispara un rebuild.
+- **Single-flight**: un candado (`SemaphoreSlim`) garantiza que N requests concurrentes generen **un
+  solo** rebuild, no N.
+- **Stale-while-revalidate**: una lectura que encuentra la base vencida no espera —dispara el rebuild en
+  background y sigue sirviendo la tabla anterior. El próximo request ya ve lo nuevo.
+- **Un rebuild fallido loguea y conserva lo anterior**: nunca tira la app ni pisa la tabla (el
+  `GuardarBaseAsync` no borra ante universo vacío y el MERGE es atómico).
 
-- **No hay problema de *hit rate*.** `OutputCache` cachea por URL, y con rubro × género × 6 filtros ×
-  orden × página el espacio de URLs es enorme: la mayoría de las combinaciones se pediría una sola vez y
-  cada una costaría 300 ms. Cacheando **el universo** en vez de **las respuestas**, cualquier combinación
-  de filtros sale gratis, incluso una que nadie pidió antes.
-- **Un bot recorriendo el espacio de filtros no genera ni una consulta.**
-- **Los precios tienen 5 minutos de atraso como máximo**, y sin ningún estado que pueda quedar roto: si
-  el refresh falla, se reintenta a los 5 minutos con los datos viejos todavía servibles.
+**Consecuencia: el trabajo pesado (cruzar las dos bases) ocurre como mucho una vez por TTL**, sin importar
+si lo visitan 10 personas o 10.000. Las lecturas van directo a la tabla —indexada, filtrada y paginada en
+SQL (§4)— así que servir la grilla no vuelve a cruzar las bases.
 
-`OutputCache` se puede sumar igual por encima para las 8 rutas principales, pero deja de ser lo que
-sostiene la performance.
+No hay `OutputCache` en ningún lado: la tabla es la capa de caché. Cachear las **respuestas** por URL
+tendría un problema de *hit rate* (con rubro × género × 6 filtros × orden × página el espacio de URLs es
+enorme y la mayoría de las combinaciones se pediría una sola vez); materializar **la tabla** hace que
+cualquier combinación de filtros se resuelva contra la misma copia ya armada.
 
 ---
 
@@ -63,173 +72,156 @@ salida sería Elastic Query, que es lento y engorroso.
 Un diseño que dependa del join se tendría que **reescribir entero**. Uno que no, se muda cambiando dos
 líneas de configuración.
 
-Por eso el repositorio tiene **un método por fuente**, cada uno con su propia conexión, y el cruce se
-hace **en C#** al armar el cache:
+Por eso el rebuild tiene **un método por fuente**, cada uno con su propia conexión, y el cruce se hace
+**en C#** (`CatalogoStore.ConstruirFilasAsync`), no en SQL:
 
 ```
   ┌── conexión "DragonDb" ──────────────────────────────────────┐
-  │  TraerArticulosAsync()           ART + TIPOART + CATEGART    │
-  │                                  + FAMILIA + PRECIOAR        │   ~1.000 filas
+  │  TraerArticulosBaseAsync()       ART + TIPOART + CATEGART    │
+  │                                  + FAMILIA + PRECIOAR        │   ~1.600 filas
   │  TraerVariantesPrecompraAsync()  PRECOMPRADET (color+talle)  │  fuente 1 (cascada)
   │  TraerVariantesRemcompraAsync()  REMCOMPRADET (color+talle)  │  fuente 2 (cascada)
   │  TraerCurvasTalleAsync()         ART.CURTALL → CTALLE/DCTALLE│  fallback de talles
   └───────────────────────────────────────────────────────────────┘
   ┌── conexión "MarketDb" ──────────────────────────────┐
-  │  TraerArmadosAsync()     MapeoRegistro → Ubicaciones│   ~1.441 filas
-  │  TraerRutasFotoAsync()   GoogleDriveFotosArticulos  │   ~4.776 filas
-  │  TraerOverridesAsync()   CatalogoArticulo           │       pocas
+  │  TraerUbicacionesAsync()  MapeoRegistro → Ubicaciones│   universo + bits Luro/Peralta/Depósito
+  │  TraerRutasFotoAsync()    GoogleDriveFotosArticulos  │   una ruta por código
   └─────────────────────────────────────────────────────┘
                           ↓
-              CatalogoCache: join en C# por ARTCOD (diccionarios)
+   CatalogoStore.ConstruirFilasAsync: cruce en C# por ARTCOD (diccionarios)
+                          ↓
+   CatalogoStore.GuardarBaseAsync: bulk-copy a #stage + un MERGE (atómico),
+   con CatalogoTalle/CatalogoColor reconstruidas en la MISMA transacción
+                          ↓
+                   MARKET.dbo.Catalogo (+ tablas hijas)
 ```
 
 **Dos connection strings desde el día uno.** Hoy las dos apuntan al mismo servidor —`DragonDb` con
 `Database=DRAGONFISH_CENTRAL`— así que no cambia nada en la práctica. Si mañana se separan, se cambia la
 config y listo: **cero cambios de código**.
 
-Lo que cuesta: unas cuantas queries simples en vez de una grande, y la lógica de cruce en C#. A 981
+Lo que cuesta: unas cuantas queries simples en vez de una grande, y la lógica de cruce en C#. A ~1.600
 artículos eso no es un costo — y además tiene una ventaja: toda la parte sucia (los `RTRIM` por todos
-lados, el `ROW_NUMBER` de las fotos, el parseo del combo, el fallback de taxonomía) queda en **código
-testeable** en vez de enterrada en SQL.
+lados, el `ROW_NUMBER` de las fotos, el parseo del combo, el fallback de taxonomía) queda en **código**
+en vez de enterrada en SQL.
 
-Lo que cuesta si las bases se separan de verdad: mover ~1 MB por la red cada 5 minutos. Nada.
+Lo que cuesta si las bases se separan de verdad: mover ~1 MB por la red en cada rebuild. Nada.
 
 > La query grande del §3 queda como **referencia de qué campos hace falta traer**, no como la query a
-> escribir. En la implementación se parte en las cinco de arriba.
+> escribir. En la implementación se parte en las de arriba.
 
 ---
 
-## 2.ter "¿Cachear en vez de tener tablas es una práctica profesional?"
+## 2.ter "¿Una tabla mantenida por un job es una práctica profesional?"
 
 Sí, y conviene dejarlo escrito para no rediscutirlo.
 
-**Es un patrón con nombre**: *cached read model* (proyección en memoria / caché de datos de referencia).
-Es lo que se hace con datos acotados, muy leídos y que cambian poco: tablas de precios, configuración,
-feature flags, catálogos chicos. **.NET 9 —la versión que usamos— shippeó `HybridCache`**, una API de
-primera clase para esto con protección contra *cache stampede*. Antes ya estaban `IMemoryCache` e
-`IHostedService` para el precalentamiento.
+**Es un patrón con nombre**: caché *read-through* materializado (proyección persistida / caché de datos de
+referencia). Es lo que se hace con datos acotados, muy leídos y que cambian poco: tablas de precios,
+configuración, feature flags, catálogos chicos.
 
-### El punto que reencuadra la pregunta: la tabla también es un caché
+### El punto que reencuadra la pregunta: la tabla no es la fuente de verdad
 
-`CatalogoWeb` **no sería una fuente de verdad**: sería una copia derivada de Dragon y de los mapeos,
-mantenida por un job. Es decir, **un caché guardado en SQL Server con invalidación manual**. La
-comparación real no es "cachear vs. tablas":
+`dbo.Catalogo` **no es una fuente de verdad**: es una copia derivada de Dragon y de los mapeos, mantenida
+por el rebuild. Es decir, **un caché guardado en SQL Server**. Lo que lo hace correcto no es evitar la
+tabla, sino cómo se la mantiene:
 
-| | Caché en RAM | Caché en tablas |
-|---|---|---|
-| Dónde vive la copia | Memoria del proceso | SQL Server |
-| Cómo se refresca | TTL de 5 min, automático | Un job que hay que escribir, programar y monitorear |
-| Si el refresh falla | Sirve la copia anterior y reintenta solo | **Queda viejo hasta que alguien se entere** |
-| Puede quedar inconsistente | No: se reconstruye entera | Sí: filas huérfanas, bajas no detectadas, columnas pisadas |
-| Se cura reiniciando | Sí | No |
-| Piezas móviles | 1 | 5 tablas + job + log + candado de máquina |
+| | Cómo lo resuelve este diseño |
+|---|---|
+| Cómo se refresca | TTL read-through, automático (no un cron que haya que vigilar) |
+| Concurrencia | Single-flight: N requests → un solo rebuild |
+| Si el refresh falla | Sirve la copia anterior y reintenta on-read (nunca tira, nunca pisa la tabla) |
+| Consistencia de las hijas | MERGE + reconstrucción de talle/color en **una** transacción: nadie las ve a medias |
+| Bajas | El MERGE marca `Eliminado = 1` lo que ya no está (baja lógica, nunca DELETE físico) |
+| Decisión humana | `OcultarManual` se **preserva** en el MERGE; `Publicado` se recomputa |
 
-**La versión con tablas no es "no cachear": es cachear con más maquinaria y más formas de estar mal.**
+**No es "cachear con más maquinaria": es un caché con las garantías puestas donde importan.**
 
-### Los cinco guardarraíles (sin estos, sí está mal hecho)
+### Los guardarraíles (sin estos, sí está mal hecho)
 
 El patrón es estándar; lo profesional está en estos puntos:
 
 1. **Documentado.** Un caché con un TTL invisible es una trampa. Está acá, y el sitio muestra
    **"datos actualizados hace X"**.
-2. **Observable.** Se loguea cada refresh y se alerta si la copia envejece. Crítico ahora que los precios
-   son públicos: servir precios viejos en silencio es el riesgo a evitar.
-3. **Precalentado al arranque** con `IHostedService`: ningún usuario paga los ~300 ms del primer llenado.
-4. **Memoria acotada y medida.** 981 artículos ≈ 2 MB. Si el catálogo se multiplica, la RAM también →
+2. **Observable.** Se loguea cada rebuild (con el tiempo y los conteos publicables / sólo-depósito) y un
+   rebuild fallido queda logueado. Crítico ahora que los precios son públicos: servir precios viejos en
+   silencio es el riesgo a evitar.
+3. **Precalentado al arranque** con `CatalogoBaseWarmup` (un `BackgroundService`): ningún usuario paga el
+   primer rebuild tras un deploy.
+4. **Acotado y medido.** ~1.600 filas hoy. Si el catálogo se multiplica, el tiempo de rebuild también →
    hay que monitorearlo, no asumirlo.
-5. **La divergencia entre instancias es una decisión, no un accidente.** Hasta 5 min de diferencia entre
-   instancias; para un catálogo es irrelevante.
+5. **El TTL es una decisión, no un accidente.** Hasta `MinutosTtl` de atraso en los precios; para un
+   catálogo es aceptable, y es configurable.
 
 ### Cuándo dejar de ser la opción correcta
 
-Si el catálogo pasa de ~20.000 artículos, si hace falta consistencia inmediata, o si aparecen varias
-instancias que deban coincidir. Ahí corresponde materializar
-([CATALOGO-SYNC.md](CATALOGO-SYNC.md)) o pasar a un índice de búsqueda (Meilisearch, Elastic, Azure AI
-Search), que es lo que usan los catálogos de decenas de miles de SKU y da facetas y full-text nativo.
-
-Lo que **sí** sería poco profesional hoy: montar 5 tablas y un job con detección de bajas, marcas de agua
-y hashes **para 981 filas**. Más maquinaria no es más profesional; elegir el mecanismo del tamaño del
-problema, sí.
+Si el catálogo crece un orden de magnitud, si hace falta consistencia inmediata (precios en tiempo real),
+o si el rebuild completo se vuelve caro. Ahí correspondería un refresh **incremental** de la tabla (sólo
+lo que cambió) o pasar a un índice de búsqueda (Meilisearch, Elastic, Azure AI Search), que es lo que
+usan los catálogos de decenas de miles de SKU y da facetas y full-text nativo.
 
 > **Caso aparte: ventas / descuento de stock.** El caché es un patrón de *lectura* y no se traslada al
-> momento de vender, que es *escritura transaccional*. Eso NO obliga a rehacer nada: el lado de ventas
-> se agrega como módulo transaccional aparte y el catálogo queda como el lado de lectura. El porqué, qué
-> se reutiliza y la regla de la autoridad del stock están en
-> [EXTENSIBILIDAD-VENTAS.md](EXTENSIBILIDAD-VENTAS.md).
+> momento de vender, que es *escritura transaccional*. Este sitio es casi de solo lectura: las únicas
+> escrituras van a MARKET —`OcultarManual` (mostrar/ocultar del público) y `RepoArticulosBloqueados`
+> (bloqueo de reposición)—; nunca toca Dragon.
 
 ---
 
 ## 3. Los campos del universo (referencia)
 
-Trae los ~981 artículos publicables con todo lo que necesita la grilla. **Se implementa partida por
-fuente** (§2.bis); acá va junta para que se lea de una:
+El rebuild arma las ~1.600 filas del universo interno con todo lo que necesita la grilla. **Se implementa
+partida por fuente** (§2.bis) y se cruza en C#; acá va junta para que se lea de una:
 
 ```sql
--- Universo publicable: armado en algún local, con rubro y género válidos.
+-- Universo: todo lo mapeado (incluido depósito). El bit Publicado se calcula por fila; sólo se descarta
+-- la basura del ERP (taxonomía "No aplica" / pseudo-artículos de promoción).
 WITH Armados AS (
-    SELECT ARTCOD = RTRIM(REG.ARTCOD), IDUbicacion = UB.ID, Local = UB.Descripcion
+    SELECT ARTCOD = RTRIM(REG.ARTCOD), IDUbicacion = UB.ID, Local = UB.Descripcion, EsDeposito = ...
     FROM MARKET.dbo.MapeoRegistro      REG WITH (NOLOCK)
     JOIN MARKET.dbo.Mapeo              MAP WITH (NOLOCK) ON MAP.ID = REG.IDMapeo
     JOIN MARKET.dbo.Ubicaciones        UB  WITH (NOLOCK) ON UB.ID  = MAP.IDUbicacion
     JOIN MARKET.dbo.UbicacionesTipo    UT  WITH (NOLOCK) ON UT.ID  = UB.IDTipo
-    WHERE REG.Eliminado = 0 AND MAP.Eliminado = 0 AND UT.Descripcion <> 'DEPOSITO'
+    WHERE REG.Eliminado = 0 AND MAP.Eliminado = 0
     GROUP BY RTRIM(REG.ARTCOD), UB.ID, UB.Descripcion
 )
-SELECT  C.ARTCOD,
-        -- El override editorial gana sobre ARTDES, que no sirve para el público
-        Titulo       = ISNULL(NULLIF(RTRIM(O.NombreComercial), ''), RTRIM(A.ARTDES)),
+SELECT  A.ARTCOD,
+        -- El nombre de vidriera se deriva de ARTDES en C# (TituloArticulo.Derivar): no hay override manual.
         Descripcion  = RTRIM(A.ARTDES),
-        Marketing    = O.DescripcionMarketing,
         Rubro        = RTRIM(TIPO.DESCRIP),
         Genero       = RTRIM(CATE.DESCRIP),
         FamiliaCod   = RTRIM(A.FAMILIA),
         Familia      = RTRIM(FAM.DESCRIP),
         Combo        = UPPER(RTRIM(ISNULL(A.CLASIFART, ''))),
-        PrecioSuelta = PV.PDIRECTO,          -- LISTA1; el del combo se calcula en C#
-        RutaFoto     = G.LinkDriveDisco,     -- NULL/'' → placeholder (D7)
-        Destacado    = ISNULL(O.Destacado, 0),
-        Locales      = C.Locales
-FROM (
-    SELECT ARTCOD,
-           Locales = STRING_AGG(Local, ',') WITHIN GROUP (ORDER BY Local)
-    FROM Armados GROUP BY ARTCOD
-) C
-JOIN      DRAGONFISH_CENTRAL.ZooLogic.ART      A    WITH (NOLOCK) ON RTRIM(A.ARTCOD) = C.ARTCOD
+        PrecioSuelta = PV.PDIRECTO           -- LISTA1; el del combo se calcula en C#
+FROM      DRAGONFISH_CENTRAL.ZooLogic.ART      A    WITH (NOLOCK)
 LEFT JOIN DRAGONFISH_CENTRAL.ZooLogic.TIPOART  TIPO WITH (NOLOCK) ON TIPO.COD = A.TIPOARTI
 LEFT JOIN DRAGONFISH_CENTRAL.ZooLogic.CATEGART CATE WITH (NOLOCK) ON CATE.COD = A.CATEARTI
 LEFT JOIN DRAGONFISH_CENTRAL.ZooLogic.FAMILIA  FAM  WITH (NOLOCK) ON FAM.COD  = A.FAMILIA
-LEFT JOIN MARKET.dbo.CatalogoArticulo          O    WITH (NOLOCK) ON O.ARTCOD = C.ARTCOD AND O.Eliminado = 0
 -- Precio VIGENTE: sin el FECHAVIG <= hoy publicaríamos un precio que no entró en vigencia
 OUTER APPLY (SELECT TOP 1 P.PDIRECTO
              FROM DRAGONFISH_CENTRAL.ZooLogic.PRECIOAR P WITH (NOLOCK)
              WHERE P.ARTICULO = A.ARTCOD AND P.LISTAPRE = 'LISTA1' AND P.FECHAVIG <= GETDATE()
              ORDER BY P.FECHAVIG DESC, P.HMODIFW DESC) PV
--- GoogleDriveFotosArticulos tiene VARIAS filas por código (hasta 70): siempre la última
-OUTER APPLY (SELECT TOP 1 F.LinkDriveDisco
-             FROM MARKET.dbo.GoogleDriveFotosArticulos F WITH (NOLOCK)
-             WHERE F.Codigo = C.ARTCOD AND ISNULL(F.Eliminado, 0) = 0
-             ORDER BY F.ID DESC) G
-WHERE ISNULL(O.OcultarManual, 0) = 0
-  -- Filtro de basura: obligatorio ahora que se publican los sin foto (D7).
-  -- Sin esto saldría el pseudo-artículo de promoción '2X15000' como si fuera un producto.
-  AND LEN(RTRIM(ISNULL(TIPO.DESCRIP, ''))) > 0 AND RTRIM(TIPO.DESCRIP) <> 'No aplica'
+WHERE LEN(RTRIM(ISNULL(TIPO.DESCRIP, ''))) > 0 AND RTRIM(TIPO.DESCRIP) <> 'No aplica'
   AND LEN(RTRIM(ISNULL(CATE.DESCRIP, ''))) > 0 AND RTRIM(CATE.DESCRIP) <> 'No aplica';
 ```
 
-> **Nota (posterior a esta ilustración):** el `RutaFoto = G.LinkDriveDisco` de arriba quedó desactualizado.
-> Hoy la foto se resuelve **IA primero, disco después** (`COALESCE(LinkIADisco, LinkDriveDisco)`), en su
-> propia consulta (`TraerRutasFotoAsync`). Y además del filtro de basura de acá, el armado del snapshot
-> aplica más filtros de publicación (entre ellos el temporal de **sólo Indumentaria**). El detalle vive en
-> [FOTOS.md](FOTOS.md) y [CATALOGO-PUBLICACION.md](CATALOGO-PUBLICACION.md).
+> **Notas.** La foto se resuelve **IA primero, disco después** (`COALESCE(LinkIADisco, LinkDriveDisco)`)
+> en su propia consulta (`TraerRutasFotoAsync`), no en la de arriba. El **ocultar-manual** vive en la
+> columna `dbo.Catalogo.OcultarManual` (no hay tabla de overrides): el MERGE la **preserva** y recomputa
+> `Publicado`. Y además del filtro de basura de acá, el bit `PublicadoBase` aplica los criterios de
+> publicación (entre ellos el temporal de **sólo Indumentaria**). El detalle vive en [FOTOS.md](FOTOS.md)
+> y [CATALOGO-PUBLICACION.md](CATALOGO-PUBLICACION.md).
 
 ### Color y talle: de las COMPRAS, no de `COMB`
 
-> ⚠️ El diseño original de este doc leía las variantes de `COMB` + `DPCOLOR` (~14.225 filas). **Ya no
-> es así.** `COMB` traía los colores por código y había que matchearlos contra `DPCOLOR` (por `PALCOL`
-> + `CODCOL`), lo que dejaba variantes sin nombre, y en general sus datos venían sucios. Se descartó.
+> ⚠️ El diseño original de este doc leía las variantes de `COMB` + `DPCOLOR`. **Ya no es así.** `COMB`
+> traía los colores por código y había que matchearlos contra `DPCOLOR` (por `PALCOL` + `CODCOL`), lo que
+> dejaba variantes sin nombre, y en general sus datos venían sucios. Se descartó.
 
 Hoy el color y el talle salen de lo que **realmente se compró**, en una cascada de dos fuentes por
-artículo (`CatalogoCache.ConstruirAsync`):
+artículo (`CatalogoStore.ConstruirFilasAsync`), y se persisten normalizados en las tablas hijas
+`dbo.CatalogoTalle` / `dbo.CatalogoColor`:
 
 1. **`TraerVariantesPrecompraAsync`** — `PRECOMPRADET` (órdenes de compra). El color viene como texto
    directo del remito (`FCOTXT`), sin el problema de matcheo de `COMB`. Se excluyen las anuladas.
@@ -280,8 +272,8 @@ talles de PRECOMPRA/REMCOMPRA (sin ST/U/X/vacío)
         └─ si tampoco hay curva → sin talles → la card muestra "Talle único"
 ```
 
-El precio del combo (`ComboTotal / ComboCantidad`) y la validación de la regla `+$5.000` se calculan en
-C# al armar el cache.
+El precio del combo (`ComboTotal / ComboCantidad`) se calcula en C# al armar las filas y se guarda en las
+columnas `ComboCantidad` / `ComboTotal` de la tabla.
 
 ---
 
@@ -296,51 +288,58 @@ click
   ├─ Blazor intercepta (enhanced navigation): no recarga la página entera
   ├─ fetch GET /catalogo/indumentaria/mujer?familia=CAMPERA
   │    │
-  │    └─ SERVER: Catalogo.razor
-  │         ├─ lee rubro/genero de la ruta y el resto del query string
-  │         ├─ pide el universo al IMemoryCache            ← 0 consultas SQL
-  │         ├─ filtra en memoria (LINQ):                     ~0,1 ms
-  │         │    rubro=Indumentaria, genero=Mujer, familia=CAMPERA
-  │         ├─ cuenta las facetas (familia, talle, color, local)
-  │         ├─ ordena y toma la página (48)
-  │         └─ escribe el HTML                                ~2 ms
+  │    └─ SERVER: Catalogo.razor → LectorCatalogo.BuscarAsync
+  │         ├─ AsegurarBaseFresca(): revalida en background si la base venció
+  │         ├─ traduce los slugs de la URL a valores (TaxonomiaMapa, en RAM)
+  │         │    rubro=indumentaria→Indumentaria, genero=mujer→Mujer, familia=CAMPERA
+  │         ├─ CatalogoRepositorio.BuscarPublicoAsync — UN viaje (QueryMultiple):
+  │         │    · WHERE con los filtros + ORDER BY + OFFSET/FETCH (48 por página)
+  │         │    · COUNT(*) para el total
+  │         │    · un GROUP BY por faceta (familia, talle, color, local, combo…)
+  │         └─ arma el HTML
   │
   ├─ recibe ~25 KB de HTML
   ├─ reemplaza el <body>, conserva CSS/JS y la posición de scroll
   └─ pinta
        └─ los <img loading="lazy"> visibles piden sus thumbnails
-          (~12 requests de ~30 KB, desde disco, sin SQL)
+          (desde disco/caché de fotos, sin volver a SQL)
 ```
 
-**Nada se busca de a pedazos.** Cada navegación es un render completo del server; enhanced navigation lo
-hace *sentir* incremental porque solo cambia el `<body>`. Y con JavaScript apagado el mismo click
+**La grilla se resuelve EN SQL, no en memoria.** No se trae toda la tabla para filtrar en C#: la base
+hace el `WHERE`, ordena, pagina, cuenta el total y calcula las facetas, todo en un solo `QueryMultiple`.
+Talle/color se filtran con `EXISTS` sobre las tablas hijas; el combo, por las columnas
+`ComboCantidad`/`ComboTotal`. Lo único que queda en RAM del catálogo es el mapita slug→valor
+(`TaxonomiaMapa`, ~decenas de entradas), rearmado con cada rebuild. Con JavaScript apagado el mismo click
 funciona igual, solo con repintado completo.
 
 ### Las facetas: el detalle que se arruina fácil
 
-Cada faceta se cuenta **excluyendo su propio filtro**:
+Cada faceta se cuenta **excluyendo su propio filtro**, dentro del mismo `QueryMultiple`:
 
-```csharp
-var baseSet = universo.Where(x => x.Rubro == rubro && x.Genero == genero);
-
-// Para la faceta de familia se aplican todos los filtros MENOS familia
-var paraFamilia = baseSet.Where(SinFamilia(filtros));
-var facetaFamilia = paraFamilia.GroupBy(x => x.Familia)
-                               .Select(g => (g.Key, Cantidad: g.Count()));
+```sql
+-- Faceta de familia: el WHERE lleva todos los filtros MENOS "familia"
+SELECT Valor = c.Prenda, Etiqueta = c.Prenda, Cantidad = COUNT(*)
+FROM dbo.Catalogo c WHERE {todos-los-filtros-menos-familia}
+GROUP BY c.Prenda;
 ```
 
-Si no, después de elegir "Campera" el panel mostraría solo "Campera (28)" y quedarías encerrado sin
-poder pasar a "Pantalón". Los contadores además hacen que **las opciones en cero desaparezcan solas**.
+El helper `Combinar(base, preds, excepto)` arma cada `WHERE` salteando el predicado de la faceta que se
+está contando. Si no, después de elegir "Campera" el panel mostraría solo "Campera (28)" y quedarías
+encerrado sin poder pasar a "Pantalón". Los contadores además hacen que **las opciones en cero
+desaparezcan solas**.
 
 ---
 
 ## 5. La ficha del producto
 
-`/producto/buzo-plush-c-r-im013-056` → se extrae `IM013.056` del final del slug, se busca en el universo
-cacheado (diccionario por `ARTCOD`), y las variantes salen del mismo cache ordenadas por `TalleOrden`.
+**Pública** — `/producto/buzo-plush-c-r-im013-056` → se extrae `IM013.056` del final del slug y se busca
+en el conjunto publicado leído de la tabla (`LeerAsync`, diccionarios por slug y por código). Si el slug
+recibido no coincide con el canónico (porque cambió el título), 301 al canónico.
 
-**Cero consultas SQL.** Si el slug recibido no coincide con el canónico (porque cambió el título), 301 al
-canónico.
+**Interna** — la ficha del staff (`/interno`) se consulta **en vivo a demanda** al abrirla: stock por
+local, ventas y margen realizado, características, ubicaciones, órdenes y estado de bloqueo. No se
+materializa en la tabla. Usa *streaming render*: la ficha aparece enseguida y el **benchmark de familia**
+—lo más pesado— entra después; ese número se **cachea por familia (prenda)** con el mismo TTL de la base.
 
 ---
 
@@ -348,41 +347,32 @@ canónico.
 
 ### Por tráfico: sí, prácticamente sin límite
 
-El costo en SQL es **una consulta cada 5 minutos**, constante. 100 visitas por día o 100.000 por hora
-consumen lo mismo de la base. Lo único que escala con el tráfico es CPU de render y ancho de banda de
-las imágenes, que es lo que un servidor web hace bien.
+El cruce de las dos bases ocurre **como mucho una vez por TTL** (single-flight, en background). Las
+lecturas van a la tabla `dbo.Catalogo`, indexada y paginada en SQL: 100 visitas por día o 100.000 por
+hora no vuelven a cruzar las bases. Lo que escala con el tráfico es CPU de render, ancho de banda de las
+imágenes y las lecturas paginadas a la tabla —todo lo que un servidor web + SQL hacen bien.
 
-Es la diferencia central con el plan anterior de `OutputCache` por URL: ahí cada combinación de filtros
-no vista antes costaba 300 ms sobre la base de logística.
+### Por tamaño del catálogo
 
-### Por tamaño del catálogo: hasta ~10× el actual
-
-| Artículos | Universo en RAM | Query de refresh | Filtrado en memoria |
-|---|---|---|---|
-| **981 (hoy)** | ~2 MB | ~300 ms | microsegundos |
-| 5.000 | ~10 MB | ~1,5 s | < 1 ms |
-| 20.000 | ~40 MB | ~6 s | pocos ms |
-| 100.000 | ~200 MB | decenas de s | decenas de ms |
-
-Hasta ~20.000 artículos esto sigue siendo razonable. Más arriba, el refresh empieza a ser un problema y
-ahí sí corresponde materializar en tablas con refresh incremental — el diseño está en
-[CATALOGO-SYNC.md](CATALOGO-SYNC.md).
+Hoy son ~1.600 filas en el universo interno (~600 publicadas). El costo que crece con el tamaño es el
+**rebuild** (cruzar y persistir todo el universo) y no la lectura, que ya es una consulta paginada. Hasta
+un orden de magnitud más esto sigue siendo razonable; más arriba, el rebuild completo empieza a pesar y
+ahí correspondería un refresh **incremental** (sólo lo que cambió) o un índice de búsqueda dedicado.
 
 ### Por combinaciones de filtros: indiferente
 
-Es la ventaja grande de cachear el universo en vez de las respuestas. Cualquier combinación, vista o no,
-se resuelve en memoria. **El espacio combinatorio de filtros deja de ser un problema de performance.**
+Cualquier combinación de filtros, vista o no, se resuelve contra la misma tabla indexada con un `WHERE` +
+`OFFSET/FETCH`. **El espacio combinatorio de filtros deja de ser un problema de performance** — y sin
+`OutputCache`, no depende del *hit rate* de una caché por URL.
 
 ### Los límites reales, sin maquillar
 
-1. **Cada instancia tiene su propia copia.** Con un solo server no importa. Con varios, cada uno
-   refresca por separado y pueden diferir hasta 5 minutos entre sí. Aceptable para un catálogo.
-2. **Precios con hasta 5 minutos de atraso.** Configurable. Es mejor que el job de 15–30 minutos del
-   diseño anterior, pero no es tiempo real.
-3. **El primer request después de arrancar paga los 300 ms.** Se resuelve precargando el cache al
-   arranque (`IHostedService`), así el primer visitante nunca lo paga.
-4. **Si el refresh falla**, se sigue sirviendo la copia vieja y se reintenta. Hay que **loguearlo y
-   exponer "datos actualizados hace X"**, porque servir datos viejos en silencio es justamente el riesgo
-   que se quería evitar al publicar precios.
-5. **Búsqueda por texto en memoria** con `Contains` sobre ~981 títulos es instantáneo. Con decenas de
-   miles convendría índice full-text en SQL.
+1. **Precios con hasta `MinutosTtl` de atraso.** Configurable. No es tiempo real.
+2. **El primer request tras arrancar dispararía el rebuild** — lo cubre `CatalogoBaseWarmup` con un
+   rebuild bloqueante al arranque, así el primer visitante no lo paga.
+3. **Si el rebuild falla**, se sigue sirviendo la tabla vieja y se reintenta on-read. Hay que
+   **loguearlo y exponer "datos actualizados hace X"**, porque servir datos viejos en silencio es
+   justamente el riesgo que se quería evitar al publicar precios.
+4. **Búsqueda por texto** con `LIKE` sobre la columna `TextoBusqueda` (pública) / campos concatenados con
+   `COLLATE _CI_AI` (interna) es instantáneo a este tamaño. Con decenas de miles de filas convendría
+   índice full-text en SQL.

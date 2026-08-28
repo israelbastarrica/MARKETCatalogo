@@ -1,7 +1,13 @@
 # Medición contra datos reales
 
-Corrida sobre producción (solo lecturas con `NOLOCK`). Es la medición que el PLAN pedía como primera
-tarea de la Fase 1, y **cambió tres decisiones**.
+> **Documento HISTÓRICO.** Es la medición inicial contra producción que fundamentó el diseño. Los
+> **números son reales** (y siguen sirviendo como referencia de volúmenes/tiempos), pero algunas
+> **conclusiones de la época quedaron atrás**: el diseño final NO usa `OutputCache` ni un caché en
+> memoria — la tabla materializada `dbo.Catalogo` ES el caché y la grilla se resuelve en SQL. Ver
+> [../README.md](../README.md) y [../CLAUDE.md](../CLAUDE.md) para el diseño vigente.
+
+Corrida sobre producción (solo lecturas con `NOLOCK`). Fue la primera medición del proyecto, y **cambió
+tres decisiones** del plan de ese momento.
 
 ---
 

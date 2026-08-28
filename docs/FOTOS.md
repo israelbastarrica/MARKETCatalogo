@@ -7,7 +7,8 @@ Archivos involucrados:
 
 - `src/Modulos/Catalogo/MarketCatalogo.Catalogo.Datos/CatalogoRepositorio.cs` → `TraerRutasFotoAsync` (SQL).
 - `src/Modulos/Catalogo/MarketCatalogo.Catalogo.Aplicacion/Dominio/RutasFoto.cs` → resolución de rutas.
-- `src/Modulos/Catalogo/MarketCatalogo.Catalogo.Aplicacion/Servicios/CatalogoCache.cs` → `VersionFoto`, armado del snapshot.
+- `src/Modulos/Catalogo/MarketCatalogo.Catalogo.Aplicacion/Servicios/CatalogoStore.cs` → `VersionFoto`, armado de las filas del rebuild (`ConstruirFilasAsync`).
+- `src/Modulos/Catalogo/MarketCatalogo.Catalogo.Datos/CatalogoRepositorio.cs` → `LeerRutaFotoAsync` (lookup por PK del original).
 - `src/Modulos/Catalogo/MarketCatalogo.Catalogo.Aplicacion/Servicios/FotosService.cs` → resize + caché en disco.
 - `src/MarketCatalogo.Web/Endpoints/FotosEndpoint.cs` → el endpoint HTTP `/fotos/...`.
 - `src/Modulos/Catalogo/MarketCatalogo.Catalogo.Ui/Componentes/CardArticulo.razor` y `.../Paginas/Producto.razor` → las `<img>`.
@@ -24,8 +25,9 @@ por artículo:
 
 Ambas apuntan a archivos en **la misma carpeta**; sólo cambia el sufijo `_ia`.
 
-La regla es **IA primero; si no hay IA, la de disco**. Se resuelve en SQL con un `COALESCE`
-(`TraerRutasFotoAsync`):
+La regla es **IA primero; si no hay IA, la de disco**. Se arma durante el rebuild del catálogo
+(`CatalogoStore.ConstruirFilasAsync`), leyendo las rutas con `TraerRutasFotoAsync`, que ya resuelve la
+preferencia en SQL con un `COALESCE`:
 
 ```sql
 Ruta = COALESCE(
@@ -36,14 +38,15 @@ Ruta = COALESCE(
 
 Por código puede haber **varias filas** (el sync inserta filas nuevas). Se toma la **más reciente**
 (`ROW_NUMBER() OVER (PARTITION BY Codigo ORDER BY ID DESC)`, `Fila = 1`) y se descartan las que quedan
-sin ninguna ruta (`LEN(Ruta) > 0`).
+sin ninguna ruta (`LEN(Ruta) > 0`). La ruta resultante se persiste en la columna **`FotosJson`** de
+`dbo.Catalogo` (`$[0].link`), de donde la lee después el endpoint de fotos.
 
 > **Estado actual de los datos** (medido): ~64 artículos con IA, ~7.181 sólo con disco, ~773 sin nada.
 > O sea: hoy la enorme mayoría se sirve con la foto de disco; la IA recién arranca.
 
 ## 2. `TieneFoto` es por LINK, no por archivo en disco
 
-En el armado del caché (`CatalogoCache.ConstruirAsync`):
+En el armado de las filas del rebuild (`CatalogoStore.ConstruirFilasAsync`):
 
 ```csharp
 var ruta = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
@@ -106,9 +109,10 @@ servidor). Es el patrón estándar de *fingerprint de assets*.
 
 ### 5.1 El token de versión
 
-- `ArticuloDto.FotoVersion` se calcula en `CatalogoCache.VersionFoto` como la **fecha de modificación del
-  original** (`GetLastWriteTimeUtc(...).Ticks`, en hex). Si el archivo no está accesible en esa máquina, cae
-  al hash de la ruta (que igual cubre disco→IA, porque ahí cambia el nombre).
+- `ArticuloDto.FotoVersion` se calcula en `CatalogoStore.VersionFoto` **durante el rebuild** como la **fecha
+  de modificación del original** (`GetLastWriteTimeUtc(...).Ticks`, en hex) y se guarda en la columna
+  `FotoPrincipalVersion` de `dbo.Catalogo` (y dentro de `FotosJson`). Si el archivo no está accesible en esa
+  máquina, cae al hash de la ruta (que igual cubre disco→IA, porque ahí cambia el nombre).
 - Las `<img>` piden `/fotos/{código}_{ancho}.webp?v={FotoVersion}`.
 
 ### 5.2 Navegador — URL versionada
@@ -123,7 +127,8 @@ servidor). Es el patrón estándar de *fingerprint de assets*.
 con él: **`{código}_{ancho}_{versión}.webp`**.
 
 - Si existe → lo sirve (existe = ya se generó para ESTA versión → está bien).
-- Si no existe → lo genera desde el original **actual** (IA-primero, vía el snapshot).
+- Si no existe → lo genera desde el original **actual** (IA-primero), cuya ruta resuelve con un lookup por
+  PK sobre `dbo.Catalogo` (`CatalogoRepositorio.LeerRutaFotoAsync`, que lee `FotosJson`, `$[0].link`).
 
 Así el servidor **no** puede quedar sirviendo un thumbnail viejo: un cambio de foto produce un nombre nuevo
 que todavía no existe → se regenera. (Los links viejos sin `?v=` caen al nombre sin versión, sólo por
@@ -138,7 +143,8 @@ la carpeta a mano**. Es best effort: si un borrado falla (archivo en uso), se lo
 
 ### Flujo completo cuando se le genera la IA a un artículo
 
-1. En ≤5 min el caché en memoria del catálogo se refresca y toma el nuevo `LinkIADisco` (COALESCE IA primero).
+1. En el próximo rebuild (TTL ~20 min, config `Catalogo:MinutosTtl`) la base toma el nuevo `LinkIADisco`
+   (COALESCE IA primero).
 2. Su `FotoVersion` cambia (el `_ia.jpg` es otro archivo, otra fecha) → cambia el `?v=` de sus `<img>`.
 3. El navegador ve una URL nueva → pide `..._{versiónNueva}.webp` → el servidor no lo tiene → lo genera
    desde la IA, borra las versiones viejas de esa foto → **se ve la IA**. Todo automático.

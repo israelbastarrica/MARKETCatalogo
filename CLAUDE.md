@@ -122,7 +122,5 @@ not loaded from a CDN.
 - `docs/CATALOGO-PUBLICACION.md` — full publish/discard filter logic (including the temporary
   Indumentaria-only restriction) and the dev diagnostic `.txt` dump.
 - `docs/FOTOS.md` — full photo pipeline design (summarized above).
-- `docs/CATALOGO-SYNC.md` — **not current**: an alternative materialized-table design, only relevant
-  if the catalog grows ~5x.
 - `docs/CONTENIDO.md` — approved institutional copy; `Institucional.Ui` pages transcribe it verbatim,
   including preserved typos — edit the manual/doc first, never the copy in `.razor` directly.

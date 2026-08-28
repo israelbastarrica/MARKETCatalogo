@@ -18,8 +18,15 @@ public interface ICatalogoInternoConsulta
     /// (Accesorios, Lencería, Calzado…). El header lo invierte a Género → Tipos con MenuSecciones.</summary>
     Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default);
 
-    /// <summary>Un artículo interno por su código (para la ficha). null si no está en el universo.</summary>
+    /// <summary>Un artículo interno por su código (para la ficha). null si no está en el universo. NO incluye
+    /// el benchmark de familia (la consulta más pesada): eso se pide aparte con <see cref="BenchmarkFamiliaAsync"/>
+    /// para no bloquear el primer render (la ficha lo carga por streaming).</summary>
     Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, CancellationToken ct = default);
+
+    /// <summary>Benchmark de la familia (Prenda) del artículo: facturado promedio por artículo en la ventana.
+    /// Cacheado por familia (es el mismo para todos los artículos de la prenda). <paramref name="facturadoArticulo"/>
+    /// es el facturado del artículo abierto, para marcar si supera el promedio. Vacío si no hay prenda/datos.</summary>
+    Task<BenchmarkFamiliaDto> BenchmarkFamiliaAsync(string? prenda, decimal? facturadoArticulo, CancellationToken ct = default);
 
     /// <summary>Oculta o muestra un artículo del catálogo PÚBLICO (la única escritura de la app). Escribe
     /// el override <c>OcultarManual</c> y refleja el cambio al instante. <paramref name="origen"/> = quién

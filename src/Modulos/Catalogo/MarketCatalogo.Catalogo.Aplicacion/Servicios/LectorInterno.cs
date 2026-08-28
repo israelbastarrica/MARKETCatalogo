@@ -62,23 +62,43 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         var ordT = TraerSeguro(() => _repo.TraerOrdenesPedidoAsync(cod, ct));
         var bloqT = TraerBoolSeguro(() => _repo.EstaBloqueadoAsync(cod, ct));
 
-        // Benchmark de familia (Prenda): facturado promedio por artículo de la misma familia. Los códigos
-        // de la familia salen por SQL (por Prenda), no de traer todo a memoria; la suma de facturado va a
-        // Dragon (tolerante a fallo).
-        var codigosFamilia = string.IsNullOrWhiteSpace(fila.Prenda)
-            ? (IReadOnlyList<string>)Array.Empty<string>()
-            : await _repo.LeerCodigosPorPrendaAsync(fila.Prenda!, ct);
-        var famT = codigosFamilia.Count > 0
-            ? _repo.TraerFacturadoTotalAsync(codigosFamilia, _semanasVentas * 7, ct)
-            : Task.FromResult(0m);
-
-        await Task.WhenAll(datosT, caracT, ubicT, ordT, famT, bloqT);
-
-        decimal? famProm = codigosFamilia.Count > 0 ? famT.Result / codigosFamilia.Count : null;
-        int? famArt = codigosFamilia.Count > 0 ? codigosFamilia.Count : null;
+        // El benchmark de familia (la consulta más pesada) NO se pide acá: lo trae BenchmarkFamiliaAsync
+        // aparte, para que la ficha renderice ya y ese número entre por streaming.
+        await Task.WhenAll(datosT, caracT, ubicT, ordT, bloqT);
 
         return Mapear(fila, datosT.Result?.Stock, datosT.Result?.Ventas, caracT.Result, ubicT.Result,
-            famProm, famArt, ordT.Result, bloqT.Result);
+            ordT.Result, bloqT.Result);
+    }
+
+    // Cache del facturado de familia por (prenda|días): es el mismo para todos los artículos de la prenda,
+    // así la 1ª ficha de la familia paga el scan y el resto sale instantáneo. TTL = el de la base.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Cuando, decimal Total, int Articulos)>
+        _cacheFamilia = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task<BenchmarkFamiliaDto> BenchmarkFamiliaAsync(string? prenda, decimal? facturadoArticulo, CancellationToken ct = default)
+    {
+        var p = (prenda ?? "").Trim();
+        if (p.Length == 0) return new BenchmarkFamiliaDto(null, null, null);
+
+        var dias = _semanasVentas * 7;
+        var clave = $"{p}|{dias}";
+        if (!_cacheFamilia.TryGetValue(clave, out var e) || DateTime.UtcNow - e.Cuando > _store.Ttl)
+        {
+            try
+            {
+                var codigos = await _repo.LeerCodigosPorPrendaAsync(p, ct);
+                if (codigos.Count == 0) return new BenchmarkFamiliaDto(null, null, null);
+                var total = await _repo.TraerFacturadoTotalAsync(codigos, dias, ct);
+                e = (DateTime.UtcNow, total, codigos.Count);
+                _cacheFamilia[clave] = e;
+            }
+            catch { return new BenchmarkFamiliaDto(null, null, null); }
+        }
+
+        if (e.Articulos == 0) return new BenchmarkFamiliaDto(null, null, null);
+        var prom = e.Total / e.Articulos;
+        bool? supera = facturadoArticulo is decimal f ? f > prom : null;
+        return new BenchmarkFamiliaDto(prom, e.Articulos, supera);
     }
 
     public async Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default)
@@ -203,7 +223,6 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
     private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null,
         VentasPeriodoRow? ventas = null, CaracteristicasRow? carac = null,
         IReadOnlyList<UbicacionDetalleRow>? ubicaciones = null,
-        decimal? famFacturadoProm = null, int? famArticulos = null,
         IReadOnlyList<OrdenPedidoRow>? ordenes = null, bool bloqueado = false)
     {
         // Combo ya viene parseado en columnas (ComboCantidad/ComboTotal); el precio unitario se deriva.
@@ -275,8 +294,6 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             CostoPeriodo = ventas?.Costo,
             MargenRealPesos = ventas?.MargenPesos,
             MargenRealPct = ventas?.MargenPct,
-            FamiliaFacturadoProm = famFacturadoProm,
-            FamiliaArticulos = famArticulos,
             UltimaVenta = ventas?.UltimaVenta,
         };
     }

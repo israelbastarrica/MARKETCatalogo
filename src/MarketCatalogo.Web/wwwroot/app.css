@@ -67,6 +67,10 @@
 /* --- Base ---------------------------------------------------------------- */
 
 html {
+    /* La marca es monocromática y NO tiene tema oscuro. Sin esto, los navegadores en modo oscuro del
+       sistema (Firefox, mobile) aplican su UA oscuro —fondo y controles de formulario negros— y el sitio
+       se ve negro. Forzar 'light' fija el render en claro en todos lados. */
+    color-scheme: light;
     /* Scroll suave para los saltos con ancla, como el "volver arriba" del catálogo. */
     scroll-behavior: smooth;
 }

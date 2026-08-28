@@ -1,6 +1,9 @@
 @page "/interno/producto/{codigo}"
 @using MarketCatalogo.Catalogo.Contratos.Interno
 @attribute [Authorize(Policy = "Interno")]
+@* Streaming: la ficha se renderiza apenas está el artículo (rápido) y el benchmark de familia
+   —la consulta más pesada— entra después, sin bloquear el primer render. *@
+@attribute [StreamRendering]
 @inject ICatalogoInternoConsulta Interno
 
 <PageTitle>@(_a?.Descripcion ?? Codigo) - Interno</PageTitle>
@@ -238,16 +241,16 @@ else
                             <p class="mk-if-nota">Sin ventas en el período.</p>
                         }
 
-                        @if (_a.FamiliaFacturadoProm is decimal prom && _a.Prenda is not null)
+                        @if (_bench?.FacturadoProm is decimal prom && _a.Prenda is not null)
                         {
-                            <div class="mk-if-benchmark @(_a.SuperaPromedioFamilia == true ? "es-arriba" : "es-abajo")">
+                            <div class="mk-if-benchmark @(_bench.Supera == true ? "es-arriba" : "es-abajo")">
                                 <div class="mk-if-benchmark-info">
                                     <span class="mk-rotulo">Promedio familia · @_a.Prenda</span>
                                     <strong>@Plata(prom)</strong>
-                                    <span class="mk-if-benchmark-nota">facturado prom. sobre @_a.FamiliaArticulos artículos</span>
+                                    <span class="mk-if-benchmark-nota">facturado prom. sobre @_bench.Articulos artículos</span>
                                 </div>
                                 <span class="mk-if-benchmark-flag">
-                                    @(_a.SuperaPromedioFamilia == true ? "▲ sobre el promedio" : "▼ bajo el promedio")
+                                    @(_bench.Supera == true ? "▲ sobre el promedio" : "▼ bajo el promedio")
                                 </span>
                             </div>
                         }
@@ -424,9 +427,11 @@ else
     public string? Codigo { get; set; }
 
     private ArticuloInternoDto? _a;
+    private BenchmarkFamiliaDto? _bench;
 
     protected override async Task OnParametersSetAsync()
     {
+        _bench = null;
         try
         {
             _a = await Interno.PorCodigoAsync(Codigo);
@@ -434,6 +439,14 @@ else
         catch
         {
             _a = null;
+        }
+        // Segunda fase (streaming): se emite la ficha ya (StateHasChanged) y recién ahí se pide el
+        // benchmark de familia, que entra en un render posterior sin bloquear el primero.
+        if (_a is not null)
+        {
+            StateHasChanged();
+            try { _bench = await Interno.BenchmarkFamiliaAsync(_a.Prenda, _a.Facturado); }
+            catch { _bench = null; }
         }
     }
 

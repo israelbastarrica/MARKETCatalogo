@@ -96,14 +96,14 @@ public sealed class ArticuloInternoDto
     public DateTime? UltimaVenta { get; init; }
     public bool HuboVentas => Vendido is decimal v && v != 0;
 
-    // Benchmark vs la FAMILIA (Prenda): promedio de facturado por artículo de la familia en la misma
-    // ventana, y cuántos artículos la componen. Sólo en la ficha. null = no se consultó / sin familia.
-    public decimal? FamiliaFacturadoProm { get; init; }
-    public int? FamiliaArticulos { get; init; }
-    /// <summary>true si el facturado de este artículo supera el promedio de su familia.</summary>
-    public bool? SuperaPromedioFamilia =>
-        Facturado is decimal f && FamiliaFacturadoProm is decimal p ? f > p : null;
+    // El benchmark de familia se carga aparte (streaming) para no frenar el primer render de la ficha:
+    // ver BenchmarkFamiliaDto e ICatalogoInternoConsulta.BenchmarkFamiliaAsync.
 }
+
+/// <summary>Benchmark de la FAMILIA (Prenda): facturado promedio por artículo en la ventana, cuántos
+/// artículos la componen, y si este artículo supera ese promedio. Se resuelve aparte de la ficha (a
+/// demanda y cacheado por familia) porque es la consulta más pesada — así no bloquea el primer render.</summary>
+public sealed record BenchmarkFamiliaDto(decimal? FacturadoProm, int? Articulos, bool? Supera);
 
 /// <summary>Filtros de la grilla interna. Todo multi-selección es unión (OR dentro de la faceta). Estado
 /// en la URL, igual que el público.</summary>

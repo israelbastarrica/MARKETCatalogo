@@ -4,6 +4,10 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @* La marca es monocromática, sin tema oscuro: se declara light para que los navegadores en modo
+       oscuro (Firefox, mobile) no apliquen su UA oscuro y pinten el sitio de negro. *@
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
     <base href="/" />
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     @* Las tipografías van ANTES de app.css: los @font-face tienen que estar declarados

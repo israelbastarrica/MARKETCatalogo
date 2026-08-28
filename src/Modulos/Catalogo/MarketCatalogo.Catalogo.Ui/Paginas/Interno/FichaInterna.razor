@@ -557,11 +557,20 @@ else
                 <div class="mk-if-linea-hover">
                     @for (var i = 0; i < n; i++)
                     {
-                        <div class="mk-if-semana" title="Semana @(i + 1)">
+                        var ini = DateTime.Today.AddDays(-(n - i) * 7);
+                        <div class="mk-if-semana" title="Semana del @ini.ToString("dd/MM") · @datos[i].ToString("0.##", Inv) u.">
                             <span class="mk-if-semana-num">@datos[i].ToString("0.##", Inv) u.</span>
                         </div>
                     }
                 </div>
+            </div>
+            @* Eje de fechas: inicio de cada semana (bucket 0 = la más vieja, última = la más reciente,
+               que termina hoy). Alineado con las columnas del overlay (mismo flex). *@
+            <div class="mk-if-linea-fechas" aria-hidden="true">
+                @for (var i = 0; i < n; i++)
+                {
+                    <span>@DateTime.Today.AddDays(-(n - i) * 7).ToString("d/M", Inv)</span>
+                }
             </div>
         </div>;
     };

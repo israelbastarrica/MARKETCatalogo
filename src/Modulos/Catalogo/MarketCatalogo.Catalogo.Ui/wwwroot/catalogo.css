@@ -2053,6 +2053,20 @@
 }
 .mk-if-semana:hover .mk-if-semana-num { opacity: 1; }
 
+/* Eje de fechas del gráfico de ventas: una por semana, alineada con las columnas. */
+.mk-if-linea-fechas {
+    display: flex;
+    margin-top: .35rem;
+}
+.mk-if-linea-fechas span {
+    flex: 1 1 0;
+    text-align: center;
+    font-size: .6rem;
+    line-height: 1.2;
+    color: var(--mk-tinta-40);
+    white-space: nowrap;
+}
+
 /* Benchmark vs familia: monocromo. "arriba" = borde y bandera llenos; "abajo" = tenue/punteado. */
 .mk-if-benchmark {
     display: flex;

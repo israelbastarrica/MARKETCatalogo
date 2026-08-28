@@ -2,6 +2,7 @@ using MarketCatalogo.Auth.Datos;
 using MarketCatalogo.Catalogo.Datos;
 using MarketCatalogo.Web.Components;
 using MarketCatalogo.Web.Endpoints;
+using MarketCatalogo.Web.Servicios;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,18 @@ var builder = WebApplication.CreateBuilder(args);
 // como fallido aunque el proceso quede vivo — y no haría falta NSSM de intermediario. Cuando se corre a mano
 // (dotnet run, consola) esta línea no hace nada: detecta que no hay Service Control Manager detrás.
 builder.Host.UseWindowsService();
+
+// Detrás de Caddy la app solo escucha en 127.0.0.1 y ve HTTP: sin esto arma las URLs (y el redirect_uri
+// de Google) en http://127.0.0.1 y el login falla con redirect_uri_mismatch. Se confía en Caddy, que es
+// el único que le habla. Mismo criterio que MarketWeb.
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                       | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+                       | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedHost;
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
+});
 
 builder.Services.AddRazorComponents();
 
@@ -28,7 +41,13 @@ builder.Services.AgregarModuloCatalogo();
 // middleware más abajo. El público no necesita cuenta; esto habilita la vista interna del staff.
 builder.Services.AgregarModuloAuth(builder.Configuration);
 
+// Límite de intentos del login (sitio público expuesto a internet).
+builder.Services.AgregarLimiteDeIntentos();   // MarketCatalogo.Web.Servicios
+
 var app = builder.Build();
+
+// PRIMERO en el pipeline: aplica X-Forwarded-* antes de auth y de cualquier redirección.
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -39,6 +58,8 @@ if (!app.Environment.IsDevelopment())
 
 // Autenticación/autorización ANTES de antiforgery y del ruteo de componentes: así los [Authorize] de
 // las páginas internas y los AuthorizeView ven la identidad del request.
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

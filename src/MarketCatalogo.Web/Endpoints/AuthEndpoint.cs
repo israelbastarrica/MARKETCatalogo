@@ -17,8 +17,12 @@ public static class AuthEndpoint
     public static void MapAuth(this WebApplication app)
     {
         // Inicia el login con Google (challenge de página completa). Vuelve a `volver` (o /interno).
-        app.MapGet("/auth/login", (string? volver) =>
+        app.MapGet("/auth/login", (string? volver, OpcionesDeIngreso opciones) =>
         {
+            // Sin credenciales cargadas el esquema de Google NI SE REGISTRA, y desafiarlo revienta con 500.
+            // Antes eso le pasaba a cualquiera que tocara "Continuar con Google" en un server sin configurar.
+            if (!opciones.GoogleHabilitado) return Results.Redirect("/login?error=google");
+
             var destino = DestinoSeguro(volver);
             return Results.Challenge(
                 new AuthenticationProperties { RedirectUri = destino },
@@ -47,7 +51,7 @@ public static class AuthEndpoint
             await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = true });
             return Results.Redirect(volver);
-        });
+        }).RequireRateLimiting(MarketCatalogo.Web.Servicios.LimiteIntentos.Politica);
 
         app.MapGet("/auth/logout", async (HttpContext ctx) =>
         {

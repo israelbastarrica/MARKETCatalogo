@@ -34,3 +34,13 @@ public static class PoliticasAuth
     public const string ClaimArea = "area";
     public const string EstadoOk = "ok";
 }
+
+/// <summary>
+/// Qué formas de entrar están realmente disponibles. El login con Google solo existe si el server tiene
+/// cargadas las credenciales; sin ellas, el esquema ni se registra y desafiarlo tira 500. La pantalla de
+/// login usa esto para no ofrecer un botón que no puede funcionar.
+/// </summary>
+public sealed class OpcionesDeIngreso
+{
+    public bool GoogleHabilitado { get; init; }
+}

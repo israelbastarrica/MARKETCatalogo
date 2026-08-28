@@ -31,6 +31,10 @@ public static class ModuloAuth
 
         var googleClientId = cfg["Authentication:Google:ClientId"];
         var googleClientSecret = cfg["Authentication:Google:ClientSecret"];
+        var googleHabilitado = !string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret);
+
+        // Para que la pantalla de login no ofrezca un botón que no puede funcionar.
+        services.AddSingleton(new OpcionesDeIngreso { GoogleHabilitado = googleHabilitado });
 
         var auth = services
             .AddAuthentication(options =>
@@ -53,7 +57,7 @@ public static class ModuloAuth
             });
 
         // Google sólo si están las credenciales (así la app arranca sin ellas: el login local sigue andando).
-        if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+        if (googleHabilitado)
         {
             auth.AddGoogle(options =>
             {

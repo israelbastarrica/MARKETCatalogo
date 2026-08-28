@@ -28,9 +28,9 @@ public interface ICatalogoInternoConsulta
     /// es el facturado del artículo abierto, para marcar si supera el promedio. Vacío si no hay prenda/datos.</summary>
     Task<BenchmarkFamiliaDto> BenchmarkFamiliaAsync(string? prenda, decimal? facturadoArticulo, CancellationToken ct = default);
 
-    /// <summary>Oculta o muestra un artículo del catálogo PÚBLICO (la única escritura de la app). Escribe
-    /// el override <c>OcultarManual</c> y refleja el cambio al instante. <paramref name="origen"/> = quién
-    /// lo hizo (para la auditoría).</summary>
+    /// <summary>Fuerza mostrar u ocultar un artículo del catálogo PÚBLICO. Escribe el override
+    /// <c>VisibilidadManual</c> ('mostrar'/'ocultar'); "mostrar" publica cualquier rubro y sobrevive los
+    /// rebuilds. <paramref name="origen"/> = quién lo hizo (para la auditoría).</summary>
     Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default);
 
     /// <summary>Bloquea o desbloquea un artículo para reposición (tabla <c>RepoArticulosBloqueados</c> de

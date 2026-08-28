@@ -40,18 +40,20 @@ BEGIN
         -- Publicación / estado
         Publicado            bit           NOT NULL CONSTRAINT DF_Catalogo_Publicado DEFAULT (0),
                                                        -- filtro público (materializado e indexado). DERIVADO:
-                                                       -- = base objetiva (Indumentaria + en algún local +
-                                                       -- tiene variantes) AND NOT OcultarManual. Lo recalcula
-                                                       -- el MERGE en cada rebuild; no se edita a mano salvo el
-                                                       -- reflejo inmediato del botón ocultar/mostrar.
+                                                       -- según VisibilidadManual — 'ocultar'->0, 'mostrar'->1,
+                                                       -- 'auto'-> base objetiva (Indumentaria + en algún local
+                                                       -- + variantes). Lo recalcula el MERGE en cada rebuild;
+                                                       -- no se edita a mano salvo el reflejo inmediato del botón.
         Eliminado            bit           NOT NULL CONSTRAINT DF_Catalogo_Eliminado DEFAULT (0),
                                                        -- soft-delete del MERGE (NOT MATCHED BY SOURCE).
 
-        -- Decisión humana: bajar/subir un artículo del público a mano. Es la ÚNICA escritura de la app.
-        -- El rebuild la PRESERVA (el MERGE no pisa estas dos columnas) y usa OcultarManual para recomputar
-        -- Publicado. Antes vivía en una tabla aparte (CatalogoArticulo); se unificó acá: una sola tabla.
-        OcultarManual        bit           NOT NULL CONSTRAINT DF_Catalogo_Ocultar DEFAULT (0),
-        Auditoria            nvarchar(200)     NULL,   -- 'Acción | origen | fecha' del ocultar/mostrar
+        -- Decisión humana de visibilidad (override de 3 estados). El rebuild la PRESERVA (el MERGE no pisa
+        -- estas dos columnas) y recomputa Publicado respetándola:
+        --   'auto'    -> vale el criterio objetivo (PublicadoBase: Indumentaria + local + variantes)
+        --   'mostrar' -> Publicado = 1 SIEMPRE (permite publicar cualquier rubro a mano)
+        --   'ocultar' -> Publicado = 0 SIEMPRE
+        VisibilidadManual    varchar(10)   NOT NULL CONSTRAINT DF_Catalogo_Visib DEFAULT ('auto'),
+        Auditoria            nvarchar(200)     NULL,   -- 'Acción | origen | fecha' del mostrar/ocultar
 
         -- Presentación
         Slug                 varchar(200)      NULL,   -- URL canónica: /producto/{slug}

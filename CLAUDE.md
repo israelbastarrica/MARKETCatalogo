@@ -69,8 +69,10 @@ Nothing else is replicated:
 
 - **MARKET**: `MapeoRegistro`/`Mapeo`/`Ubicaciones` (which article is stocked where), `PruebaCombos`
   (combo pricing), `GoogleDriveFotosArticulos` (photo paths). The catalog materializes into a single
-  table `dbo.Catalogo`; the manual hide decision (`OcultarManual` + audit) lives in that same table and
-  the rebuild MERGE preserves it (there is no longer a separate `CatalogoArticulo` overrides table).
+  table `dbo.Catalogo`; the manual visibility override (`VisibilidadManual` = auto/mostrar/ocultar, +
+  audit) lives in that same table and the rebuild MERGE preserves it, recomputing `Publicado`
+  accordingly — 'mostrar' can publish any rubro, not just Indumentaria (there is no longer a separate
+  `CatalogoArticulo` overrides table).
 - **DRAGONFISH** (`ZooLogic`, aliased "Dragon") — `_CENTRAL` for the rebuild and `_LURO`/`_PERALTA`
   replicas for per-store stock/sales on the ficha: `ART`/`TIPOART`/`CATEARTI`/`FAMILIA`/`PRECIOAR`
   (header, taxonomy, cost + live price), `PRECOMPRADET`/`REMCOMPRADET` (color/talle variants, cascading

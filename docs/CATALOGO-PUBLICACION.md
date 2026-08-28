@@ -34,17 +34,19 @@ Hay que distinguir dos cosas:
 Que un artículo **no tenga foto NO lo descarta**: se publica igual, con un placeholder. Ver
 [FOTOS.md](FOTOS.md) §2.
 
-### Oculto manual
+### Override manual de visibilidad (3 estados)
 
 Además del criterio objetivo hay una **decisión editorial** por artículo, en la columna
-`dbo.Catalogo.OcultarManual` (la misma tabla; ya no existe una tabla `CatalogoArticulo` de overrides).
-El botón ocultar/mostrar (`CambiarVisibilidadAsync`) hace **una sola escritura** sobre `dbo.Catalogo`:
-setea `OcultarManual` + `Auditoria` (formato `Acción | origen | fecha`) y recalcula `Publicado` al
-instante, así que la grilla lo refleja en el próximo request.
+`dbo.Catalogo.VisibilidadManual` (la misma tabla; ya no existe una tabla `CatalogoArticulo` de overrides).
+Tiene 3 estados: **`auto`** (default — vale el criterio objetivo), **`mostrar`** (fuerza publicar, sirve
+para cualquier rubro, no solo Indumentaria) y **`ocultar`** (fuerza esconder). El botón mostrar/ocultar
+(`CambiarVisibilidadAsync`) hace **una sola escritura** sobre `dbo.Catalogo`: setea `VisibilidadManual`
++ `Auditoria` (formato `Acción | origen | fecha`) y recalcula `Publicado` al instante, así que la grilla
+lo refleja en el próximo request.
 
-El **rebuild preserva** `OcultarManual`: el MERGE nunca lo pisa y recomputa
-`Publicado = PublicadoBase AND NOT OcultarManual`. De esa forma la reconstrucción periódica de la base
-no borra la decisión humana.
+El **rebuild preserva** `VisibilidadManual`: el MERGE nunca lo pisa y recomputa `Publicado`
+respetándolo — `'ocultar'→0`, `'mostrar'→1`, `'auto'→PublicadoBase`. De esa forma la reconstrucción
+periódica no borra la decisión humana, y lo publicado a mano sobrevive los rebuilds.
 
 ## 2. Filtro temporal: sólo Indumentaria
 

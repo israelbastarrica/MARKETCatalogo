@@ -61,8 +61,9 @@ memoria. Los slugs de la URL se traducen a valor con un mapa chico en memoria (r
 bloqueo) se consulta **en vivo** a demanda al abrirla — no se materializa. Usa *streaming render*: la
 ficha aparece enseguida y el benchmark de familia (lo más pesado, cacheado por familia) entra después.
 
-Este sitio es **casi de solo lectura**: las únicas escrituras son en MARKET — `OcultarManual`
-(mostrar/ocultar del público) y `RepoArticulosBloqueados` (bloqueo de reposición). Nunca toca Dragon.
+Este sitio es **casi de solo lectura**: las únicas escrituras son en MARKET — `VisibilidadManual`
+(override auto/mostrar/ocultar del público) y `RepoArticulosBloqueados` (bloqueo de reposición). Nunca
+toca Dragon.
 
 ## Configurar la conexión a la base
 

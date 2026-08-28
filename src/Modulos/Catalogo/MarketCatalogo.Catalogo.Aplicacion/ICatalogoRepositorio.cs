@@ -92,12 +92,12 @@ public interface ICatalogoRepositorio
     /// (NACIONAL/IMPORTADO…), estado del workflow y si está finalizada. A demanda al abrir la ficha.</summary>
     Task<IReadOnlyList<OrdenPedidoRow>> TraerOrdenesPedidoAsync(string codigo, CancellationToken ct = default);
 
-    /// <summary>MARKET: oculta o muestra un artículo del catálogo PÚBLICO — la ÚNICA escritura de la app.
-    /// Escribe <c>OcultarManual</c> + auditoría directamente en <c>dbo.Catalogo</c> (una sola tabla) y
-    /// refleja el cambio al instante en <c>Publicado</c> (<paramref name="publicadoSiVisible"/> = si, de
-    /// no estar oculto, cumpliría las condiciones de publicación). El rebuild PRESERVA <c>OcultarManual</c>
-    /// (no lo pisa) y recomputa <c>Publicado</c> = base AND NOT OcultarManual. Nunca toca Dragon ni logística.</summary>
-    Task CambiarVisibilidadAsync(string codigo, bool ocultar, bool publicadoSiVisible, string origen, CancellationToken ct = default);
+    /// <summary>MARKET: fuerza mostrar u ocultar un artículo del catálogo PÚBLICO. Escribe el override
+    /// <c>VisibilidadManual</c> ('mostrar'/'ocultar') + auditoría en <c>dbo.Catalogo</c> y refleja
+    /// <c>Publicado</c> al instante. "Mostrar" publica cualquier rubro (no solo Indumentaria). El rebuild
+    /// PRESERVA <c>VisibilidadManual</c> y recomputa <c>Publicado</c> respetándolo (override manda; 'auto' =
+    /// criterio objetivo). Junto con el bloqueo, la ÚNICA escritura de la app; nunca toca Dragon.</summary>
+    Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default);
 
     /// <summary>MARKET: ¿el artículo tiene una fila ACTIVA en <c>RepoArticulosBloqueados</c>? (bloqueado
     /// para reposición). A demanda al abrir la ficha.</summary>
@@ -165,8 +165,9 @@ public sealed record ComboTierRow(int Cantidad, int Total);
 
 /// <summary>Fila BASE calculada, lista para persistir en <c>dbo.Catalogo</c> (columnas base, sin ficha).
 /// La arma <c>CatalogoStore</c> cruzando las fuentes; la escribe <c>CatalogoRepositorio.GuardarBaseAsync</c>.
-/// <c>PublicadoBase</c> = cumple los criterios objetivos de publicación IGNORANDO el ocultar-manual; el
-/// MERGE lo combina con la columna <c>OcultarManual</c> (que preserva) para el <c>Publicado</c> final.</summary>
+/// <c>PublicadoBase</c> = cumple los criterios objetivos de publicación IGNORANDO el override manual; el
+/// MERGE lo combina con la columna <c>VisibilidadManual</c> (que preserva) para el <c>Publicado</c> final
+/// ('ocultar'→0, 'mostrar'→1, 'auto'→PublicadoBase).</summary>
 public sealed record CatalogoFilaBase(
     string Codigo, bool PublicadoBase, string Slug, string Descripcion,
     string Rubro, string Genero, string Prenda,

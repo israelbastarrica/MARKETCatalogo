@@ -133,7 +133,7 @@ tabla, sino cómo se la mantiene:
 | Si el refresh falla | Sirve la copia anterior y reintenta on-read (nunca tira, nunca pisa la tabla) |
 | Consistencia de las hijas | MERGE + reconstrucción de talle/color en **una** transacción: nadie las ve a medias |
 | Bajas | El MERGE marca `Eliminado = 1` lo que ya no está (baja lógica, nunca DELETE físico) |
-| Decisión humana | `OcultarManual` se **preserva** en el MERGE; `Publicado` se recomputa |
+| Decisión humana | `VisibilidadManual` (auto/mostrar/ocultar) se **preserva** en el MERGE; `Publicado` se recomputa respetándola |
 
 **No es "cachear con más maquinaria": es un caché con las garantías puestas donde importan.**
 
@@ -162,7 +162,7 @@ usan los catálogos de decenas de miles de SKU y da facetas y full-text nativo.
 
 > **Caso aparte: ventas / descuento de stock.** El caché es un patrón de *lectura* y no se traslada al
 > momento de vender, que es *escritura transaccional*. Este sitio es casi de solo lectura: las únicas
-> escrituras van a MARKET —`OcultarManual` (mostrar/ocultar del público) y `RepoArticulosBloqueados`
+> escrituras van a MARKET —`VisibilidadManual` (mostrar/ocultar del público) y `RepoArticulosBloqueados`
 > (bloqueo de reposición)—; nunca toca Dragon.
 
 ---
@@ -207,9 +207,10 @@ WHERE LEN(RTRIM(ISNULL(TIPO.DESCRIP, ''))) > 0 AND RTRIM(TIPO.DESCRIP) <> 'No ap
 ```
 
 > **Notas.** La foto se resuelve **IA primero, disco después** (`COALESCE(LinkIADisco, LinkDriveDisco)`)
-> en su propia consulta (`TraerRutasFotoAsync`), no en la de arriba. El **ocultar-manual** vive en la
-> columna `dbo.Catalogo.OcultarManual` (no hay tabla de overrides): el MERGE la **preserva** y recomputa
-> `Publicado`. Y además del filtro de basura de acá, el bit `PublicadoBase` aplica los criterios de
+> en su propia consulta (`TraerRutasFotoAsync`), no en la de arriba. El **override de visibilidad** vive
+> en la columna `dbo.Catalogo.VisibilidadManual` (auto/mostrar/ocultar; no hay tabla de overrides): el
+> MERGE la **preserva** y recomputa `Publicado`. Y además del filtro de basura de acá, el bit
+> `PublicadoBase` aplica los criterios de
 > publicación (entre ellos el temporal de **sólo Indumentaria**). El detalle vive en [FOTOS.md](FOTOS.md)
 > y [CATALOGO-PUBLICACION.md](CATALOGO-PUBLICACION.md).
 

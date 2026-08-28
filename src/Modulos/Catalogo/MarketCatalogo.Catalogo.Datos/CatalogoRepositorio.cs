@@ -313,14 +313,15 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
         await BulkAsync(cn, "#stageColor", tablaColor, ct);
 
         // 3) MERGE: update base (revive Eliminado=0), insert nuevos, marca Eliminado=1 los que ya no están.
-        //    OcultarManual y Auditoria NO se tocan en el update: son la decisión humana, la preserva. El
-        //    Publicado final = base objetiva (S.PublicadoBase) AND NOT ocultar-manual (columna de la tabla).
+        //    VisibilidadManual y Auditoria NO se tocan en el update: son la decisión humana, la preserva. El
+        //    Publicado final respeta el override de 3 estados: 'ocultar'→0, 'mostrar'→1, 'auto'→criterio
+        //    objetivo (S.PublicadoBase). Los nuevos entran con VisibilidadManual='auto' (default de la tabla).
         const string merge = """
             MERGE dbo.Catalogo AS T
             USING #stage AS S ON T.Codigo = S.Codigo
             WHEN MATCHED THEN UPDATE SET
                 Eliminado = 0,
-                Publicado = CASE WHEN T.OcultarManual = 1 THEN 0 ELSE S.PublicadoBase END,
+                Publicado = CASE T.VisibilidadManual WHEN 'ocultar' THEN 0 WHEN 'mostrar' THEN 1 ELSE S.PublicadoBase END,
                 Slug = S.Slug,
                 Descripcion = S.Descripcion, Rubro = S.Rubro, Genero = S.Genero, Prenda = S.Prenda,
                 PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra,
@@ -710,25 +711,28 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
         }
     }
 
-    /// <summary>MARKET: oculta/muestra un artículo del público. Una sola escritura sobre <c>dbo.Catalogo</c>
-    /// (una sola tabla): setea <c>OcultarManual</c> + auditoría ("Acción | origen | fecha", convención
-    /// MARKET) y refleja <c>Publicado</c> al instante. El rebuild preserva <c>OcultarManual</c> y recomputa
-    /// <c>Publicado</c>. Es la ÚNICA escritura de la app — jamás toca Dragon ni logística.</summary>
-    public async Task CambiarVisibilidadAsync(string codigo, bool ocultar, bool publicadoSiVisible, string origen, CancellationToken ct = default)
+    /// <summary>MARKET: fuerza mostrar/ocultar un artículo del público. Una sola escritura sobre
+    /// <c>dbo.Catalogo</c>: setea el override <c>VisibilidadManual</c> ('mostrar'/'ocultar') + auditoría
+    /// ("Acción | origen | fecha", convención MARKET) y refleja <c>Publicado</c> al instante. El rebuild
+    /// PRESERVA <c>VisibilidadManual</c> y recomputa <c>Publicado</c> respetándolo (override manda; si es
+    /// 'auto', vale el criterio objetivo). "Mostrar" publica cualquier rubro. Es la ÚNICA escritura de la
+    /// app junto con el bloqueo — jamás toca Dragon ni logística.</summary>
+    public async Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
         if (cod.Length == 0) return;
         var accion = ocultar ? "Ocultar del catálogo" : "Mostrar en el catálogo";
         var auditoria = $"{accion} | {origen} | {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
-        var publicado = ocultar ? 0 : (publicadoSiVisible ? 1 : 0);
+        var visibilidad = ocultar ? "ocultar" : "mostrar";
+        var publicado = ocultar ? 0 : 1;
 
         using var cn = _db.CrearMarket();
         await cn.ExecuteAsync(new CommandDefinition("""
             UPDATE MARKET.dbo.Catalogo
-               SET OcultarManual = @ocultar, Auditoria = @auditoria, Publicado = @publicado
+               SET VisibilidadManual = @visibilidad, Auditoria = @auditoria, Publicado = @publicado
              WHERE Codigo = @cod;
             """,
-            new { cod, ocultar = ocultar ? 1 : 0, auditoria, publicado }, commandTimeout: 30, cancellationToken: ct));
+            new { cod, visibilidad, auditoria, publicado }, commandTimeout: 30, cancellationToken: ct));
     }
 
     /// <inheritdoc/>

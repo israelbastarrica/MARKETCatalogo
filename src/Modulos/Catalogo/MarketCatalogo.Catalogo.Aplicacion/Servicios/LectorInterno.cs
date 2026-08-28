@@ -119,18 +119,10 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             .OrderByDescending(r => r.Cantidad).ToList();
     }
 
-    public async Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default)
-    {
-        var art = await PorCodigoAsync(codigo, ct);
-        if (art is null) return;
-        // Si se muestra: ¿cumpliría las condiciones de publicación? (mismo criterio que el rebuild:
-        // Indumentaria + en algún local + tiene talles/colores). El rebuild lo recomputa definitivamente.
-        var publicadoSiVisible =
-            Texto.SinAcentos(art.Rubro) == "indumentaria"
-            && art.EnAlgunLocal
-            && (art.Talles.Count > 0 || art.Colores.Count > 0);
-        await _repo.CambiarVisibilidadAsync(codigo, ocultar, publicadoSiVisible, origen, ct);
-    }
+    // El override de visibilidad ('mostrar'/'ocultar') lo maneja el repo y sobrevive los rebuilds: "mostrar"
+    // publica cualquier rubro (no solo Indumentaria), "ocultar" lo saca; 'auto' (sin tocar) sigue la regla.
+    public Task CambiarVisibilidadAsync(string codigo, bool ocultar, string origen, CancellationToken ct = default)
+        => _repo.CambiarVisibilidadAsync(codigo, ocultar, origen, ct);
 
     public Task CambiarBloqueoAsync(string codigo, bool bloquear, string origen, CancellationToken ct = default)
         => _repo.CambiarBloqueoAsync(codigo, bloquear, origen, ct);

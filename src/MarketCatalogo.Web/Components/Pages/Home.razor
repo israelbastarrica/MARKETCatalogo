@@ -16,19 +16,14 @@
     <span class="mk-logo-tagline">Vivi la experiencia</span>
 </section>
 
-@* Géneros: cards con foto de un artículo real de esa sección (se toma la del primer artículo con
-   foto del catálogo, ver OnInitializedAsync), que aparecen al entrar en pantalla (mk-reveal, driver
-   en App.razor) y llevan a la sección del catálogo. Los slugs de ?gen= son los del pie (MainLayout).
-   La foto va en grises (marca monocromática) + overlay oscuro para que el rótulo blanco se lea; si un
-   género no trae foto, la card queda en el negro de .mk-negativo. *@
-@* Declaración de marca, minimalista. Copy del Manual de Marca (docs/CONTENIDO.md): frase de misión +
-   cierre de "quiénes somos". Da voz a la portada sin volver al bloque grande de intro. *@
+@* Declaración de marca, minimalista. La primera línea es copy del Manual (docs/CONTENIDO.md, misión);
+   la segunda es una línea de portada. Da voz al home sin volver al bloque grande de intro. *@
 <section class="mk-declaracion">
     <p class="mk-declaracion-lead">
         Prendas bien diseñadas, duraderas y asequibles.
     </p>
     <p class="mk-declaracion-sub">
-        Para mujer, hombre, niña y niño. En Market hay algo para todos.
+        Para toda la familia, todos los días.
     </p>
 </section>
 
@@ -76,6 +71,9 @@
                 // recargas): mejor que algo aleatorio para una portada.
                 var pagina = await Catalogo.BuscarAsync(new FiltrosCatalogo
                 {
+                    // Acotado a indumentaria: la foto de la portada tiene que ser de ropa, no de
+                    // calzado/accesorios que puedan caer en la misma sección de género.
+                    RubroSlug = "indumentaria",
                     GeneroSlug = d.GeneroSlug,
                     Generos = d.Generos,
                     Orden = "destacados",

@@ -102,11 +102,10 @@
     text-decoration: none;
     overflow: hidden;
     position: relative;
-    /* Foto de fondo (background-image se setea inline por card). En grises para respetar la marca
-       monocromática; si la card no tiene foto, queda el negro de .mk-negativo de fondo. */
+    /* Foto de fondo (background-image se setea inline por card). A color; si la card no tiene foto,
+       queda el negro de .mk-negativo de fondo. */
     background-size: cover;
     background-position: center top;
-    filter: grayscale(1);
 }
 
 /* Overlay oscuro sobre la foto: el rótulo blanco tiene que leerse siempre. Se degrada de

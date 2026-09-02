@@ -1,4 +1,6 @@
 @page "/"
+@using MarketCatalogo.Catalogo.Contratos
+@inject ICatalogoConsulta Catalogo
 
 <PageTitle>MARKET - Viví la experiencia</PageTitle>
 <HeadContent>
@@ -14,11 +16,88 @@
     <span class="mk-logo-tagline">Vivi la experiencia</span>
 </section>
 
-<section class="mk-intro">
-    <h1>Una marca de indumentaria para todos los días</h1>
-    <p>
-        Desde prendas básicas de gran calidad hasta modelos destacados para mujer, hombre,
-        nena y nene. En MARKET hay algo para todos.
+@* Géneros: cards con foto de un artículo real de esa sección (se toma la del primer artículo con
+   foto del catálogo, ver OnInitializedAsync), que aparecen al entrar en pantalla (mk-reveal, driver
+   en App.razor) y llevan a la sección del catálogo. Los slugs de ?gen= son los del pie (MainLayout).
+   La foto va en grises (marca monocromática) + overlay oscuro para que el rótulo blanco se lea; si un
+   género no trae foto, la card queda en el negro de .mk-negativo. *@
+@* Declaración de marca, minimalista. Copy del Manual de Marca (docs/CONTENIDO.md): frase de misión +
+   cierre de "quiénes somos". Da voz a la portada sin volver al bloque grande de intro. *@
+<section class="mk-declaracion">
+    <p class="mk-declaracion-lead">
+        Prendas bien diseñadas, duraderas y asequibles.
     </p>
-    <p><a href="catalogo" class="mk-rotulo">Ver el catálogo →</a></p>
+    <p class="mk-declaracion-sub">
+        Para mujer, hombre, niña y niño. En Market hay algo para todos.
+    </p>
 </section>
+
+<section class="mk-generos-seccion" aria-label="Comprá por género">
+    <div class="mk-generos">
+        @foreach (var g in _generos)
+        {
+            <a class="mk-genero mk-negativo mk-reveal" href="@g.Url"
+               style="@(g.FotoUrl is null ? null : $"background-image:url('{g.FotoUrl}')")">
+                <span class="mk-genero-nombre mk-logo">@g.Nombre</span>
+            </a>
+        }
+    </div>
+</section>
+
+@code {
+    private sealed record GeneroCard(string Nombre, string Url, string? FotoUrl);
+
+    // Definición de cada card: rótulo, destino y cómo acotar el catálogo para buscarle una foto.
+    // Los géneros "simples" van por GeneroSlug; "Niños" agrupa varios géneros (como en el pie).
+    private static readonly (string Nombre, string Url, string? GeneroSlug, string[] Generos)[] Definicion =
+    [
+        ("Mujer", "/catalogo?gen=mujer", "mujer", []),
+        ("Hombre", "/catalogo?gen=hombre", "hombre", []),
+        ("Niños", "/catalogo?gen=nena,nene,bebe", null, ["nena", "nene", "bebe"]),
+        ("Unisex", "/catalogo?gen=unisex", "unisex", []),
+    ];
+
+    private IReadOnlyList<GeneroCard> _generos = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var cards = new List<GeneroCard>(Definicion.Length);
+        // Para que las 4 cards no repitan foto (hay artículos que caen en más de una sección): se
+        // recuerda qué códigos ya se usaron y se saltean.
+        var usados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var d in Definicion)
+        {
+            string? foto = null;
+            try
+            {
+                // Se pide la primera página en orden "destacados" y se toma la foto del primer artículo
+                // con foto que no se haya usado ya en otra card. Es determinístico (misma foto entre
+                // recargas): mejor que algo aleatorio para una portada.
+                var pagina = await Catalogo.BuscarAsync(new FiltrosCatalogo
+                {
+                    GeneroSlug = d.GeneroSlug,
+                    Generos = d.Generos,
+                    Orden = "destacados",
+                    Pagina = 1,
+                });
+
+                var art = pagina.Items.FirstOrDefault(a => a.TieneFoto && !usados.Contains(a.ArtCod))
+                          ?? pagina.Items.FirstOrDefault(a => a.TieneFoto);
+                if (art is not null)
+                {
+                    usados.Add(art.ArtCod);
+                    foto = $"/fotos/{art.ArtCod}_1200.webp?v={art.FotoVersion}";
+                }
+            }
+            catch (Exception)
+            {
+                // Arranque en frío sin datos: la card queda en negro (fallback de .mk-negativo).
+            }
+
+            cards.Add(new GeneroCard(d.Nombre, d.Url, foto));
+        }
+
+        _generos = cards;
+    }
+}

@@ -14,27 +14,136 @@
     font-size: clamp(1.75rem, 6vw, 4rem);
 }
 
-.mk-intro {
-    max-width: 46rem;
+/* --- Declaración de marca: una línea fuerte + subtítulo, centrado y con aire. --------- */
+.mk-declaracion {
+    max-width: 44rem;
     margin: 0 auto;
-    padding: 5rem 2rem 0;
+    padding: 5.5rem 2rem 0;
+    text-align: center;
 }
 
-.mk-intro h1 {
-    font-size: clamp(1.75rem, 4vw, 2.75rem);
-    margin-bottom: 1.5rem;
+.mk-declaracion-lead {
+    font-family: var(--mk-font-titulo);
+    font-size: clamp(1.5rem, 3.2vw, 2.25rem);
+    line-height: 1.25;
+    margin: 0 0 .75rem;
+    color: var(--mk-tinta-100);
 }
 
-.mk-intro p {
+.mk-declaracion-sub {
     font-size: 1.05rem;
     line-height: 1.7;
+    margin: 0;
     color: var(--mk-tinta-70);
 }
 
-.mk-intro a {
-    color: var(--mk-tinta-100);
-    font-weight: 600;
-    text-decoration: none;
-    border-bottom: 1px solid var(--mk-tinta-100);
-    padding-bottom: .15rem;
+/* --- Géneros: cards con foto, clickeables, que aparecen al scrollear ------ */
+.mk-generos-seccion {
+    /* Aire respecto de la declaración de arriba. */
+    margin: 3rem auto 6rem;
+    padding: 0 2rem;
+    max-width: 84rem;
 }
+
+.mk-generos {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .75rem;
+}
+
+@media (max-width: 64rem) {
+    .mk-generos {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Celular: en vez de apilar, las cards se vuelven un carrusel horizontal deslizable con scroll-snap
+   (CSS puro, sin JS). Se arrastra de costado y "engancha" en cada género. El resto (desktop/tablet)
+   sigue siendo grilla. Es el patrón de "estante" deslizable, no un autoplay: nada se mueve solo. */
+@media (max-width: 48rem) {
+    /* El carrusel sangra hasta los bordes; el título se mantiene con su margen. */
+    .mk-generos-seccion {
+        padding-inline: 0;
+    }
+
+    .mk-generos {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 78%;
+        grid-template-columns: none;
+        gap: .75rem;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        /* Sangra hasta el borde y usa scroll-padding para que la primera/última card no queden pegadas. */
+        padding: 0 1.25rem 1.25rem;
+        scroll-padding-inline: 1.25rem;
+        -webkit-overflow-scrolling: touch;
+        /* Barra de scroll discreta (no hace falta que grite: la propia foto invita a arrastrar). */
+        scrollbar-width: none;
+    }
+
+    .mk-generos::-webkit-scrollbar {
+        display: none;
+    }
+
+    .mk-genero {
+        scroll-snap-align: start;
+        min-height: 22rem;
+    }
+}
+
+.mk-genero {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: .35rem;
+    min-height: 23rem;
+    padding: 1.75rem;
+    text-decoration: none;
+    overflow: hidden;
+    position: relative;
+    /* Foto de fondo (background-image se setea inline por card). En grises para respetar la marca
+       monocromática; si la card no tiene foto, queda el negro de .mk-negativo de fondo. */
+    background-size: cover;
+    background-position: center top;
+    filter: grayscale(1);
+}
+
+/* Overlay oscuro sobre la foto: el rótulo blanco tiene que leerse siempre. Se degrada de
+   transparente arriba a negro abajo, justo donde está el texto. */
+.mk-genero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, .1) 0%, rgba(0, 0, 0, .75) 100%);
+    transition: background .3s ease;
+}
+
+.mk-genero > * {
+    position: relative;
+    z-index: 1;
+}
+
+.mk-genero:hover::before,
+.mk-genero:focus-visible::before {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, .25) 0%, rgba(0, 0, 0, .8) 100%);
+}
+
+/* El lift de hover comparte la transición de transform del sistema de reveal (institucional.css).
+   Se resetea el transition-delay del stagger para que el hover responda al instante. */
+.mk-genero:hover,
+.mk-genero:focus-visible {
+    transform: translateY(-4px);
+    transition-delay: 0s;
+}
+
+.mk-genero-nombre {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    line-height: 1;
+}
+
+/* Stagger del reveal: cada card entra un pelín después que la anterior. Sólo aplica
+   cuando el JS marcó <html class="js-reveal"> (ver App.razor); sin JS, todo visible. */
+.js-reveal .mk-generos .mk-genero:nth-child(2) { transition-delay: .08s; }
+.js-reveal .mk-generos .mk-genero:nth-child(3) { transition-delay: .16s; }
+.js-reveal .mk-generos .mk-genero:nth-child(4) { transition-delay: .24s; }

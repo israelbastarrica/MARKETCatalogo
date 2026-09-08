@@ -70,7 +70,7 @@
                     <label for="mk-toggle-filtros" class="mk-filtros-cerrar" aria-label="Cerrar filtros">×</label>
                 </div>
 
-                @* El buscador vive arriba en el header (modo interno); Sucursal, Combo y Depósito en la
+                @* El buscador vive arriba en el header (modo interno); Combo y Ubicación en la
                    toolbar. Acá quedan sólo las facetas. Género arriba de todo, pero SÓLO en el drawer de
                    celular (mk-int-solo-mobile): en desktop se elige por el mega-menú del header, igual que
                    las "Secciones" del filtro mobile público. *@
@@ -124,64 +124,53 @@
 
                 <div class="mk-int-toolbar">
                     <div class="mk-int-toolbar-izq">
-                        @* Sucursal como ticks, igual que el público. Multi-selección; ninguna = todas.
-                           Togglea el mismo filtro "ubic" que antes estaba en el sidebar. *@
-                        <div class="mk-sucursales">
-                            <span class="mk-rotulo">Sucursal</span>
-                            @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta") })
-                            {
-                                <a class="mk-suc @(UrlInterno.CsvContiene(_filtros.Ubicaciones, val) ? "activa" : "")"
-                                   href="@UrlInterno.Alternar(_filtros, "ubic", val)">
-                                    <span class="mk-suc-tick" aria-hidden="true"></span>@et
-                                </a>
-                            }
-                        </div>
-
                         @* Combo: dropdown de dos niveles, igual que el público. *@
                         <ComboDropdownInterno Opciones="_pagina.Combos" Filtros="_filtros" />
 
-                        @* Depósito: un solo filtro de SELECCIÓN ÚNICA (todo en "cruce"): estar en depósito o
-                           el cruce depósito/local. Elegir uno deselecciona el otro. *@
+                        @* Ubicación: UN solo filtro de selección única con todo adentro — los locales
+                           (antes ticks sueltos, en "ubic") y los cruces con depósito (en "cruce"). Elegir
+                           cualquiera borra el anterior; volver a tocar el activo lo saca (= todas). *@
                         @{
-                            var depoActivos = _filtros.CruceDepoLocal is not null ? 1 : 0;
+                            var ubicActiva = _filtros.Ubicaciones.FirstOrDefault();
+                            var cruceActivo = _filtros.CruceDepoLocal;
+                            var ubicElegida = ubicActiva is not null || cruceActivo is not null;
+
+                            // (etiqueta, valor de "ubic", valor de "cruce"). Sólo uno de los dos por opción.
+                            var opcionesUbic = new (string Etiqueta, string? Ubic, string? Cruce)[]
+                            {
+                                ("Luro", "luro", null),
+                                ("Peralta", "peralta", null),
+                                // "todos" es AND (Luro Y Peralta); "algún" es OR (en cualquiera de los dos).
+                                ("En todos los locales", null, "todos-locales"),
+                                ("En algún local", null, "en-local"),
+                                ("En depósito", null, "deposito"),
+                                ("En depósito y ningún local", null, "solo-deposito"),
+                                ("En depósito y Luro", null, "deposito-luro"),
+                                ("En depósito y Peralta", null, "deposito-peralta"),
+                            };
                         }
                         <div class="mk-combo-dropdown">
-                            <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" checked="@(depoActivos > 0)" />
+                            <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" checked="@ubicElegida" />
                             <label for="mk-depo-toggle" class="mk-combo-dropdown-boton">
-                                <span class="mk-rotulo">Depósito</span>
-                                @if (depoActivos > 0) { <span class="mk-combo-dropdown-contador">@depoActivos</span> }
+                                <span class="mk-rotulo">Ubicación</span>
+                                @if (ubicElegida) { <span class="mk-combo-dropdown-contador">1</span> }
                             </label>
                             <label for="mk-depo-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
                             <div class="mk-combo-dropdown-panel">
                                 <ul class="mk-faceta-combo-detalles">
-                                    <li>
-                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "deposito" ? "activa" : "")"
-                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "deposito" ? null : "deposito")">
-                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
-                                            <span class="mk-faceta-nombre">En depósito</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "solo-deposito" ? "activa" : "")"
-                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "solo-deposito" ? null : "solo-deposito")">
-                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
-                                            <span class="mk-faceta-nombre">En depósito y ningún local</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "deposito-luro" ? "activa" : "")"
-                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "deposito-luro" ? null : "deposito-luro")">
-                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
-                                            <span class="mk-faceta-nombre">En depósito y Luro</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="mk-faceta-opcion @(_filtros.CruceDepoLocal == "deposito-peralta" ? "activa" : "")"
-                                           href="@UrlInterno.Set(_filtros, "cruce", _filtros.CruceDepoLocal == "deposito-peralta" ? null : "deposito-peralta")">
-                                            <span class="mk-faceta-marca" aria-hidden="true"></span>
-                                            <span class="mk-faceta-nombre">En depósito y Peralta</span>
-                                        </a>
-                                    </li>
+                                    @foreach (var o in opcionesUbic)
+                                    {
+                                        var activa = o.Ubic is not null
+                                            ? string.Equals(ubicActiva, o.Ubic, StringComparison.OrdinalIgnoreCase)
+                                            : cruceActivo == o.Cruce;
+                                        <li>
+                                            <a class="mk-faceta-opcion @(activa ? "activa" : "")"
+                                               href="@(activa ? UrlInterno.Ubicacion(_filtros, null, null) : UrlInterno.Ubicacion(_filtros, o.Ubic, o.Cruce))">
+                                                <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                                <span class="mk-faceta-nombre">@o.Etiqueta</span>
+                                            </a>
+                                        </li>
+                                    }
                                 </ul>
                             </div>
                         </div>

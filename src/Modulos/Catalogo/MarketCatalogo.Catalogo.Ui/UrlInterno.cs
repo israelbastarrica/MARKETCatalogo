@@ -58,6 +58,19 @@ public static class UrlInterno
         return Construir(m);
     }
 
+    /// <summary>Filtro de UBICACIÓN, que es de selección única aunque viaje en dos parámetros: el local
+    /// (<c>ubic</c>) y el cruce depósito/local (<c>cruce</c>) son excluyentes entre sí, así que elegir
+    /// uno siempre borra el otro. Pasar los dos en null = "todas las ubicaciones".</summary>
+    public static string Ubicacion(FiltrosInterno f, string? ubic, string? cruce)
+    {
+        var m = Mapa(f);
+        m.Remove("ubic");
+        m.Remove("cruce");
+        if (!string.IsNullOrWhiteSpace(ubic)) m["ubic"] = ubic.Trim();
+        else if (!string.IsNullOrWhiteSpace(cruce)) m["cruce"] = cruce.Trim();
+        return Construir(m);
+    }
+
     /// <summary>Alterna un valor dentro de un parámetro CSV (multi-selección).</summary>
     public static string Alternar(FiltrosInterno f, string clave, string valor)
     {
@@ -97,6 +110,7 @@ public static class UrlInterno
         if (f.CruceDepoLocal == "solo-deposito") yield return ("En depósito y ningún local", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "deposito-luro") yield return ("En depósito y Luro", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "deposito-peralta") yield return ("En depósito y Peralta", Set(f, "cruce", null));
+        if (f.CruceDepoLocal == "todos-locales") yield return ("En todos los locales", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "en-local") yield return ("En algún local", Set(f, "cruce", null));
         if (f.Publicado == true) yield return ("Se ve en el público", Set(f, "pub", null));
         if (f.Publicado == false) yield return ("No se ve", Set(f, "pub", null));

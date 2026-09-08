@@ -1319,7 +1319,7 @@
     color: var(--mk-tinta-70);
 }
 
-/* Grupo izquierdo del toolbar interno: total + Sucursal (como el público). */
+/* Grupo izquierdo del toolbar interno: Combo + Ubicación + Año (dropdowns). */
 .mk-int-toolbar-izq {
     display: flex;
     flex-wrap: wrap;

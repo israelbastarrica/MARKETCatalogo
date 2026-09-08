@@ -140,6 +140,8 @@ public sealed partial class CatalogoRepositorio
             "solo-deposito" => "c.EnDeposito = 1 AND c.EnLuro = 0 AND c.EnPeralta = 0",
             "deposito-luro" => "c.EnDeposito = 1 AND c.EnLuro = 1",
             "deposito-peralta" => "c.EnDeposito = 1 AND c.EnPeralta = 1",
+            // "todos-locales" es AND (está en los dos), a diferencia de "en-local", que es OR (en alguno).
+            "todos-locales" => "c.EnLuro = 1 AND c.EnPeralta = 1",
             "en-local" => "(c.EnLuro = 1 OR c.EnPeralta = 1)",
             _ => null,
         };

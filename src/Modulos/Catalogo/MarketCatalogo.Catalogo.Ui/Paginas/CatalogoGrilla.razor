@@ -9,6 +9,7 @@
 @* Depende SÓLO del contrato (Catalogo.Contratos): la UI no sabe que atrás hay un caché en memoria,
    ni de dónde salen los datos. Esa es la frontera del monolito modular. *@
 @inject ICatalogoConsulta CatalogoConsulta
+@inject NavigationManager Nav
 
 @* Grilla del catálogo, SSR puro. Todo el estado viene de la ruta y del query string. *@
 
@@ -202,6 +203,8 @@
 </div>
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
     [Parameter] public string? Rubro { get; set; }
     [Parameter] public string? Genero { get; set; }
 
@@ -262,6 +265,14 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // Staff/proveedor logueado: esta vista no es para él. Se lo deriva a la grilla interna con los
+        // filtros que existen en las dos (el resto no tiene equivalente y se pierde a propósito).
+        if (await SesionInterna.EsInternoAsync(AuthState))
+        {
+            Nav.NavigateTo(await UrlInternaEquivalenteAsync(), replace: true);
+            return;
+        }
+
         _filtros = new FiltrosCatalogo
         {
             RubroSlug = Vacio(Rubro),
@@ -294,6 +305,43 @@
             // muestra el estado vacío de la página.
             _pagina = null;
         }
+    }
+
+    /// Traduce la URL pública actual a su equivalente en /interno. Los géneros (por ruta o por ?gen=)
+    /// viajan igual porque las dos grillas los toman por slug; el rubro hay que pasarlo por VALOR, así
+    /// que se resuelve contra el menú del snapshot (igual que MenuSecciones.ConstruirInterno).
+    private async Task<string> UrlInternaEquivalenteAsync()
+    {
+        var partes = new List<string>();
+
+        var generos = ParsearCsv(Gen).ToList();
+        if (Vacio(Genero) is { } g && !generos.Contains(g, StringComparer.OrdinalIgnoreCase))
+            generos.Add(g);
+        if (generos.Count > 0) partes.Add("gen=" + Uri.EscapeDataString(string.Join(",", generos)));
+
+        // Rubro: de la ruta (/catalogo/{rubro}) o del filtro ?tipo=. Sólo el primero — la grilla interna
+        // filtra por un rubro, no por varios.
+        var rubroSlug = Vacio(Rubro) ?? ParsearCsv(Tipo).FirstOrDefault();
+        if (rubroSlug is not null)
+        {
+            try
+            {
+                var menu = (await CatalogoConsulta.SnapshotAsync()).Menu;
+                var valor = menu.FirstOrDefault(r => r.Slug.Equals(rubroSlug, StringComparison.OrdinalIgnoreCase))?.Nombre;
+                if (valor is not null) partes.Add("rubro=" + Uri.EscapeDataString(valor));
+            }
+            catch (Exception)
+            {
+                // Base en frío: se pierde el rubro, pero el destino interno sigue siendo el correcto.
+            }
+        }
+
+        if (Vacio(Talle) is { } t) partes.Add("talle=" + Uri.EscapeDataString(t));
+        if (Vacio(Color) is { } c) partes.Add("color=" + Uri.EscapeDataString(c));
+        if (Vacio(Combo) is { } cb) partes.Add("combo=" + Uri.EscapeDataString(cb));
+        if (Vacio(Texto) is { } q) partes.Add("q=" + Uri.EscapeDataString(q));
+
+        return partes.Count == 0 ? "/interno" : "/interno?" + string.Join("&", partes);
     }
 
     private static string? Vacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

@@ -61,28 +61,6 @@
     gap: 1rem;
 }
 
-/* "Ingresar" / "Interno": pill de texto con contorno; en hover se rellena en tinta (invierte a fondo).
-   Monocromático (negro/blanco), sin colores. Texto siempre visible (también en mobile). */
-.mk-auth-link {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.45rem 1.15rem;
-    border: 1.5px solid var(--mk-tinta-100);
-    border-radius: 999px;
-    color: var(--mk-tinta-100);
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-    transition: background-color 0.16s ease, color 0.16s ease;
-}
-
-.mk-auth-link:hover {
-    background: var(--mk-tinta-100);
-    color: var(--mk-fondo);
-}
-
 /* Usuario logueado: ícono de persona + el mail con el que entró (reemplaza el pill "Interno"). */
 .mk-auth-usuario {
     display: inline-flex;
@@ -147,10 +125,6 @@
         top: 1.15rem;
         z-index: 11;
         gap: 0.75rem;
-    }
-    .mk-auth-link {
-        padding: 0.4rem 0.9rem;
-        font-size: 0.8rem;
     }
     /* En mobile, el mail ocuparía toda la fila: queda sólo el ícono de persona + el de salir. */
     .mk-auth-usuario-mail {
@@ -257,6 +231,21 @@
 }
 
 .mk-footer-legal { margin: 0; color: var(--mk-tinta-40); }
+
+/* "Acceso proveedores": la puerta al interno, deliberadamente discreta (es el pie, no un CTA).
+   Al 70% de tinta, que es el mínimo legible de marca — el 40% del copyright no pasa contraste como link. */
+.mk-footer-acceso {
+    color: var(--mk-tinta-70);
+    text-decoration: none;
+    border-bottom: 1px solid var(--mk-tinta-20);
+    padding-bottom: .15rem;
+    transition: color .15s ease, border-color .15s ease;
+}
+
+.mk-footer-acceso:hover {
+    color: var(--mk-tinta-100);
+    border-color: var(--mk-tinta-100);
+}
 /* Commit publicado: para nosotros, no para el visitante. AL DÍA = el mismo tono que el resto del pie.
    ATRASADA = apagado a gris, con el detalle en el tooltip. Sin verde ni rojo: la marca es monocromática. */
 .mk-version { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-left: .15rem; }

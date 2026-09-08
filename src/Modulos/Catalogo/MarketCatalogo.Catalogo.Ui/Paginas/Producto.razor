@@ -124,6 +124,8 @@ else
 }
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
     [Parameter] public string? Slug { get; set; }
 
     private ArticuloDto? _art;
@@ -149,6 +151,13 @@ else
         try
         {
             _art = await CatalogoConsulta.PorSlugAsync(Slug);
+
+            // Staff/proveedor logueado: la ficha que le sirve es la interna (costo, stock, ubicaciones).
+            if (_art is not null && await SesionInterna.EsInternoAsync(AuthState))
+            {
+                Nav.NavigateTo($"/interno/producto/{Uri.EscapeDataString(_art.ArtCod)}", replace: true);
+                return;
+            }
         }
         catch (Exception)
         {

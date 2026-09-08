@@ -10,7 +10,8 @@
         <a class="mk-logo mk-header-logo" href="/" aria-label="MARKET - inicio">Market</a>
         <NavMenu />
         @* Acceso del staff. Desktop: a la derecha (3ª columna de la grilla). Mobile: sólo el ícono.
-           El público NO necesita cuenta; esto es la puerta al catálogo interno. *@
+           Sólo se ve YA LOGUEADO: la puerta de entrada ("Acceso proveedores") vive en el pie, escondida
+           del público general — el visitante común no necesita cuenta ni saber que existe. *@
         <div class="mk-header-auth">
             <AuthorizeView Policy="@PoliticasAuth.Interno">
                 <Authorized>
@@ -33,9 +34,6 @@
                         </svg>
                     </a>
                 </Authorized>
-                <NotAuthorized>
-                    <a class="mk-auth-link" href="/login">Ingresar</a>
-                </NotAuthorized>
             </AuthorizeView>
         </div>
     </header>
@@ -76,11 +74,14 @@
                 <div class="mk-footer-col">
                     <h2 class="mk-rotulo">Tienda</h2>
                     <ul>
-                        <li><a href="/catalogo">Catálogo</a></li>
-                        <li><a href="/catalogo?gen=mujer">Mujer</a></li>
-                        <li><a href="/catalogo?gen=hombre">Hombre</a></li>
-                        <li><a href="/catalogo?gen=nena,nene,bebe">Niños</a></li>
-                        <li><a href="/catalogo?gen=unisex">Unisex</a></li>
+                        @* Logueado = TODO apunta al interno, igual que el nav del header: no tiene sentido
+                           mandar al staff a la vista pública. El parámetro ?gen= (slugs) lo entienden las
+                           dos grillas, así que sólo cambia la base. *@
+                        <li><a href="@BaseCatalogo">Catálogo</a></li>
+                        <li><a href="@BaseCatalogo?gen=mujer">Mujer</a></li>
+                        <li><a href="@BaseCatalogo?gen=hombre">Hombre</a></li>
+                        <li><a href="@BaseCatalogo?gen=nena,nene,bebe">Niños</a></li>
+                        <li><a href="@BaseCatalogo?gen=unisex">Unisex</a></li>
                     </ul>
                 </div>
                 <div class="mk-footer-col">
@@ -129,6 +130,13 @@
                     <span class="mk-version @ClaseVersion" title="@TituloVersion">· @sha</span>
                 }
             </p>
+
+            @* Puerta al catálogo interno. Va acá abajo, discreta, porque no es para el visitante:
+               entran proveedores y staff. Logueado no se muestra — el header ya tiene usuario y salir. *@
+            @if (!_interno)
+            {
+                <a class="mk-footer-acceso mk-rotulo" href="/login">Acceso proveedores</a>
+            }
         </div>
     </footer>
 
@@ -141,6 +149,24 @@
 </div>
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    // ¿Staff/proveedor logueado y aprobado? Mismo criterio que NavMenu: si sí, el pie apunta al interno
+    // y no muestra la puerta de acceso (ya está adentro).
+    private bool _interno;
+
+    /// Base de los links de catálogo del pie: la grilla interna si hay sesión, la pública si no.
+    private string BaseCatalogo => _interno ? "/interno" : "/catalogo";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var usuario = (await AuthState).User;
+            _interno = usuario.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk);
+        }
+    }
+
     // Al día = tono normal del pie. Atrasada = apagado a gris (no hay semáforo de colores: la marca es
     // monocromática). Desconocido = como al día, para no inventar un estado que no pudimos verificar.
     private string ClaseVersion => Version.Estado == Servicios.EstadoVersion.Situacion.Atrasada ? "mk-version--vieja" : "";

@@ -247,15 +247,16 @@ public sealed class CatalogoStore
             var combo = Combo.Parsear(a.Combo);
 
             // PublicadoBase = criterio OBJETIVO del catálogo público (el estado 'auto'):
-            //   Indumentaria + taxonomía válida + en algún local + (tiene variantes o es Lencería).
-            //   (La foto NO es requisito: hoy el sitio publica artículos sin foto.) El override manual NO
-            //   entra acá: el MERGE combina esto con la columna VisibilidadManual (que preserva) para el
-            //   Publicado final ('ocultar'/'mostrar' mandan; 'auto' usa esto). Así el rebuild no pisa la
-            //   decisión humana, y "mostrar" puede publicar cualquier rubro fuera de este criterio.
+            //   en algún local + (tiene variantes o es Lencería) + TIENE FOTO. Se publican TODOS los
+            //   rubros (ya no sólo Indumentaria): la curación pasa a ser la FOTO — sólo sale lo que tiene
+            //   foto de IA o de disco (drive), que es justo lo que marca `tieneFoto` (IA primero, disco
+            //   después). El override manual NO entra acá: el MERGE combina esto con la columna
+            //   VisibilidadManual (que preserva) para el Publicado final ('ocultar'/'mostrar' mandan;
+            //   'auto' usa esto). Así el rebuild no pisa la decisión humana.
             var publicadoBase =
-                Texto.SinAcentos(rubro) == "indumentaria"
-                && enAlgunLocal
-                && (tieneVariantes || esLenceria);
+                enAlgunLocal
+                && (tieneVariantes || esLenceria)
+                && tieneFoto;
 
             filas.Add(new CatalogoFilaBase(
                 Codigo: a.ArtCod,

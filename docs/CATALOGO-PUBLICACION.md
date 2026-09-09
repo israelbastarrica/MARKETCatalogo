@@ -26,13 +26,16 @@ Hay que distinguir dos cosas:
 `PublicadoBase` (criterio objetivo, en `ConstruirFilasAsync`) es verdadero cuando el artículo cumple
 **todo** esto:
 
-1. **Rubro = Indumentaria** — *filtro temporal*, ver §2.
-2. **En algún local** — está stockeado en LURO o PERALTA (no sólo en depósito).
-3. **Tiene variantes** — tiene al menos una fila de color/talle en `PRECOMPRA` o `REMCOMPRA`. Mejor no
+1. **En algún local** — está stockeado en LURO o PERALTA (no sólo en depósito).
+2. **Tiene variantes** — tiene al menos una fila de color/talle en `PRECOMPRA` o `REMCOMPRA`. Mejor no
    mostrarlo que mostrarlo sin talles. (Excepción: Lencería, que no usa esa cascada.)
+3. **Tiene foto** — tiene foto de **IA o de disco** (drive). Es lo que marca el bit `tieneFoto`
+   (`LinkIADisco` primero, `LinkDriveDisco` después — ver [FOTOS.md](FOTOS.md) §2). **La foto es la
+   curación del catálogo**: se publican TODOS los rubros (Indumentaria, Accesorios, Lencería, Calzado…),
+   y lo único que decide qué sale es tener foto.
 
-Que un artículo **no tenga foto NO lo descarta**: se publica igual, con un placeholder. Ver
-[FOTOS.md](FOTOS.md) §2.
+> **Nota histórica:** antes (1) era "Rubro = Indumentaria" y la foto **no** era requisito. Se cambió: se
+> abrió a todos los rubros y la foto pasó a ser el filtro de curación. Ver §2.
 
 ### Override manual de visibilidad (3 estados)
 
@@ -48,26 +51,23 @@ El **rebuild preserva** `VisibilidadManual`: el MERGE nunca lo pisa y recomputa 
 respetándolo — `'ocultar'→0`, `'mostrar'→1`, `'auto'→PublicadoBase`. De esa forma la reconstrucción
 periódica no borra la decisión humana, y lo publicado a mano sobrevive los rebuilds.
 
-## 2. Filtro temporal: sólo Indumentaria
+## 2. Curación por foto (todos los rubros)
 
-> **POR AHORA el sitio publica únicamente el rubro `Indumentaria`.** El resto (Accesorios, Lencería,
-> Calzado…) queda fuera hasta que se decida sumarlos.
+> **El sitio publica TODOS los rubros, pero sólo los artículos que tienen foto (de IA o de disco).**
+> La foto es lo que curó qué sale: si el staff le puso foto, sale; si no, no.
 
-Está implementado como una condición del cálculo de `PublicadoBase` en `ConstruirFilasAsync`:
+Está implementado como el cálculo de `PublicadoBase` en `ConstruirFilasAsync`:
 
 ```csharp
 var publicadoBase =
-    Texto.SinAcentos(rubro) == "indumentaria"
-    && enAlgunLocal
-    && (tieneVariantes || esLenceria);
+    enAlgunLocal
+    && (tieneVariantes || esLenceria)
+    && tieneFoto;
 ```
 
-- Se compara sin acentos y en minúsculas (mismo criterio que el de Lencería), para no depender de
-  mayúsculas/tildes que vienen del ERP.
-- A diferencia de antes, esto **no descarta** los otros rubros de la tabla: quedan persistidos con
-  `Publicado = 0` (visibles en el interno), simplemente no salen en el público. Como la grilla pública
-  filtra por `Publicado = 1`, al quedar un solo rubro la faceta "Tipo" se **auto-oculta**; el mega-menú
-  muestra sólo géneros; etc.
-- **Para revertir** (volver a publicar todos los rubros): quitar la condición
-  `Texto.SinAcentos(rubro) == "indumentaria"` de `PublicadoBase` (y la condición equivalente en
-  `CambiarVisibilidadAsync`, que espeja el mismo criterio para reflejar `Publicado` al mostrar).
+- `tieneFoto` es verdadero cuando el rebuild resolvió una ruta de foto (IA primero, disco después) para
+  el artículo — ver [FOTOS.md](FOTOS.md) §2.
+- Los artículos sin foto quedan persistidos con `Publicado = 0` (visibles en el **interno**), no salen en
+  el público. Ídem los que no están en ningún local o no tienen variantes.
+- El override manual sigue mandando sobre esto: `VisibilidadManual = 'mostrar'` publica igual (cualquier
+  rubro, con o sin foto) y `'ocultar'` esconde; `'auto'` respeta este criterio (ver §1).

@@ -103,8 +103,9 @@ demand (stock/sales/margin, características, ubicaciones, órdenes, bloqueo) vi
 with the page rendered by streaming (`[StreamRendering]`) and the family-average benchmark loaded
 afterwards (`BenchmarkFamiliaAsync`, cached per prenda).
 
-Only the `Indumentaria` rubro is currently published — a temporary hardcoded filter in the publish
-criteria (`CatalogoStore.ConstruirFilasAsync`), not a config toggle.
+All rubros are published, but only articles that **have a photo** (IA or disco/drive) — the photo is
+the curation gate in the publish criteria (`CatalogoStore.ConstruirFilasAsync`: `enAlgunLocal &&
+(tieneVariantes || esLenceria) && tieneFoto`). See `docs/CATALOGO-PUBLICACION.md`.
 
 ### Photo/thumbnail pipeline
 

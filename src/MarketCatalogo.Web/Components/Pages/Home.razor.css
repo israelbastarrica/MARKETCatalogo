@@ -57,41 +57,6 @@
     }
 }
 
-/* Celular: en vez de apilar, las cards se vuelven un carrusel horizontal deslizable con scroll-snap
-   (CSS puro, sin JS). Se arrastra de costado y "engancha" en cada género. El resto (desktop/tablet)
-   sigue siendo grilla. Es el patrón de "estante" deslizable, no un autoplay: nada se mueve solo. */
-@media (max-width: 48rem) {
-    /* El carrusel sangra hasta los bordes; el título se mantiene con su margen. */
-    .mk-generos-seccion {
-        padding-inline: 0;
-    }
-
-    .mk-generos {
-        display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: 78%;
-        grid-template-columns: none;
-        gap: .75rem;
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        /* Sangra hasta el borde y usa scroll-padding para que la primera/última card no queden pegadas. */
-        padding: 0 1.25rem 1.25rem;
-        scroll-padding-inline: 1.25rem;
-        -webkit-overflow-scrolling: touch;
-        /* Barra de scroll discreta (no hace falta que grite: la propia foto invita a arrastrar). */
-        scrollbar-width: none;
-    }
-
-    .mk-generos::-webkit-scrollbar {
-        display: none;
-    }
-
-    .mk-genero {
-        scroll-snap-align: start;
-        min-height: 22rem;
-    }
-}
-
 .mk-genero {
     display: flex;
     flex-direction: column;
@@ -123,17 +88,28 @@
     z-index: 1;
 }
 
-.mk-genero:hover::before,
 .mk-genero:focus-visible::before {
     background: linear-gradient(to bottom, rgba(0, 0, 0, .25) 0%, rgba(0, 0, 0, .8) 100%);
 }
 
-/* El lift de hover comparte la transición de transform del sistema de reveal (institucional.css).
-   Se resetea el transition-delay del stagger para que el hover responda al instante. */
-.mk-genero:hover,
+/* El lift comparte la transición de transform del sistema de reveal (institucional.css).
+   Se resetea el transition-delay del stagger para que responda al instante. */
 .mk-genero:focus-visible {
     transform: translateY(-4px);
     transition-delay: 0s;
+}
+
+/* El :hover SÓLO en dispositivos con mouse real. En touch, el :hover haría que el primer tap
+   "hoveree" (oscurece + levanta) y recién el segundo entre — el doble-tap que había que arreglar. */
+@media (hover: hover) and (pointer: fine) {
+    .mk-genero:hover::before {
+        background: linear-gradient(to bottom, rgba(0, 0, 0, .25) 0%, rgba(0, 0, 0, .8) 100%);
+    }
+
+    .mk-genero:hover {
+        transform: translateY(-4px);
+        transition-delay: 0s;
+    }
 }
 
 .mk-genero-nombre {
@@ -146,3 +122,27 @@
 .js-reveal .mk-generos .mk-genero:nth-child(2) { transition-delay: .08s; }
 .js-reveal .mk-generos .mk-genero:nth-child(3) { transition-delay: .16s; }
 .js-reveal .mk-generos .mk-genero:nth-child(4) { transition-delay: .24s; }
+
+/* Celular: grilla 2×2 — se ven las 4 secciones de una, sin scroll lateral ni carrusel.
+   Va al FINAL del archivo a propósito: así sus overrides de .mk-genero (min-height/padding)
+   ganan sobre las reglas base de arriba (mismo peso, gana la última en el cascade). */
+@media (max-width: 48rem) {
+    .mk-generos-seccion {
+        margin-block: 2rem 4rem;
+        padding-inline: 1.25rem;
+    }
+
+    .mk-generos {
+        grid-template-columns: repeat(2, 1fr);
+        gap: .6rem;
+    }
+
+    .mk-genero {
+        min-height: 13rem;
+        padding: 1.1rem;
+    }
+
+    .mk-genero-nombre {
+        font-size: clamp(1.4rem, 6vw, 1.9rem);
+    }
+}

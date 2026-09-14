@@ -104,8 +104,11 @@ with the page rendered by streaming (`[StreamRendering]`) and the family-average
 afterwards (`BenchmarkFamiliaAsync`, cached per prenda).
 
 All rubros are published, but only articles that **have a photo** (IA or disco/drive) — the photo is
-the curation gate in the publish criteria (`CatalogoStore.ConstruirFilasAsync`: `enAlgunLocal &&
-(tieneVariantes || esLenceria) && tieneFoto`). See `docs/CATALOGO-PUBLICACION.md`.
+the curation gate in the publish criteria (`CatalogoStore.ConstruirFilasAsync`: `enAlgunLugar &&
+(tieneVariantes || esLenceria) && tieneFoto`, where `enAlgunLugar = enAlgunLocal || (enDeposito &&
+NovedadesPolitica.Es(...))` — deposit-only stock publishes too, but only for the current season/year
+novedad, Prim-Ver 2026/2027, kept in `NovedadesPolitica` and shared with the Novedades read).
+See `docs/CATALOGO-PUBLICACION.md`.
 
 ### Photo/thumbnail pipeline
 

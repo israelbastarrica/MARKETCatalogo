@@ -166,6 +166,13 @@ public sealed class CatalogoStore
             var enLuro = ubis.Any(u => !u.EsDeposito && u.Local.Equals("LURO", StringComparison.OrdinalIgnoreCase));
             var enPeralta = ubis.Any(u => !u.EsDeposito && u.Local.Equals("PERALTA", StringComparison.OrdinalIgnoreCase));
             var enAlgunLocal = enLuro || enPeralta;
+            // enAlgunLugar: en un local, O en depósito PERO sólo si es novedad de temporada (Prim-Ver
+            // 2026/2027, ver NovedadesPolitica). Antes se publicaba únicamente lo que estaba en algún local;
+            // ahora una prenda fotografiada que todavía está en depósito (recién llegada, aún sin distribuir)
+            // también se publica, PERO acotado a la temporada que entra — el depósito de otras temporadas no
+            // se publica. La foto sigue siendo la curación (más abajo).
+            var enAlgunLugar = enAlgunLocal
+                || (enDeposito && NovedadesPolitica.Es(a.Temporada, a.Anio));
 
             var artDes = Texto.RepararEnie(a.ArtDes);
             var rubro = Texto.RepararEnie(a.Rubro);
@@ -247,14 +254,14 @@ public sealed class CatalogoStore
             var combo = Combo.Parsear(a.Combo);
 
             // PublicadoBase = criterio OBJETIVO del catálogo público (el estado 'auto'):
-            //   en algún local + (tiene variantes o es Lencería) + TIENE FOTO. Se publican TODOS los
-            //   rubros (ya no sólo Indumentaria): la curación pasa a ser la FOTO — sólo sale lo que tiene
-            //   foto de IA o de disco (drive), que es justo lo que marca `tieneFoto` (IA primero, disco
-            //   después). El override manual NO entra acá: el MERGE combina esto con la columna
-            //   VisibilidadManual (que preserva) para el Publicado final ('ocultar'/'mostrar' mandan;
-            //   'auto' usa esto). Así el rebuild no pisa la decisión humana.
+            //   en algún lugar (local O depósito) + (tiene variantes o es Lencería) + TIENE FOTO. Se publican
+            //   TODOS los rubros (ya no sólo Indumentaria) y también lo que está sólo en depósito: la curación
+            //   pasa a ser la FOTO — sólo sale lo que tiene foto de IA o de disco (drive), que es justo lo que
+            //   marca `tieneFoto` (IA primero, disco después). El override manual NO entra acá: el MERGE
+            //   combina esto con la columna VisibilidadManual (que preserva) para el Publicado final
+            //   ('ocultar'/'mostrar' mandan; 'auto' usa esto). Así el rebuild no pisa la decisión humana.
             var publicadoBase =
-                enAlgunLocal
+                enAlgunLugar
                 && (tieneVariantes || esLenceria)
                 && tieneFoto;
 

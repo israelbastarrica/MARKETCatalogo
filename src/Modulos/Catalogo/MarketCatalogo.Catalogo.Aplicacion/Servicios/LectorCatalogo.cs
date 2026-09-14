@@ -59,12 +59,8 @@ public sealed class LectorCatalogo
         };
     }
 
-    // Qué cuenta como "novedad": el ingreso de la temporada que entra, primavera-verano (Prim-Ver), de los
-    // dos años más nuevos ("Todo el año" y Oto-Inv quedan afuera: no son el ingreso de esta temporada). Lo
-    // usan por igual el home y el toggle de la grilla. Constantes nombradas para correr el año/temporada
-    // cuando entre una colección nueva, sin tocar SQL ni la UI.
-    private static readonly int[] AniosNovedades = [2027, 2026];
-    private static readonly string[] TemporadasNovedades = ["Prim-Ver"];
+    // Qué cuenta como "novedad" (ingreso primavera-verano de los años nuevos) vive en NovedadesPolitica —
+    // un solo lugar compartido con el criterio de publicación (CatalogoStore), para no desincronizar.
 
     /// <summary>Novedades para el home: pide al repo hasta <paramref name="cantidad"/> artículos publicados
     /// y con foto del ingreso de temporada, y los mapea a DTO. Dispara la revalidación en background como
@@ -72,7 +68,7 @@ public sealed class LectorCatalogo
     public async Task<IReadOnlyList<ArticuloDto>> NovedadesAsync(int cantidad, CancellationToken ct = default)
     {
         _store.AsegurarBaseFresca();
-        var filas = await _repo.LeerNovedadesAsync(AniosNovedades, TemporadasNovedades, Math.Clamp(cantidad, 1, 48), ct);
+        var filas = await _repo.LeerNovedadesAsync(NovedadesPolitica.Anios, NovedadesPolitica.Temporadas, Math.Clamp(cantidad, 1, 48), ct);
         return filas.Select(Mapear).ToList();
     }
 
@@ -98,8 +94,8 @@ public sealed class LectorCatalogo
             TextoNorm: string.IsNullOrWhiteSpace(f.Texto) ? null : Texto.SinAcentos(f.Texto),
             Orden: f.Orden, Pagina: f.Pagina,
             // Novedades on: acota a la temporada que entra (primavera-verano) de los años nuevos.
-            Anios: f.Novedades ? AniosNovedades : null,
-            Temporadas: f.Novedades ? TemporadasNovedades : null);
+            Anios: f.Novedades ? NovedadesPolitica.Anios : null,
+            Temporadas: f.Novedades ? NovedadesPolitica.Temporadas : null);
 
         var r = await _repo.BuscarPublicoAsync(consulta, ct);
         var comboTiers = await _repo.TraerComboTiersAsync(ct);

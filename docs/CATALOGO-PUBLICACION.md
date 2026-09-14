@@ -26,7 +26,11 @@ Hay que distinguir dos cosas:
 `PublicadoBase` (criterio objetivo, en `ConstruirFilasAsync`) es verdadero cuando el artículo cumple
 **todo** esto:
 
-1. **En algún local** — está stockeado en LURO o PERALTA (no sólo en depósito).
+1. **En algún lugar** — está stockeado en LURO o PERALTA, **o** en depósito pero sólo si es **novedad de
+   temporada** (Prim-Ver 2026/2027, ver [`NovedadesPolitica`](../src/Modulos/Catalogo/MarketCatalogo.Catalogo.Aplicacion/NovedadesPolitica.cs)).
+   Es decir: lo de local se publica de cualquier temporada; lo que está **sólo en depósito** se publica
+   únicamente si pertenece a la temporada que entra (así se muestran los ingresos nuevos aunque todavía no
+   estén distribuidos a los locales). El depósito de otras temporadas queda sin publicar.
 2. **Tiene variantes** — tiene al menos una fila de color/talle en `PRECOMPRA` o `REMCOMPRA`. Mejor no
    mostrarlo que mostrarlo sin talles. (Excepción: Lencería, que no usa esa cascada.)
 3. **Tiene foto** — tiene foto de **IA o de disco** (drive). Es lo que marca el bit `tieneFoto`
@@ -59,15 +63,21 @@ periódica no borra la decisión humana, y lo publicado a mano sobrevive los reb
 Está implementado como el cálculo de `PublicadoBase` en `ConstruirFilasAsync`:
 
 ```csharp
+var enAlgunLugar = enAlgunLocal
+    || (enDeposito && NovedadesPolitica.Es(a.Temporada, a.Anio));
+
 var publicadoBase =
-    enAlgunLocal
+    enAlgunLugar
     && (tieneVariantes || esLenceria)
     && tieneFoto;
 ```
 
 - `tieneFoto` es verdadero cuando el rebuild resolvió una ruta de foto (IA primero, disco después) para
   el artículo — ver [FOTOS.md](FOTOS.md) §2.
+- `NovedadesPolitica` es el criterio compartido de "novedad de temporada" (Prim-Ver 2026/2027): lo usan
+  tanto esta publicación del depósito como la lectura de la sección **Novedades** del home y el toggle
+  "Novedades" de la grilla, para que no se desincronicen.
 - Los artículos sin foto quedan persistidos con `Publicado = 0` (visibles en el **interno**), no salen en
-  el público. Ídem los que no están en ningún local o no tienen variantes.
+  el público. Ídem los que no están en ningún local ni son novedad de depósito, o no tienen variantes.
 - El override manual sigue mandando sobre esto: `VisibilidadManual = 'mostrar'` publica igual (cualquier
   rubro, con o sin foto) y `'ocultar'` esconde; `'auto'` respeta este criterio (ver §1).

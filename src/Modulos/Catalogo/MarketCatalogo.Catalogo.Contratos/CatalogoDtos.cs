@@ -23,6 +23,13 @@ public sealed class ArticuloDto
     public string? Familia { get; init; }               // "Campera"
     public string? FamiliaSlug { get; init; }
 
+    /// <summary>Temporada del artículo (ej. "Prim-Ver", "Oto-Inv", "Todo el año"). Materializada en
+    /// dbo.Catalogo; la usa la sección Novedades del home. El resto de la grilla pública no filtra por esto.</summary>
+    public string? Temporada { get; init; }
+
+    /// <summary>Año del artículo (ART.ANO normalizado a 4 dígitos). Materializado en dbo.Catalogo.</summary>
+    public int? Anio { get; init; }
+
     // --- Precio (ver docs/MEDICION.md §6) ---------------------------------------
     /// <summary>ART.CLASIFART tal cual, ej. "2X15000". Es la oferta que se muestra como titular.</summary>
     public string? ComboTexto { get; init; }
@@ -92,6 +99,12 @@ public sealed record FiltrosCatalogo
     public decimal? PrecioMin { get; init; }
     public decimal? PrecioMax { get; init; }
     public string? Texto { get; init; }
+
+    // Acota la grilla a las novedades de temporada (primavera-verano): los años más nuevos + la temporada
+    // Prim-Ver. No es una faceta multi — es un scope on/off que se combina con el resto de los filtros (ej.
+    // "novedades de Hombre"). La política de qué año/temporada cuenta vive en Aplicacion, no acá.
+    public bool Novedades { get; init; }
+
     public string Orden { get; init; } = "destacados";
     public int Pagina { get; init; } = 1;
 

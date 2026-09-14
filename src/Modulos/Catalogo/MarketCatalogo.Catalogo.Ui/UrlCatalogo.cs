@@ -48,6 +48,10 @@ public static class UrlCatalogo
         Agregar("precioMax", Val("precioMax", f.PrecioMax?.ToString("0")));
         Agregar("q", Val("q", f.Texto));
 
+        // Novedades es on/off (no multi): cuando se está tocando la clave, el valor manda; si no, el estado.
+        var novedades = clave == "novedades" ? valor is not null : f.Novedades;
+        if (novedades) Agregar("novedades", "1");
+
         var orden = Val("orden", f.Orden);
         if (!string.IsNullOrWhiteSpace(orden) && orden != "destacados") Agregar("orden", orden);
 
@@ -75,6 +79,10 @@ public static class UrlCatalogo
 
     /// <summary>Los ticks de sucursal de arriba de la grilla. Alias de Toggle sobre la clave "local".</summary>
     public static string AlternarLocal(FiltrosCatalogo f, string slug) => Toggle(f, "local", slug);
+
+    /// <summary>Prende o apaga el scope de Novedades (primavera-verano) conservando el resto de los filtros.</summary>
+    public static string AlternarNovedades(FiltrosCatalogo f)
+        => Construir(f, "novedades", f.Novedades ? null : "1");
 
     // Valores actuales de una faceta multi como lista de strings (combo viaja como "cantidad-total").
     private static IReadOnlyList<string> ValoresDe(FiltrosCatalogo f, string clave) => clave switch
@@ -110,7 +118,7 @@ public static class UrlCatalogo
         => f.Rubros.Count > 0 || f.Generos.Count > 0 || f.Familias.Count > 0 || f.Talles.Count > 0 || f.Colores.Count > 0
            || f.Locales.Count > 0 || f.ComboDetalles.Count > 0
            || f.PrecioMin is not null || f.PrecioMax is not null
-           || !string.IsNullOrWhiteSpace(f.Texto) || f.Pagina > 1 || f.Orden != "destacados";
+           || !string.IsNullOrWhiteSpace(f.Texto) || f.Novedades || f.Pagina > 1 || f.Orden != "destacados";
 
     /// <summary>Los chips de "filtros activos", con la URL que quita cada uno.</summary>
     public static IEnumerable<(string Etiqueta, string UrlQuitar)> ChipsActivos(FiltrosCatalogo f)
@@ -135,6 +143,7 @@ public static class UrlCatalogo
             yield return (etiqueta, Construir(Construir2(f), "precioMin", null));
         }
         if (!string.IsNullOrWhiteSpace(f.Texto)) yield return ($"“{f.Texto}”", Construir(f, "q", null));
+        if (f.Novedades) yield return ("Novedades primavera-verano", Construir(f, "novedades", null));
     }
 
     // Quitar el rango de precio son dos claves a la vez, así que primero se limpia una.

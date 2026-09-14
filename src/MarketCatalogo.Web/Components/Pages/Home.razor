@@ -1,5 +1,6 @@
 @page "/"
 @using MarketCatalogo.Catalogo.Contratos
+@using MarketCatalogo.Catalogo.Ui.Componentes
 @inject ICatalogoConsulta Catalogo
 
 <PageTitle>MARKET - Viví la experiencia</PageTitle>
@@ -11,33 +12,67 @@
    en la Fase 1; el contenido institucional, en la Fase 2 (ver docs/PLAN.md).
    La copy aprobada por marca está en docs/CONTENIDO.md. *@
 
+@* Hero sticky DETRÁS del contenido: se queda fijo bajo el header y el cuerpo blanco (más abajo) sube
+   por encima al scrollear, tapándolo — así el "MARKET" negro se esconde solo al deslizar, en celu y en
+   compu, sin JavaScript. Es más bajo que antes (dejó de ser gigante) para que las Novedades se vean casi
+   sin bajar. *@
 <section class="mk-hero mk-negativo">
     <span class="mk-logo mk-hero-logo">Market</span>
     <span class="mk-logo-tagline">Vivi la experiencia</span>
 </section>
 
-@* Declaración de marca, minimalista. La primera línea es copy del Manual (docs/CONTENIDO.md, misión);
-   la segunda es una línea de portada. Da voz al home sin volver al bloque grande de intro. *@
-<section class="mk-declaracion">
-    <p class="mk-declaracion-lead">
-        Prendas bien diseñadas, duraderas y asequibles.
-    </p>
-    <p class="mk-declaracion-sub">
-        Para toda la familia, todos los días.
-    </p>
-</section>
+@* Cuerpo del home: fondo blanco opaco + z-index por encima del hero, para taparlo al subir. Adentro,
+   Novedades primero (producto vivo apenas se entra), después géneros y el cierre de marca. *@
+<div class="mk-home-cuerpo">
 
-<section class="mk-generos-seccion" aria-label="Comprá por género">
-    <div class="mk-generos">
-        @foreach (var g in _generos)
-        {
-            <a class="mk-genero mk-negativo mk-reveal" href="@g.Url"
-               style="@(g.FotoUrl is null ? null : $"background-image:url('{g.FotoUrl}')")">
-                <span class="mk-genero-nombre mk-logo">@g.Nombre</span>
-            </a>
-        }
-    </div>
-</section>
+    @* Novedades: el ingreso de temporada (primavera · verano). Trae prendas reales de la colección más
+       nueva directo del catálogo, así el home muestra producto vivo y no sólo la navegación por género.
+       Si el catálogo arranca en frío o no hay novedades, la sección no se renderiza (no deja un hueco). *@
+    @if (_novedades.Count > 0)
+    {
+        <section class="mk-novedades mk-reveal" aria-label="Novedades de temporada">
+            <header class="mk-novedades-cab">
+                <span class="mk-rotulo mk-novedades-eyebrow">Ingreso de temporada · Primavera · Verano</span>
+                <h2 class="mk-novedades-titulo">Novedades</h2>
+            </header>
+
+            <div class="mk-novedades-grilla">
+                @foreach (var a in _novedades)
+                {
+                    <CardArticulo Articulo="a" />
+                }
+            </div>
+
+            <div class="mk-novedades-pie">
+                <a class="mk-cta" href="/catalogo?orden=destacados">Ver todo el catálogo</a>
+            </div>
+        </section>
+    }
+
+    <section class="mk-generos-seccion" aria-label="Comprá por género">
+        <div class="mk-generos">
+            @foreach (var g in _generos)
+            {
+                <a class="mk-genero mk-negativo mk-reveal" href="@g.Url"
+                   style="@(g.FotoUrl is null ? null : $"background-image:url('{g.FotoUrl}')")">
+                    <span class="mk-genero-nombre mk-logo">@g.Nombre</span>
+                </a>
+            }
+        </div>
+    </section>
+
+    @* Declaración de marca, como cierre del home. La primera línea es copy del Manual
+       (docs/CONTENIDO.md, misión); la segunda es una línea de portada. *@
+    <section class="mk-declaracion">
+        <p class="mk-declaracion-lead">
+            Prendas bien diseñadas, duraderas y asequibles.
+        </p>
+        <p class="mk-declaracion-sub">
+            Para toda la familia, todos los días.
+        </p>
+    </section>
+
+</div>
 
 @code {
     private sealed record GeneroCard(string Nombre, string Url, string? FotoUrl);
@@ -53,9 +88,25 @@
     ];
 
     private IReadOnlyList<GeneroCard> _generos = [];
+    private IReadOnlyList<ArticuloDto> _novedades = [];
+
+    // Cuántas novedades mostrar: 8 llena dos filas de 4 en desktop y cuatro de 2 en celular, sin dejar
+    // huecos en la grilla. Si hay menos, la grilla se acomoda igual.
+    private const int CantidadNovedades = 8;
 
     protected override async Task OnInitializedAsync()
     {
+        // Novedades del ingreso de temporada. Si el catálogo está frío o falla, la sección queda vacía
+        // (el markup no la renderiza) — nunca rompe el home.
+        try
+        {
+            _novedades = await Catalogo.NovedadesAsync(CantidadNovedades);
+        }
+        catch (Exception)
+        {
+            _novedades = [];
+        }
+
         var cards = new List<GeneroCard>(Definicion.Length);
         // Para que las 4 cards no repitan foto (hay artículos que caen en más de una sección): se
         // recuerda qué códigos ya se usaron y se saltean.

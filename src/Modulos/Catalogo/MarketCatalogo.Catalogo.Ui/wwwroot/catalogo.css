@@ -384,6 +384,15 @@
     gap: 1rem 2rem;
 }
 
+/* Sucursal + combo agrupados: quedan siempre en la misma línea, sin que el botón Novedades se cuele
+   entre ellos y los parta (era lo que se veía feo en celular). */
+.mk-toolbar-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem 2rem;
+}
+
 .mk-sucursales {
     display: flex;
     flex-wrap: wrap;
@@ -432,6 +441,54 @@
     border: solid var(--mk-acento-tinta);
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
+}
+
+
+/* Botón Novedades (primavera-verano): pill destacada a la izquierda de la toolbar. Outline en reposo,
+   negro pleno cuando está activa — mismo lenguaje que el resto de los estados activos del sistema. */
+.mk-novedades-btn {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.1;
+    text-decoration: none;
+    padding: .4rem 1rem;
+    border: 1px solid var(--mk-tinta-100);
+    color: var(--mk-tinta-100);
+    background: var(--mk-fondo);
+    transition: background .15s ease, color .15s ease;
+}
+
+.mk-novedades-btn-txt {
+    font-weight: 600;
+    font-size: .9rem;
+}
+
+.mk-novedades-btn-sub {
+    font-family: var(--mk-font-texto);
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    font-size: .62rem;
+    color: var(--mk-tinta-70);
+}
+
+.mk-novedades-btn:hover {
+    background: var(--mk-tinta-100);
+    color: var(--mk-acento-tinta);
+}
+
+.mk-novedades-btn:hover .mk-novedades-btn-sub {
+    color: var(--mk-tinta-inv-70);
+}
+
+.mk-novedades-btn.activa {
+    background: var(--mk-acento);
+    color: var(--mk-acento-tinta);
+    border-color: var(--mk-acento);
+}
+
+.mk-novedades-btn.activa .mk-novedades-btn-sub {
+    color: var(--mk-tinta-inv-70);
 }
 
 
@@ -887,6 +944,17 @@
 
     .mk-sucursales .mk-rotulo {
         display: none;
+    }
+
+    /* Todo en una sola línea (Novedades + combo + sucursal): gaps chicos para que entren en el ancho de
+       celular. Si el ancho no alcanza, baja el grupo combo+sucursal entero — nunca combo separado de LURO/
+       PERALTA (esa era la parte que se veía fea). */
+    .mk-toolbar-izq {
+        gap: .6rem 1rem;
+    }
+
+    .mk-toolbar-filtros {
+        gap: .5rem 1rem;
     }
 
     .mk-toolbar-izq .mk-combo-dropdown {

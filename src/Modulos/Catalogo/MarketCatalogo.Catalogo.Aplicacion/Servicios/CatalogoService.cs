@@ -32,4 +32,8 @@ public sealed class CatalogoService : ICatalogoConsulta
     // facetas al repo y arma el DTO. Ya no filtra en memoria sobre el snapshot completo.
     public Task<PaginaCatalogoDto> BuscarAsync(FiltrosCatalogo f, CancellationToken ct = default)
         => _lector.BuscarAsync(f, ct);
+
+    // Novedades del home: el lector decide qué años/temporadas cuentan como ingreso de temporada.
+    public Task<IReadOnlyList<ArticuloDto>> NovedadesAsync(int cantidad, CancellationToken ct = default)
+        => _lector.NovedadesAsync(cantidad, ct);
 }

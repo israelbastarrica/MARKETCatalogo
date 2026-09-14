@@ -391,6 +391,30 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
         return (await cn.QueryAsync<CatalogoFilaLeida>(new CommandDefinition(sql, commandTimeout: 60, cancellationToken: ct))).ToList();
     }
 
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<CatalogoFilaLeida>> LeerNovedadesAsync(
+        IReadOnlyCollection<int> anios, IReadOnlyCollection<string> temporadas, int cantidad, CancellationToken ct = default)
+    {
+        if (anios.Count == 0 || temporadas.Count == 0 || cantidad <= 0) return Array.Empty<CatalogoFilaLeida>();
+
+        // Sólo lo publicable y con foto (la foto es la vidriera del home). Orden: año más nuevo primero y,
+        // dentro del año, un hash del código — determinístico entre recargas pero sin encolar todo un mismo
+        // rubro. HASHBYTES es barato para el TOP chico que pide el home.
+        var sql = $"""
+            SELECT TOP (@cantidad) {ColumnasFila}
+            FROM MARKET.dbo.Catalogo c WITH (NOLOCK)
+            WHERE c.Eliminado = 0 AND c.Publicado = 1 AND c.TieneFoto = 1
+              AND c.Anio IN @anios AND c.Temporada IN @temporadas
+            ORDER BY c.Anio DESC, HASHBYTES('MD5', c.Codigo);
+            """;
+        using var cn = _db.CrearMarket();
+        var p = new DynamicParameters();
+        p.Add("cantidad", cantidad);
+        p.Add("anios", anios);
+        p.Add("temporadas", temporadas);
+        return (await cn.QueryAsync<CatalogoFilaLeida>(new CommandDefinition(sql, p, commandTimeout: 30, cancellationToken: ct))).ToList();
+    }
+
     // Columnas que arman un CatalogoFilaLeida. Requiere el alias c en la tabla base. Talle/color ya no son
     // columnas: se reconstruyen para MOSTRAR desde las tablas hijas con STRING_AGG (talle en orden de curva,
     // color alfabético) — barato porque sólo corre para las filas seleccionadas.

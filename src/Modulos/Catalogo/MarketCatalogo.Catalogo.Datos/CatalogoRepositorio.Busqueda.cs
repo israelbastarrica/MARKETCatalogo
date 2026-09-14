@@ -44,6 +44,10 @@ public sealed partial class CatalogoRepositorio
         if (!string.IsNullOrWhiteSpace(q.RubroValor)) { p.Add("rutaRubro", q.RubroValor); baseParts.Add("c.Rubro = @rutaRubro"); }
         if (!string.IsNullOrWhiteSpace(q.GeneroValor)) { p.Add("rutaGenero", q.GeneroValor); baseParts.Add("c.Genero = @rutaGenero"); }
         if (q.GenerosValor.Count > 0) { p.Add("generos", q.GenerosValor); baseParts.Add("c.Genero IN @generos"); }
+        // Scope de novedades: año/temporada como base (siempre aplicado, no se excluye en las facetas —
+        // acota TODO el conjunto, incluidos los conteos de rubro/prenda/talle/color/local/combo).
+        if (q.Temporadas is { Count: > 0 }) { p.Add("temporadasNov", q.Temporadas); baseParts.Add("c.Temporada IN @temporadasNov"); }
+        if (q.Anios is { Count: > 0 }) { p.Add("aniosNov", q.Anios); baseParts.Add("c.Anio IN @aniosNov"); }
         var baseSql = string.Join(" AND ", baseParts);
 
         // Refinamiento: cada uno con su clave, para poder excluirlo al contar su propia faceta.

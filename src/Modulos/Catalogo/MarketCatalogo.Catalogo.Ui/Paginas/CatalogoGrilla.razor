@@ -110,23 +110,37 @@
                 <div class="mk-toolbar">
 
                     <div class="mk-toolbar-izq">
-                        @* Sucursales como ticks, arriba de la grilla (no en el panel de filtros): es
-                           multi-selección — se puede ver LURO, PERALTA o ambas. Ninguna marcada = todas. *@
-                        @if (_pagina.Locales.Count > 0)
-                        {
-                            <div class="mk-sucursales">
-                                <span class="mk-rotulo">Sucursal</span>
-                                @foreach (var l in _pagina.Locales)
-                                {
-                                    <a class="mk-suc @(l.Activa ? "activa" : "")"
-                                       href="@UrlCatalogo.AlternarLocal(_filtros, l.Valor)">
-                                        <span class="mk-suc-tick" aria-hidden="true"></span>@l.Etiqueta
-                                    </a>
-                                }
-                            </div>
-                        }
+                        @* Acceso rápido a Novedades: acota la grilla a la temporada que entra
+                           (primavera-verano) de la colección nueva, combinándose con los filtros ya puestos.
+                           Es un toggle: el mismo botón la apaga. *@
+                        <a class="mk-novedades-btn @(_filtros.Novedades ? "activa" : "")"
+                           href="@UrlCatalogo.AlternarNovedades(_filtros)"
+                           aria-pressed="@(_filtros.Novedades ? "true" : "false")">
+                            <span class="mk-novedades-btn-txt">Novedades</span>
+                            <span class="mk-novedades-btn-sub">Primavera · Verano</span>
+                        </a>
 
-                        <ComboDropdown Opciones="_pagina.Combos" Filtros="_filtros" />
+                        @* Sucursal + combo van juntos en su propia línea (mk-toolbar-filtros): así el botón
+                           Novedades no se mete entre ellos y no los parte en dos filas. *@
+                        <div class="mk-toolbar-filtros">
+                            @* Sucursales como ticks, arriba de la grilla (no en el panel de filtros): es
+                               multi-selección — se puede ver LURO, PERALTA o ambas. Ninguna marcada = todas. *@
+                            @if (_pagina.Locales.Count > 0)
+                            {
+                                <div class="mk-sucursales">
+                                    <span class="mk-rotulo">Sucursal</span>
+                                    @foreach (var l in _pagina.Locales)
+                                    {
+                                        <a class="mk-suc @(l.Activa ? "activa" : "")"
+                                           href="@UrlCatalogo.AlternarLocal(_filtros, l.Valor)">
+                                            <span class="mk-suc-tick" aria-hidden="true"></span>@l.Etiqueta
+                                        </a>
+                                    }
+                                </div>
+                            }
+
+                            <ComboDropdown Opciones="_pagina.Combos" Filtros="_filtros" />
+                        </div>
                     </div>
 
                     <div class="mk-orden">
@@ -218,6 +232,7 @@
     [SupplyParameterFromQuery(Name = "precioMin")] public decimal? PrecioMin { get; set; }
     [SupplyParameterFromQuery(Name = "precioMax")] public decimal? PrecioMax { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Texto { get; set; }
+    [SupplyParameterFromQuery(Name = "novedades")] public string? Novedades { get; set; }
     [SupplyParameterFromQuery(Name = "orden")] public string? Orden { get; set; }
     [SupplyParameterFromQuery(Name = "pag")] public int? Pag { get; set; }
 
@@ -287,6 +302,7 @@
             PrecioMin = PrecioMin,
             PrecioMax = PrecioMax,
             Texto = Vacio(Texto),
+            Novedades = !string.IsNullOrWhiteSpace(Novedades) && Novedades.Trim() != "0",
             Orden = string.IsNullOrWhiteSpace(Orden) ? "destacados" : Orden!.Trim(),
             Pagina = Pag is > 0 ? Pag.Value : 1,
         };

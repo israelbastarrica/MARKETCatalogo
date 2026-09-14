@@ -4,9 +4,35 @@
     align-items: center;
     justify-content: center;
     gap: .75rem;
-    min-height: 60vh;
-    padding: 4rem 2rem;
+    /* Más bajo que antes (dejó de ser un bloque gigante): así las Novedades ya se ven bajo el hero sin
+       bajar mucho. */
+    min-height: 46vh;
+    padding: 3rem 2rem;
     text-align: center;
+
+    /* Fade + lift LIGADO AL SCROLL (--mk-hero-fade 0→1 lo escribe App.razor según cuánto bajaste): el
+       hero se desvanece y sube mientras se va con el scroll. Al ser scroll-linked, es REVERSIBLE — subís y
+       reaparece solo (vuelve a opacidad 1). Va en flujo normal (no sticky), así también scrollea de verdad
+       y no deja las Novedades por debajo del header (no se corta el "Ingreso de temporada…"). Sin JS queda
+       pleno y scrollea como cualquier portada. opacity/transform son de compositor: fluido. */
+    --mk-hero-fade: 0;
+    opacity: calc(1 - var(--mk-hero-fade));
+    will-change: opacity;
+}
+
+/* El wordmark y el tagline suben un poco más rápido que el scroll mientras se desvanecen (parallax): da
+   la sensación de que el hero "se va" apenas empezás a bajar, sin dejar hueco (su lugar scrollea normal). */
+.mk-hero-logo,
+.mk-hero .mk-logo-tagline {
+    transform: translateY(calc(var(--mk-hero-fade) * -3rem));
+    will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mk-hero-logo,
+    .mk-hero .mk-logo-tagline {
+        transform: none;
+    }
 }
 
 .mk-hero-logo {
@@ -14,11 +40,16 @@
     font-size: clamp(1.75rem, 6vw, 4rem);
 }
 
+/* Cuerpo del home: agrupa Novedades + géneros + cierre. Fondo blanco explícito (por prolijidad). */
+.mk-home-cuerpo {
+    background: var(--mk-fondo);
+}
+
 /* --- Declaración de marca: una línea fuerte + subtítulo, centrado y con aire. --------- */
 .mk-declaracion {
     max-width: 44rem;
     margin: 0 auto;
-    padding: 5.5rem 2rem 0;
+    padding: 4rem 2rem 1rem;
     text-align: center;
 }
 
@@ -35,6 +66,64 @@
     line-height: 1.7;
     margin: 0;
     color: var(--mk-tinta-70);
+}
+
+/* --- Novedades: ingreso de temporada, producto real del catálogo --------- */
+/* Primera sección del cuerpo (arranca pegada al hero): sin borde superior — el corte negro→blanco del
+   hero ya separa. Padding-top generoso para que respire al taparlo. */
+.mk-novedades {
+    max-width: 84rem;
+    margin: 0 auto 5rem;
+    padding: 3rem 2rem 0;
+}
+
+.mk-novedades-cab {
+    max-width: 44rem;
+    margin: 0 auto 2.5rem;
+    text-align: center;
+}
+
+.mk-novedades-eyebrow {
+    display: block;
+    margin-bottom: .9rem;
+    color: var(--mk-tinta-70);
+}
+
+.mk-novedades-titulo {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: 1;
+    margin: 0;
+    color: var(--mk-tinta-100);
+}
+
+/* Grilla de 4 en desktop (dos filas con las 8 novedades). Las cards son las mismas de la grilla
+   pública (CardArticulo), así el home y el catálogo hablan el mismo idioma visual. */
+.mk-novedades-grilla {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem 1.25rem;
+}
+
+.mk-novedades-pie {
+    margin-top: 3rem;
+    text-align: center;
+}
+
+@media (max-width: 64rem) {
+    .mk-novedades-grilla {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 48rem) {
+    .mk-novedades {
+        margin-bottom: 4rem;
+        padding-inline: 1.25rem;
+    }
+
+    .mk-novedades-grilla {
+        gap: 1.5rem .75rem;
+    }
 }
 
 /* --- Géneros: cards con foto, clickeables, que aparecen al scrollear ------ */
@@ -127,6 +216,17 @@
    Va al FINAL del archivo a propósito: así sus overrides de .mk-genero (min-height/padding)
    ganan sobre las reglas base de arriba (mismo peso, gana la última en el cascade). */
 @media (max-width: 48rem) {
+    /* En celular el header es más alto (dos filas) y la pantalla más chica: hero un poco más bajo, para
+       que las Novedades asomen apenas se entra. */
+    .mk-hero {
+        min-height: 42vh;
+        padding: 2.25rem 1.25rem;
+    }
+
+    .mk-novedades {
+        padding-inline: 1.25rem;
+    }
+
     .mk-generos-seccion {
         margin-block: 2rem 4rem;
         padding-inline: 1.25rem;

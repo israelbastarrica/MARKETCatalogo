@@ -59,6 +59,23 @@ public sealed class LectorCatalogo
         };
     }
 
+    // Qué cuenta como "novedad": el ingreso de la temporada que entra, primavera-verano (Prim-Ver), de los
+    // dos años más nuevos ("Todo el año" y Oto-Inv quedan afuera: no son el ingreso de esta temporada). Lo
+    // usan por igual el home y el toggle de la grilla. Constantes nombradas para correr el año/temporada
+    // cuando entre una colección nueva, sin tocar SQL ni la UI.
+    private static readonly int[] AniosNovedades = [2027, 2026];
+    private static readonly string[] TemporadasNovedades = ["Prim-Ver"];
+
+    /// <summary>Novedades para el home: pide al repo hasta <paramref name="cantidad"/> artículos publicados
+    /// y con foto del ingreso de temporada, y los mapea a DTO. Dispara la revalidación en background como
+    /// cualquier lectura.</summary>
+    public async Task<IReadOnlyList<ArticuloDto>> NovedadesAsync(int cantidad, CancellationToken ct = default)
+    {
+        _store.AsegurarBaseFresca();
+        var filas = await _repo.LeerNovedadesAsync(AniosNovedades, TemporadasNovedades, Math.Clamp(cantidad, 1, 48), ct);
+        return filas.Select(Mapear).ToList();
+    }
+
     /// <summary>Resuelve una página de la grilla PÚBLICA EN SQL: traduce los slugs de la URL a valores con
     /// el mapa de taxonomía (rearmado con la base), le pide al repo la página + los conteos de facetas
     /// (WHERE/OFFSET-FETCH/GROUP BY, un solo viaje) y arma el DTO. No trae toda la tabla a memoria.</summary>
@@ -79,7 +96,10 @@ public sealed class LectorCatalogo
             Talles: f.Talles, Colores: f.Colores, Locales: f.Locales, ComboDetalles: f.ComboDetalles,
             PrecioMin: f.PrecioMin, PrecioMax: f.PrecioMax,
             TextoNorm: string.IsNullOrWhiteSpace(f.Texto) ? null : Texto.SinAcentos(f.Texto),
-            Orden: f.Orden, Pagina: f.Pagina);
+            Orden: f.Orden, Pagina: f.Pagina,
+            // Novedades on: acota a la temporada que entra (primavera-verano) de los años nuevos.
+            Anios: f.Novedades ? AniosNovedades : null,
+            Temporadas: f.Novedades ? TemporadasNovedades : null);
 
         var r = await _repo.BuscarPublicoAsync(consulta, ct);
         var comboTiers = await _repo.TraerComboTiersAsync(ct);
@@ -175,6 +195,8 @@ public sealed class LectorCatalogo
             GeneroSlug = Texto.Slug(genero),
             Familia = familia,
             FamiliaSlug = familia is null ? null : Texto.Slug(familia),
+            Temporada = string.IsNullOrWhiteSpace(f.Temporada) ? null : f.Temporada,
+            Anio = f.Anio,
             ComboTexto = (f.ComboCantidad is int mc && f.ComboTotal is int mt) ? Combo.Mostrar(mc, mt) : null,
             ComboCantidad = f.ComboCantidad,
             ComboTotal = f.ComboTotal,

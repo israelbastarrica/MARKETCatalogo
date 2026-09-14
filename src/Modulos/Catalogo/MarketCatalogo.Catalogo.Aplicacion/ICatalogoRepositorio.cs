@@ -34,6 +34,14 @@ public interface ICatalogoRepositorio
     /// todo el universo (vista interna). Siempre excluye <c>Eliminado = 1</c>.</summary>
     Task<IReadOnlyList<CatalogoFilaLeida>> LeerBaseAsync(bool soloPublicados, CancellationToken ct = default);
 
+    /// <summary>MARKET: hasta <paramref name="cantidad"/> filas publicadas y con foto de <c>dbo.Catalogo</c>
+    /// cuyo año está en <paramref name="anios"/> y temporada en <paramref name="temporadas"/> — la sección
+    /// Novedades del home. Orden estable con variedad (por año descendente y un hash del código), para no
+    /// repetir foto entre recargas ni encolar todo un mismo rubro. El "qué es novedad" lo decide el servicio
+    /// (pasa años/temporadas); el repo sólo ejecuta.</summary>
+    Task<IReadOnlyList<CatalogoFilaLeida>> LeerNovedadesAsync(
+        IReadOnlyCollection<int> anios, IReadOnlyCollection<string> temporadas, int cantidad, CancellationToken ct = default);
+
     /// <summary>MARKET: resuelve la grilla PÚBLICA en SQL — filtra (<c>WHERE</c>), pagina
     /// (<c>OFFSET/FETCH</c>), cuenta el total y cada faceta (un <c>GROUP BY</c> por dimensión, cada una
     /// excluyendo su propio filtro) en un solo viaje. No trae toda la tabla: sólo la página + los conteos.
@@ -193,7 +201,10 @@ public sealed record ConsultaPublica(
     IReadOnlyList<string> Talles, IReadOnlyList<string> Colores,
     IReadOnlyList<string> Locales, IReadOnlyList<string> ComboDetalles,
     decimal? PrecioMin, decimal? PrecioMax, string? TextoNorm,
-    string Orden, int Pagina);
+    string Orden, int Pagina,
+    // Scope de novedades: cuando vienen con valores, acotan la grilla por año/temporada (base, no faceta).
+    // El servicio los llena desde su política de novedades; null/vacío = no acota (grilla normal).
+    IReadOnlyList<int>? Anios = null, IReadOnlyList<string>? Temporadas = null);
 
 /// <summary>Lo que la grilla INTERNA le pide al repo. Rubro/prenda ya eran por valor en el interno;
 /// género se tradujo de slug a valor. Talle/color son filtros (no facetas). <c>Texto</c> viaja crudo

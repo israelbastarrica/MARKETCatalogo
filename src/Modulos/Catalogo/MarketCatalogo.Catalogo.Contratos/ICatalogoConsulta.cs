@@ -16,6 +16,12 @@ public interface ICatalogoConsulta
     /// <summary>Una página de la grilla con sus facetas ya contadas.</summary>
     Task<PaginaCatalogoDto> BuscarAsync(FiltrosCatalogo filtros, CancellationToken ct = default);
 
+    /// <summary>Novedades para el home: hasta <paramref name="cantidad"/> artículos publicados y con foto
+    /// del ingreso de temporada (los años más nuevos + las temporadas estacionales). Orden estable con
+    /// variedad — mismo resultado entre recargas, pero sin agrupar por código. La política de qué es
+    /// "novedad" (qué años/temporadas) vive en la capa de aplicación, no acá.</summary>
+    Task<IReadOnlyList<ArticuloDto>> NovedadesAsync(int cantidad, CancellationToken ct = default);
+
     /// <summary>Un artículo por su slug. Si el slug no coincide exactamente pero el código sí, devuelve
     /// el artículo igual — quien llame debería redirigir (301) al slug canónico.</summary>
     Task<ArticuloDto?> PorSlugAsync(string? slug, CancellationToken ct = default);

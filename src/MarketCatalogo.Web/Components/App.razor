@@ -88,6 +88,35 @@
         })();
     </script>
 
+    @* Esconder/mostrar el hero del home según el scroll: escribe un progreso 0→1 (--mk-hero-fade) en la
+       .mk-hero proporcional a cuánto bajaste (respecto de su alto), y el CSS lo usa para desvanecerlo y
+       subirlo. Al ser proporcional al scroll es REVERSIBLE: al SUBIR, el progreso baja y el hero reaparece
+       solo. rAF + listener pasivo (fluido, sin costo cuando no se scrollea). Sin JS, el hero queda visible y
+       scrollea normal (mejora progresiva). Un solo listener; re-consulta el hero por página. *@
+    <script>
+        (function () {
+            var ticking = false;
+            function update() {
+                ticking = false;
+                var hero = document.querySelector('.mk-hero');
+                if (!hero) return;
+                var alto = hero.offsetHeight || 1;
+                var p = Math.min(1, Math.max(0, window.scrollY / alto));
+                hero.style.setProperty('--mk-hero-fade', p.toFixed(3));
+            }
+            function onScroll() {
+                if (!ticking) { ticking = true; requestAnimationFrame(update); }
+            }
+            window.addEventListener('scroll', onScroll, { passive: true });
+            window.addEventListener('resize', onScroll, { passive: true });
+            if (document.readyState !== 'loading') update();
+            else document.addEventListener('DOMContentLoaded', update);
+            if (window.Blazor && Blazor.addEventListener) {
+                Blazor.addEventListener('enhancedload', update);
+            }
+        })();
+    </script>
+
     @* La navegación mejorada de Blazor conserva la posición de scroll, así que al ir a otro artículo o
        sección la página nueva aparecía "scrolleada". Se lleva al tope en cada navegación hacia ADELANTE
        (click); en volver/avanzar del navegador (popstate) se respeta la posición previa. *@

@@ -127,47 +127,26 @@
                         @* Combo: dropdown de dos niveles, igual que el público. *@
                         <ComboDropdownInterno Opciones="_pagina.Combos" Filtros="_filtros" />
 
-                        @* Ubicación: UN solo filtro de selección única con todo adentro — los locales
-                           (antes ticks sueltos, en "ubic") y los cruces con depósito (en "cruce"). Elegir
-                           cualquiera borra el anterior; volver a tocar el activo lo saca (= todas). *@
-                        @{
-                            var ubicActiva = _filtros.Ubicaciones.FirstOrDefault();
-                            var cruceActivo = _filtros.CruceDepoLocal;
-                            var ubicElegida = ubicActiva is not null || cruceActivo is not null;
-
-                            // (etiqueta, valor de "ubic", valor de "cruce"). Sólo uno de los dos por opción.
-                            var opcionesUbic = new (string Etiqueta, string? Ubic, string? Cruce)[]
-                            {
-                                ("Luro", "luro", null),
-                                ("Peralta", "peralta", null),
-                                // "todos" es AND (Luro Y Peralta); "algún" es OR (en cualquiera de los dos).
-                                ("En todos los locales", null, "todos-locales"),
-                                ("En algún local", null, "en-local"),
-                                ("En depósito", null, "deposito"),
-                                ("En depósito y ningún local", null, "solo-deposito"),
-                                ("En depósito y Luro", null, "deposito-luro"),
-                                ("En depósito y Peralta", null, "deposito-peralta"),
-                            };
-                        }
+                        @* Ubicación: multi-selección simple — Luro, Peralta, Depósito (OR en el backend:
+                           marcar varios trae lo que esté en cualquiera de ellos). Cada uno alterna su valor
+                           en "ubic"; sin ninguno = todas las ubicaciones. *@
                         <div class="mk-combo-dropdown">
                             <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" />
                             <label for="mk-depo-toggle" class="mk-combo-dropdown-boton">
                                 <span class="mk-rotulo">Ubicación</span>
-                                @if (ubicElegida) { <span class="mk-combo-dropdown-contador">1</span> }
+                                @if (_filtros.Ubicaciones.Count > 0) { <span class="mk-combo-dropdown-contador">@_filtros.Ubicaciones.Count</span> }
                             </label>
                             <label for="mk-depo-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
                             <div class="mk-combo-dropdown-panel">
                                 <ul class="mk-faceta-combo-detalles">
-                                    @foreach (var o in opcionesUbic)
+                                    @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta"), ("deposito", "Depósito") })
                                     {
-                                        var activa = o.Ubic is not null
-                                            ? string.Equals(ubicActiva, o.Ubic, StringComparison.OrdinalIgnoreCase)
-                                            : cruceActivo == o.Cruce;
+                                        var activa = UrlInterno.CsvContiene(_filtros.Ubicaciones, val);
                                         <li>
                                             <a class="mk-faceta-opcion @(activa ? "activa" : "")"
-                                               href="@(activa ? UrlInterno.Ubicacion(_filtros, null, null) : UrlInterno.Ubicacion(_filtros, o.Ubic, o.Cruce))">
+                                               href="@UrlInterno.Alternar(_filtros, "ubic", val)">
                                                 <span class="mk-faceta-marca" aria-hidden="true"></span>
-                                                <span class="mk-faceta-nombre">@o.Etiqueta</span>
+                                                <span class="mk-faceta-nombre">@et</span>
                                             </a>
                                         </li>
                                     }

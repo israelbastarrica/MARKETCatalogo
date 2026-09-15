@@ -1,70 +1,128 @@
 @using MarketCatalogo.Catalogo.Contratos.Interno
 
-@* Card del catálogo INTERNO: foto + datos de gestión (costo, margen teórico, proveedor, ubicación,
-   si está publicado). Sólo la ve el staff. La foto la sirve el endpoint /fotos con permiso interno
-   (también las de artículos no publicados). *@
+@* Card del catálogo INTERNO. Dos formas:
+   · GESTIÓN (ADMIN, Completo=true): foto + badges + código + datos de gestión (costo, margen teórico,
+     proveedor/marca/temporada, si está publicado).
+   · Resto del staff (Completo=false): EXACTAMENTE la card pública (mismas clases mk-card-*), para que la
+     grilla interna se vea igual que el catálogo público. La única diferencia invisible es el link, que va
+     a la ficha interna reducida (así los artículos de depósito/no publicados también abren).
+   La foto la sirve el endpoint /fotos con permiso interno (también las de artículos no publicados). *@
 
-<a class="mk-ic @(Articulo.Publicado ? "" : "mk-ic-oculto")" href="/interno/producto/@Articulo.Codigo" data-enhance-nav="false">
-    <div class="mk-ic-foto">
-        @if (Articulo.TieneFoto)
-        {
-            <img class="mk-foto"
-                 src="/fotos/@(Articulo.Codigo)_400.webp?v=@Articulo.FotoVersion"
-                 width="400" height="600" loading="lazy" decoding="async" alt="@Articulo.Descripcion" />
-        }
-        else
-        {
-            <div class="mk-card-sinfoto" aria-label="Sin foto"></div>
-        }
-
-        <div class="mk-ic-badges">
-            @if (Articulo.EnLuro) { <span class="mk-ic-badge">Luro</span> }
-            @if (Articulo.EnPeralta) { <span class="mk-ic-badge">Peralta</span> }
-            @if (Articulo.EnDeposito) { <span class="mk-ic-badge mk-ic-badge-depo">Depósito</span> }
-        </div>
-
-        @* Curva de talles al pasar el mouse (sólo hover real; en touch no se muestra). Mismo overlay
-           que la card pública. Sin talles reales = talle único. *@
-        <div class="mk-card-talles" aria-hidden="true">
-            @if (Articulo.Talles.Count > 0)
+@if (!Completo)
+{
+    @* ===== Card pública (idéntica a CardArticulo) ===== *@
+    <a class="mk-card" href="/interno/producto/@Articulo.Codigo" data-enhance-nav="false">
+        <div class="mk-card-foto">
+            @if (Articulo.TieneFoto)
             {
-                @foreach (var talle in Articulo.Talles)
-                {
-                    <span class="mk-card-talle">@talle</span>
-                }
+                <img class="mk-foto"
+                     src="/fotos/@(Articulo.Codigo)_400.webp?v=@Articulo.FotoVersion"
+                     srcset="/fotos/@(Articulo.Codigo)_400.webp?v=@Articulo.FotoVersion 400w, /fotos/@(Articulo.Codigo)_1200.webp?v=@Articulo.FotoVersion 1200w"
+                     sizes="(max-width: 640px) 50vw, 300px"
+                     width="400" height="600"
+                     loading="lazy" decoding="async"
+                     alt="@Articulo.Descripcion" />
             }
             else
             {
-                <span class="mk-card-talle mk-card-talle-unico">Talle único</span>
+                <div class="mk-card-sinfoto" aria-label="Sin foto todavía"></div>
             }
+
+            <div class="mk-card-talles" aria-hidden="true">
+                @if (Articulo.Talles.Count > 0)
+                {
+                    @foreach (var talle in Articulo.Talles)
+                    {
+                        <span class="mk-card-talle">@talle</span>
+                    }
+                }
+                else
+                {
+                    <span class="mk-card-talle mk-card-talle-unico">Talle único</span>
+                }
+            </div>
         </div>
-    </div>
 
-    <div class="mk-ic-datos">
-        <h3 class="mk-ic-titulo">@Articulo.Descripcion</h3>
-        <p class="mk-ic-cod mk-rotulo">@Articulo.Codigo</p>
+        <div class="mk-card-datos">
+            <h3 class="mk-card-titulo">@Articulo.Descripcion</h3>
 
-        @* Precios apilados, igual que la card pública: combo en negrita arriba, precio unitario gris
-           abajo ("la unidad"). Sin combo, sólo el precio suelto. *@
-        <div class="mk-ic-precios">
             @if (Articulo.ComboTexto is not null)
             {
-                <p class="mk-ic-combo">@Articulo.ComboTexto</p>
+                <p class="mk-card-combo">@Articulo.ComboTexto</p>
             }
-            @if (Articulo.PrecioUnidadCombo is decimal pu)
+            @if (Articulo.PrecioVenta is decimal pv)
             {
-                <p class="mk-ic-venta">@Plata(pu) la unidad</p>
+                <p class="mk-card-unidad">@Plata(pv) la unidad</p>
             }
-            else if (Articulo.PrecioVenta is decimal pv)
+
+            @{ var locales = Locales(); }
+            @if (locales.Count > 0)
             {
-                <p class="mk-ic-venta">@Plata(pv)</p>
+                <p class="mk-rotulo mk-card-locales">@string.Join(" · ", locales)</p>
             }
         </div>
+    </a>
+}
+else
+{
+    @* ===== Card de gestión (ADMIN) ===== *@
+    <a class="mk-ic @(Articulo.Publicado ? "" : "mk-ic-oculto")" href="/interno/producto/@Articulo.Codigo" data-enhance-nav="false">
+        <div class="mk-ic-foto">
+            @if (Articulo.TieneFoto)
+            {
+                <img class="mk-foto"
+                     src="/fotos/@(Articulo.Codigo)_400.webp?v=@Articulo.FotoVersion"
+                     width="400" height="600" loading="lazy" decoding="async" alt="@Articulo.Descripcion" />
+            }
+            else
+            {
+                <div class="mk-card-sinfoto" aria-label="Sin foto"></div>
+            }
 
-        @* Costo/margen y proveedor/marca: sólo la vista de GESTIÓN (ADMIN). El resto del staff ve la card
-           como la pública (foto + precios + talles), coherente con la ficha reducida. *@
-        @if (Completo)
-        {
+            <div class="mk-ic-badges">
+                @if (Articulo.EnLuro) { <span class="mk-ic-badge">Luro</span> }
+                @if (Articulo.EnPeralta) { <span class="mk-ic-badge">Peralta</span> }
+                @if (Articulo.EnDeposito) { <span class="mk-ic-badge mk-ic-badge-depo">Depósito</span> }
+            </div>
+
+            @* Curva de talles al pasar el mouse (sólo hover real; en touch no se muestra). Mismo overlay
+               que la card pública. Sin talles reales = talle único. *@
+            <div class="mk-card-talles" aria-hidden="true">
+                @if (Articulo.Talles.Count > 0)
+                {
+                    @foreach (var talle in Articulo.Talles)
+                    {
+                        <span class="mk-card-talle">@talle</span>
+                    }
+                }
+                else
+                {
+                    <span class="mk-card-talle mk-card-talle-unico">Talle único</span>
+                }
+            </div>
+        </div>
+
+        <div class="mk-ic-datos">
+            <h3 class="mk-ic-titulo">@Articulo.Descripcion</h3>
+            <p class="mk-ic-cod mk-rotulo">@Articulo.Codigo</p>
+
+            @* Precios apilados, igual que la card pública: combo en negrita arriba, precio unitario gris
+               abajo ("la unidad"). Sin combo, sólo el precio suelto. *@
+            <div class="mk-ic-precios">
+                @if (Articulo.ComboTexto is not null)
+                {
+                    <p class="mk-ic-combo">@Articulo.ComboTexto</p>
+                }
+                @if (Articulo.PrecioUnidadCombo is decimal pu)
+                {
+                    <p class="mk-ic-venta">@Plata(pu) la unidad</p>
+                }
+                else if (Articulo.PrecioVenta is decimal pv)
+                {
+                    <p class="mk-ic-venta">@Plata(pv)</p>
+                }
+            </div>
+
             <dl class="mk-ic-gestion">
                 <div><dt>Costo</dt><dd>@(Articulo.PrecioCompra is decimal c ? Plata(c) : "—")</dd></div>
                 <div><dt>Margen</dt><dd>@(Articulo.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
@@ -74,16 +132,26 @@
             {
                 <p class="mk-ic-meta mk-rotulo">@string.Join(" · ", Meta())</p>
             }
-        }
-    </div>
-</a>
+        </div>
+    </a>
+}
 
 @code {
     [Parameter, EditorRequired] public required ArticuloInternoDto Articulo { get; set; }
 
-    /// <summary>Vista de gestión (perfil ADMIN): muestra costo/margen y proveedor/marca. Si es false, la card
-    /// queda como la pública. La grilla lo decide una vez y lo baja a todas las cards.</summary>
+    /// <summary>Vista de gestión (perfil ADMIN): card interna con badges, código, costo/margen y meta. Si es
+    /// false, la card se renderiza EXACTAMENTE como la pública. La grilla lo decide una vez y lo baja a todas.</summary>
     [Parameter] public bool Completo { get; set; } = true;
+
+    // Locales donde está armado, igual que el público (ArticuloDto.Locales): MAYÚSCULAS, sólo tiendas
+    // (Luro/Peralta), sin depósito. Para la card reducida.
+    private IReadOnlyList<string> Locales()
+    {
+        var l = new List<string>(2);
+        if (Articulo.EnLuro) l.Add("LURO");
+        if (Articulo.EnPeralta) l.Add("PERALTA");
+        return l;
+    }
 
     private IEnumerable<string> Meta()
     {
@@ -92,7 +160,7 @@
         if (!string.IsNullOrWhiteSpace(Articulo.Temporada)) yield return Articulo.Temporada!;
     }
 
-    // Moneda argentina sin decimales ni símbolo (misma decisión de marca que el público).
+    // Moneda argentina sin decimales ni símbolo (misma decisión de marca que el público, = Combo.Plata).
     private static string Plata(decimal monto)
         => monto.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("es-AR"));
 }

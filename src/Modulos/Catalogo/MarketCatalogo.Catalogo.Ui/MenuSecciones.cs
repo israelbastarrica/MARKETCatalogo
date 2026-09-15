@@ -18,12 +18,17 @@ public static class MenuSecciones
 {
     // Géneros que se muestran fusionados bajo un mismo rótulo. Clave = slug del género en la data.
     // Valor = (slug del grupo, rótulo). El resto de los géneros van solos.
+    // Dragon (CATEGART) trae seis géneros de chicos: Nene/Nena → "Niños", y los cuatro de bebé —Bebe (BB)
+    // más los desagregados por sexo Bebé Nena/Nene/Unisex (BBA/BBE/BBU)— fusionados en "Bebé".
     private static readonly Dictionary<string, (string Slug, string Nombre)> Fusion =
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["nene"] = ("ninos", "Niños"),
             ["nena"] = ("ninos", "Niños"),
-            ["bebe"] = ("ninos", "Niños"),
+            ["bebe"] = ("bebe", "Bebé"),
+            ["bebe-nena"] = ("bebe", "Bebé"),
+            ["bebe-nene"] = ("bebe", "Bebé"),
+            ["bebe-unisex"] = ("bebe", "Bebé"),
         };
 
     /// <summary>Igual que <see cref="Construir"/> pero para el catálogo INTERNO (staff logueado): los links
@@ -76,7 +81,7 @@ public static class MenuSecciones
                     .ToList();
                 return new SeccionNav(grp.Key.Slug, grp.Key.Nombre, grp.Sum(x => x.Cant), tipos);
             })
-            // Orden FIJO del header: Mujer, Hombre, Niños, Unisex. Cualquier otra sección inesperada
+            // Orden FIJO del header: Mujer, Hombre, Niños, Bebé, Unisex. Cualquier otra sección inesperada
             // va después, por cantidad. (Antes era todo por cantidad y quedaba Mujer, Niños, Hombre…)
             .OrderBy(s => OrdenSeccion(s.Slug)).ThenByDescending(s => s.Cantidad).ThenBy(s => s.Nombre)
             .ToList();
@@ -88,7 +93,8 @@ public static class MenuSecciones
         "mujer" => 0,
         "hombre" => 1,
         "ninos" => 2,
-        "unisex" => 3,
+        "bebe" => 3,
+        "unisex" => 4,
         _ => 99,
     };
 

@@ -2,6 +2,7 @@
 @using MarketCatalogo.Catalogo.Contratos.Interno
 @using MarketCatalogo.Catalogo.Ui
 @using MarketCatalogo.Catalogo.Ui.Componentes
+@using Microsoft.AspNetCore.Components.Authorization
 
 @* Catálogo INTERNO (staff). Gateado por la política "Interno" (= logueado y aprobado); un usuario sin
    permiso cae en /login. Universo completo (incluye depósito y lo no publicado). Muestra datos de gestión
@@ -88,13 +89,12 @@
                 @FacetaBloque("Prenda", "prenda", _pagina.Prendas)
                 @FacetaBloque("Proveedor", "prov", _pagina.Proveedores)
                 @FacetaBloque("Marca", "marca", _pagina.Marcas)
-                @FacetaBloque("Temporada", "temp", _pagina.Temporadas)
 
                 @* Orden: sólo en el drawer de celular (en desktop vive en la toolbar). Mismo mecanismo
                    solo-mobile que Género. *@
                 <div class="mk-int-grupo mk-int-solo-mobile">
                     <h2 class="mk-rotulo">Orden</h2>
-                    @foreach (var (val, et) in new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("margen-desc", "Mayor margen"), ("nombre", "Nombre") })
+                    @foreach (var (val, et) in Ordenes())
                     {
                         <a class="mk-int-radio @(_filtros.Orden == val ? "activa" : "")"
                            href="@UrlInterno.Set(_filtros, "orden", val)">@et</a>
@@ -150,7 +150,7 @@
                             };
                         }
                         <div class="mk-combo-dropdown">
-                            <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" checked="@ubicElegida" />
+                            <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" />
                             <label for="mk-depo-toggle" class="mk-combo-dropdown-boton">
                                 <span class="mk-rotulo">Ubicación</span>
                                 @if (ubicElegida) { <span class="mk-combo-dropdown-contador">1</span> }
@@ -180,7 +180,7 @@
                         {
                             var aniosOrden = _pagina.Anios.OrderByDescending(o => o.Valor, StringComparer.Ordinal).ToList();
                             <div class="mk-combo-dropdown">
-                                <input type="checkbox" id="mk-anio-toggle" class="mk-combo-toggle-check" checked="@(_filtros.Anios.Count > 0)" />
+                                <input type="checkbox" id="mk-anio-toggle" class="mk-combo-toggle-check" />
                                 <label for="mk-anio-toggle" class="mk-combo-dropdown-boton">
                                     <span class="mk-rotulo">Año</span>
                                     @if (_filtros.Anios.Count > 0) { <span class="mk-combo-dropdown-contador">@_filtros.Anios.Count</span> }
@@ -203,10 +203,38 @@
                                 </div>
                             </div>
                         }
+
+                        @* Temporada: dropdown multi-selección (mismo CSS que Combo/Año), al lado de Año. *@
+                        @if (_pagina.Temporadas.Count > 0)
+                        {
+                            <div class="mk-combo-dropdown">
+                                <input type="checkbox" id="mk-temp-toggle" class="mk-combo-toggle-check" />
+                                <label for="mk-temp-toggle" class="mk-combo-dropdown-boton">
+                                    <span class="mk-rotulo">Temporada</span>
+                                    @if (_filtros.Temporadas.Count > 0) { <span class="mk-combo-dropdown-contador">@_filtros.Temporadas.Count</span> }
+                                </label>
+                                <label for="mk-temp-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
+                                <div class="mk-combo-dropdown-panel">
+                                    <ul class="mk-faceta-combo-detalles">
+                                        @foreach (var o in _pagina.Temporadas)
+                                        {
+                                            <li>
+                                                <a class="mk-faceta-opcion @(o.Activa ? "activa" : "")"
+                                                   href="@UrlInterno.Alternar(_filtros, "temp", o.Valor)">
+                                                    <span class="mk-faceta-marca" aria-hidden="true"></span>
+                                                    <span class="mk-faceta-nombre">@o.Etiqueta</span>
+                                                    <span class="mk-faceta-cant">@o.Cantidad</span>
+                                                </a>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        }
                     </div>
 
                     @{
-                        var ordenes = new[] { ("codigo", "Código"), ("margen", "Menor margen"), ("margen-desc", "Mayor margen"), ("nombre", "Nombre") };
+                        var ordenes = Ordenes();
                         var ordenActual = ordenes.FirstOrDefault(o => o.Item1 == _filtros.Orden).Item2 ?? "Código";
                     }
                     <div class="mk-combo-dropdown mk-orden-dd">
@@ -242,7 +270,7 @@
                     <div class="mk-int-grilla">
                         @foreach (var a in _pagina.Items)
                         {
-                            <CardInterna Articulo="a" />
+                            <CardInterna Articulo="a" Completo="_completo" />
                         }
                     </div>
 
@@ -303,12 +331,24 @@
     [SupplyParameterFromQuery(Name = "orden")] public string? Orden { get; set; }
     [SupplyParameterFromQuery(Name = "pag")] public int? Pag { get; set; }
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
     private FiltrosInterno _filtros = new();
     private PaginaInternaDto? _pagina;
     private IReadOnlyList<(string Etiqueta, string UrlQuitar)> _chips = [];
+    // Vista de gestión (perfil ADMIN): las cards muestran costo/margen y se ofrece ordenar por margen. El
+    // resto del staff logueado ve la grilla como la pública (con acceso al universo interno y sus filtros).
+    private bool _completo;
+
+    // Opciones de orden: ordenar por margen sólo tiene sentido para gestión (que ve el margen).
+    private (string, string)[] Ordenes() => _completo
+        ? [("codigo", "Código"), ("margen", "Menor margen"), ("margen-desc", "Mayor margen"), ("nombre", "Nombre")]
+        : [("codigo", "Código"), ("nombre", "Nombre")];
 
     protected override async Task OnParametersSetAsync()
     {
+        _completo = await SesionInterna.EsGestionAsync(AuthState);
+
         _filtros = new FiltrosInterno
         {
             Ubicaciones = Csv(Ubic),

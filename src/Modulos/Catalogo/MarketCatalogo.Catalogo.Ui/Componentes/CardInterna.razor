@@ -61,20 +61,29 @@
             }
         </div>
 
-        <dl class="mk-ic-gestion">
-            <div><dt>Costo</dt><dd>@(Articulo.PrecioCompra is decimal c ? Plata(c) : "—")</dd></div>
-            <div><dt>Margen</dt><dd>@(Articulo.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
-        </dl>
-
-        @if (Meta().Any())
+        @* Costo/margen y proveedor/marca: sólo la vista de GESTIÓN (ADMIN). El resto del staff ve la card
+           como la pública (foto + precios + talles), coherente con la ficha reducida. *@
+        @if (Completo)
         {
-            <p class="mk-ic-meta mk-rotulo">@string.Join(" · ", Meta())</p>
+            <dl class="mk-ic-gestion">
+                <div><dt>Costo</dt><dd>@(Articulo.PrecioCompra is decimal c ? Plata(c) : "—")</dd></div>
+                <div><dt>Margen</dt><dd>@(Articulo.MargenTeorico is decimal m ? $"{m:0.#}%" : "—")</dd></div>
+            </dl>
+
+            @if (Meta().Any())
+            {
+                <p class="mk-ic-meta mk-rotulo">@string.Join(" · ", Meta())</p>
+            }
         }
     </div>
 </a>
 
 @code {
     [Parameter, EditorRequired] public required ArticuloInternoDto Articulo { get; set; }
+
+    /// <summary>Vista de gestión (perfil ADMIN): muestra costo/margen y proveedor/marca. Si es false, la card
+    /// queda como la pública. La grilla lo decide una vez y lo baja a todas las cards.</summary>
+    [Parameter] public bool Completo { get; set; } = true;
 
     private IEnumerable<string> Meta()
     {

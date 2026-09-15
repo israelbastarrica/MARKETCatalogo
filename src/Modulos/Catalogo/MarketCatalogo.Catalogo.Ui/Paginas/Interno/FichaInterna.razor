@@ -1,5 +1,7 @@
 @page "/interno/producto/{codigo}"
 @using MarketCatalogo.Catalogo.Contratos.Interno
+@using MarketCatalogo.Catalogo.Ui
+@using Microsoft.AspNetCore.Components.Authorization
 @attribute [Authorize(Policy = "Interno")]
 @* Streaming: la ficha se renderiza apenas está el artículo (rápido) y el benchmark de familia
    —la consulta más pesada— entra después, sin bloquear el primer render. *@
@@ -23,8 +25,11 @@
         </div>
     </main>
 }
-else
+else if (_completo)
 {
+    @* ============================================================
+       FICHA COMPLETA — sólo GESTIÓN (perfil ADMIN)
+       ============================================================ *@
     <main class="mk-if">
 
         <nav class="mk-if-migas" aria-label="Ubicación">
@@ -420,29 +425,157 @@ else
 
     </main>
 }
+else
+{
+    @* ============================================================
+       FICHA REDUCIDA — resto del staff logueado (locales, etc.)
+       Igual que la ficha PÚBLICA: sin costo, márgenes, ventas, stock detallado, órdenes, ubicaciones ni
+       acciones. Sí muestra la disponibilidad (incluye DEPÓSITO), que es lo que el staff sí puede ver para
+       todo el universo interno. Reusa las clases mk-if-* para mantener el estilo.
+       ============================================================ *@
+    <main class="mk-if">
+
+        <nav class="mk-if-migas" aria-label="Ubicación">
+            <a href="/interno">Catálogo interno</a>
+            <span aria-hidden="true">/</span>
+            <span>@_a.Codigo</span>
+        </nav>
+
+        <div class="mk-if-layout">
+
+            <section class="mk-if-media">
+                <div class="mk-if-foto">
+                    @if (_a.TieneFoto)
+                    {
+                        <img src="/fotos/@(_a.Codigo)_1200.webp?v=@_a.FotoVersion" alt="@_a.Descripcion" />
+                    }
+                    else
+                    {
+                        <div class="mk-card-sinfoto" aria-label="Sin foto"></div>
+                    }
+
+                    <div class="mk-if-badges">
+                        @if (_a.EnLuro) { <span class="mk-if-badge">Luro</span> }
+                        @if (_a.EnPeralta) { <span class="mk-if-badge">Peralta</span> }
+                        @if (_a.EnDeposito) { <span class="mk-if-badge mk-if-badge-inverso">Depósito</span> }
+                    </div>
+                </div>
+
+                <div class="mk-if-media-info">
+                    <span class="mk-rotulo">CÓDIGO</span>
+                    <strong>@_a.Codigo</strong>
+                </div>
+            </section>
+
+            <section class="mk-if-datos">
+
+                <header class="mk-if-header">
+                    <div>
+                        <p class="mk-if-rubro">
+                            @_a.Rubro
+                            @if (_a.Prenda is not null) { <span>· @_a.Prenda</span> }
+                            <span>· @_a.Genero</span>
+                        </p>
+                        <h1>@_a.Descripcion</h1>
+                    </div>
+                </header>
+
+                @* PRECIOS — igual que la ficha pública: combo + "la unidad". Sin costo ni margen. *@
+                <section class="mk-if-bloque">
+                    <div class="mk-if-precio-publico">
+                        @if (_a.ComboTexto is not null)
+                        {
+                            <span class="mk-if-precio-combo">@_a.ComboTexto</span>
+                        }
+                        @if (_a.PrecioVenta is decimal pv)
+                        {
+                            <span class="mk-if-precio-unidad">@Plata(pv) la unidad</span>
+                        }
+                    </div>
+                </section>
+
+                @* TALLES / COLORES — siempre (talle/color único si no hay). *@
+                <section class="mk-if-bloque mk-if-atributos">
+                    <div class="mk-if-atributo">
+                        <span class="mk-rotulo">TALLES</span>
+                        <div class="mk-if-chips">
+                            @if (_a.Talles.Count > 0)
+                            {
+                                @foreach (var talle in _a.Talles) { <span class="mk-if-chip">@talle</span> }
+                            }
+                            else
+                            {
+                                <span class="mk-if-chip">Único</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="mk-if-atributo">
+                        <span class="mk-rotulo">COLORES</span>
+                        <div class="mk-if-chips">
+                            @if (_a.Colores.Count > 0)
+                            {
+                                @foreach (var color in _a.Colores) { <span class="mk-if-chip">@color</span> }
+                            }
+                            else
+                            {
+                                <span class="mk-if-chip">Único</span>
+                            }
+                        </div>
+                    </div>
+                </section>
+
+                @* Disponibilidad legible (además de los badges de la foto): dónde está, incluido depósito. *@
+                <section class="mk-if-bloque">
+                    <div class="mk-if-bloque-titulo">
+                        <span class="mk-rotulo">DISPONIBLE EN</span>
+                    </div>
+                    <div class="mk-if-chips">
+                        @if (_a.EnLuro) { <span class="mk-if-chip">Luro</span> }
+                        @if (_a.EnPeralta) { <span class="mk-if-chip">Peralta</span> }
+                        @if (_a.EnDeposito) { <span class="mk-if-chip">Depósito</span> }
+                        @if (!_a.EnLuro && !_a.EnPeralta && !_a.EnDeposito)
+                        {
+                            <span class="mk-if-chip">Sin stock mapeado</span>
+                        }
+                    </div>
+                </section>
+
+            </section>
+
+        </div>
+
+    </main>
+}
 
 @code {
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     [Parameter]
     public string? Codigo { get; set; }
 
     private ArticuloInternoDto? _a;
     private BenchmarkFamiliaDto? _bench;
+    // Vista de gestión (perfil ADMIN): ficha completa. Si es false, ficha reducida (= la pública) para el
+    // resto del staff logueado — no se consulta ni se muestra nada de gestión.
+    private bool _completo;
 
     protected override async Task OnParametersSetAsync()
     {
         _bench = null;
+        _completo = await SesionInterna.EsGestionAsync(AuthState);
         try
         {
-            _a = await Interno.PorCodigoAsync(Codigo);
+            _a = await Interno.PorCodigoAsync(Codigo, _completo);
         }
         catch
         {
             _a = null;
         }
         // Segunda fase (streaming): se emite la ficha ya (StateHasChanged) y recién ahí se pide el
-        // benchmark de familia, que entra en un render posterior sin bloquear el primero.
-        if (_a is not null)
+        // benchmark de familia, que entra en un render posterior sin bloquear el primero. Sólo la vista de
+        // gestión tiene ventas/benchmark: la reducida ni lo pide.
+        if (_a is not null && _completo)
         {
             StateHasChanged();
             try { _bench = await Interno.BenchmarkFamiliaAsync(_a.Prenda, _a.Facturado); }

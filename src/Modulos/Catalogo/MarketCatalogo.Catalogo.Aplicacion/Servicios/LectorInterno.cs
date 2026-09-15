@@ -43,13 +43,20 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         catch { return false; }
     }
 
-    public async Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, CancellationToken ct = default)
+    public async Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, bool completo = true, CancellationToken ct = default)
     {
         var cod = (codigo ?? "").Trim();
         if (cod.Length == 0) return null;
         // Lookup por PK: no hace falta traer todo el universo para mostrar un solo artículo.
         var fila = await _repo.LeerFilaAsync(cod, ct);
         if (fila is null) return null;
+
+        // Ficha REDUCIDA (staff no-admin): sólo la info pública, que ya viene en la fila base. No se consulta
+        // NADA de gestión (stock/ventas/características/ubicaciones/órdenes/bloqueo) — ni se trae ni se expone
+        // (costo/margen van en null, ver Mapear). Es la misma info que la ficha pública, pero sirve para todo
+        // el universo interno (incl. depósito y no publicados), que es lo que el staff logueado sí puede ver.
+        if (!completo) return Mapear(fila, completo: false);
+
         // Datos de ficha a demanda, TODOS en paralelo (cada fuente su conexión; ninguno tumba la ficha):
         //   · stock + ventas realizadas de la ventana (una consulta por réplica),
         //   · características extendidas (Dragon central),
@@ -212,10 +219,12 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             .Where(gc => gc.Detalles.Count > 0).ToList();
     }
 
+    // completo = vista de gestión (ADMIN). Si es false (ficha reducida), el costo y el margen teórico NO se
+    // exponen aunque estén en la fila base: la ficha reducida es equivalente a la pública.
     private static ArticuloInternoDto Mapear(CatalogoFilaLeida f, StockDetalleRow? stock = null,
         VentasPeriodoRow? ventas = null, CaracteristicasRow? carac = null,
         IReadOnlyList<UbicacionDetalleRow>? ubicaciones = null,
-        IReadOnlyList<OrdenPedidoRow>? ordenes = null, bool bloqueado = false)
+        IReadOnlyList<OrdenPedidoRow>? ordenes = null, bool bloqueado = false, bool completo = true)
     {
         // Combo ya viene parseado en columnas (ComboCantidad/ComboTotal); el precio unitario se deriva.
         decimal? precioUnidadCombo = (f.ComboCantidad is int cc && cc > 0 && f.ComboTotal is int ct)
@@ -223,7 +232,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
         var precioUnidad = precioUnidadCombo ?? (f.PrecioVenta > 0 ? f.PrecioVenta : null);
         // Margen teórico = como "Cambiar Precios": sobre el precio unitario del combo (o el suelto si no
         // hay combo), NO el LISTA1 con recargo. null si falta algún dato o el precio es 0.
-        decimal? margen = (precioUnidad is > 0 && f.PrecioCompra is > 0)
+        decimal? margen = (completo && precioUnidad is > 0 && f.PrecioCompra is > 0)
             ? Math.Round((precioUnidad.Value - f.PrecioCompra.Value) / precioUnidad.Value * 100, 1)
             : null;
 
@@ -236,7 +245,7 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             Genero = f.Genero ?? "",
             Prenda = string.IsNullOrWhiteSpace(f.Prenda) ? null : f.Prenda,
             PrecioVenta = f.PrecioVenta > 0 ? f.PrecioVenta : null,
-            PrecioCompra = f.PrecioCompra > 0 ? f.PrecioCompra : null,
+            PrecioCompra = completo && f.PrecioCompra > 0 ? f.PrecioCompra : null,
             ComboTexto = (f.ComboCantidad is int mc && f.ComboTotal is int mt) ? Combo.Mostrar(mc, mt) : null,
             ComboCantidad = f.ComboCantidad,
             ComboTotal = f.ComboTotal,

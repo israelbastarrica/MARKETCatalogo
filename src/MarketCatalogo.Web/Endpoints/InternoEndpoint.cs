@@ -5,9 +5,11 @@ using MarketCatalogo.Catalogo.Contratos.Interno;
 namespace MarketCatalogo.Web.Endpoints;
 
 /// <summary>
-/// Endpoints de acciones del catálogo INTERNO. Hoy sólo una: ocultar/mostrar un artículo del catálogo
-/// público (la ÚNICA escritura de la app). Es un POST de formulario de página completa (SSR, sin JS),
-/// gateado por la política "Interno". La auditoría registra quién lo hizo (mail o usuario del claim).
+/// Endpoints de acciones del catálogo INTERNO: ocultar/mostrar un artículo del público y bloquear/desbloquear
+/// para reposición (las escrituras de la app). Son POST de formulario de página completa (SSR, sin JS) y van
+/// gateados por la política "Gestion" (perfil ADMIN): el resto del staff logueado ve el interno pero NO
+/// escribe. El "Actualizar" (rebuild de la base) queda en "Interno" (no toca datos de negocio). La auditoría
+/// registra quién lo hizo (mail o usuario del claim).
 /// </summary>
 public static class InternoEndpoint
 {
@@ -30,7 +32,7 @@ public static class InternoEndpoint
             }
             return Results.Redirect(volver);
         })
-        .RequireAuthorization(PoliticasAuth.Interno)
+        .RequireAuthorization(PoliticasAuth.Gestion)
         .DisableAntiforgery();
 
         // Bloquear/desbloquear un artículo para reposición (RepoArticulosBloqueados en MARKET). POST de
@@ -52,7 +54,7 @@ public static class InternoEndpoint
             }
             return Results.Redirect(volver);
         })
-        .RequireAuthorization(PoliticasAuth.Interno)
+        .RequireAuthorization(PoliticasAuth.Gestion)
         .DisableAntiforgery();
 
         // Botón "Actualizar": fuerza el rebuild de la base ahora y vuelve a la grilla.

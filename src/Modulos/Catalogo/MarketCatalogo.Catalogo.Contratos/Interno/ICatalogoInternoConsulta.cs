@@ -18,10 +18,14 @@ public interface ICatalogoInternoConsulta
     /// (Accesorios, Lencería, Calzado…). El header lo invierte a Género → Tipos con MenuSecciones.</summary>
     Task<IReadOnlyList<RubroMenu>> MenuAsync(CancellationToken ct = default);
 
-    /// <summary>Un artículo interno por su código (para la ficha). null si no está en el universo. NO incluye
-    /// el benchmark de familia (la consulta más pesada): eso se pide aparte con <see cref="BenchmarkFamiliaAsync"/>
-    /// para no bloquear el primer render (la ficha lo carga por streaming).</summary>
-    Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, CancellationToken ct = default);
+    /// <summary>Un artículo interno por su código (para la ficha). null si no está en el universo.
+    /// <para><paramref name="completo"/> = vista de GESTIÓN (perfil ADMIN): trae a demanda stock, ventas,
+    /// características, ubicaciones y órdenes. Si es <c>false</c> (resto del staff logueado) devuelve SÓLO la
+    /// info pública del artículo (la misma que la ficha pública) sin consultar ni exponer nada de gestión
+    /// —costo/márgenes incluidos van en null—, para todo el universo interno (depósito, no publicados).</para>
+    /// NO incluye el benchmark de familia (la consulta más pesada): eso se pide aparte con
+    /// <see cref="BenchmarkFamiliaAsync"/> para no bloquear el primer render (la ficha lo carga por streaming).</summary>
+    Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, bool completo = true, CancellationToken ct = default);
 
     /// <summary>Benchmark de la familia (Prenda) del artículo: facturado promedio por artículo en la ventana.
     /// Cacheado por familia (es el mismo para todos los artículos de la prenda). <paramref name="facturadoArticulo"/>

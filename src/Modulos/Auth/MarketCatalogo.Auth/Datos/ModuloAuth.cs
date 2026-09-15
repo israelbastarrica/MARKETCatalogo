@@ -92,9 +92,15 @@ public static class ModuloAuth
 
         services.AddAuthorization(options =>
         {
-            // Único nivel por ahora: cualquier staff aprobado ve el catálogo interno (sin distinguir perfil).
+            // Nivel 1: cualquier staff aprobado ve el catálogo interno (universo completo + filtros).
             options.AddPolicy(PoliticasAuth.Interno,
                 p => p.RequireClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk));
+            // Nivel 2 (gestión): además, perfil ADMIN. Habilita la ficha completa (costo/márgenes/ventas/
+            // stock/órdenes/ubicaciones) y las escrituras (visibilidad, bloqueo). El valor del claim viene
+            // literal de la columna PERFIL ('ADMIN'); RequireClaim compara el valor case-sensitive.
+            options.AddPolicy(PoliticasAuth.Gestion, p => p
+                .RequireClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk)
+                .RequireClaim(PoliticasAuth.ClaimPerfil, PoliticasAuth.PerfilAdmin));
         });
 
         return services;

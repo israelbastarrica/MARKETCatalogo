@@ -21,18 +21,28 @@ public interface IAutenticacion
     Task<AccesoResultado> ResolverAccesoPorUsuarioAsync(string usuario, CancellationToken ct = default);
 }
 
-/// <summary>Autorización del catálogo. <b>Por ahora hay un solo nivel</b>: público (anónimo) ve lo
-/// público; cualquier staff logueado y aprobado ve TODO el interno, sin distinguir perfil (diseño, admin,
-/// logística, etc. ven lo mismo). Cuando haga falta diferenciar por área se agregan más políticas acá.</summary>
+/// <summary>Autorización del catálogo. Dos niveles:
+/// <list type="bullet">
+/// <item><b>Interno</b>: cualquier staff logueado y aprobado (estado = ok). Ve el universo interno completo
+/// (depósito, no publicados) y sus filtros. Pero la ficha del detalle que le toca es REDUCIDA (= la pública)
+/// salvo que sea de gestión.</item>
+/// <item><b>Gestión</b>: perfil ADMIN. Ve la ficha interna COMPLETA (costo, márgenes, ventas, stock por
+/// local, órdenes, ubicaciones) y es el único que puede escribir (mostrar/ocultar del público, bloqueo).</item>
+/// </list>
+/// Cuando haga falta diferenciar por otra área se agregan más políticas / perfiles acá.</summary>
 public static class PoliticasAuth
 {
-    /// <summary>Única política: ver el catálogo interno = estar logueado y aprobado (estado = ok).</summary>
+    /// <summary>Ver el catálogo interno = estar logueado y aprobado (estado = ok).</summary>
     public const string Interno = "Interno";
+    /// <summary>Acceso de GESTIÓN (ficha completa + escrituras) = perfil ADMIN. Carola y Paula ya son ADMIN.</summary>
+    public const string Gestion = "Gestion";
     public const string ClaimEstado = "estado";
     public const string ClaimPerfil = "perfil";
     public const string ClaimPc = "pc";
     public const string ClaimArea = "area";
     public const string EstadoOk = "ok";
+    /// <summary>Perfil (columna PERFIL de UsuariosPC) que habilita la vista de gestión.</summary>
+    public const string PerfilAdmin = "ADMIN";
 }
 
 /// <summary>

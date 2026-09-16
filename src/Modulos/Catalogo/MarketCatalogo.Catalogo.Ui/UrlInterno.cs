@@ -95,6 +95,23 @@ public static class UrlInterno
         return pagina > 1 ? (url == Base ? $"{Base}?pag={pagina}" : $"{url}&pag={pagina}") : url;
     }
 
+    /// <summary>El listado actual como query string (<c>"?ubic=luro&amp;orden=nombre"</c>, o <c>""</c> si no
+    /// hay ningún filtro), para colgarlo de la URL de la ficha. Eso es lo que le permite a la ficha saber
+    /// dentro de qué listado está y ofrecer Anterior/Siguiente.
+    /// <para>NO lleva la página: los vecinos se resuelven sobre el listado entero (cruzan el borde de página),
+    /// así que la página no cambia cuál es el artículo de al lado — y dejarla afuera evita que un link a la
+    /// ficha quede atado a un número de página que mañana ya no significa lo mismo.</para></summary>
+    public static string Contexto(FiltrosInterno f)
+    {
+        var url = Construir(Mapa(f));   // Construir ya saca "pag"
+        var i = url.IndexOf('?');
+        return i < 0 ? "" : url[i..];
+    }
+
+    /// <summary>La URL de la grilla conservando los filtros actuales — la de "volver al catálogo interno"
+    /// desde la ficha, para no perder el listado que se venía mirando.</summary>
+    public static string Volver(FiltrosInterno f) => Construir(Mapa(f));
+
     public static bool CsvContiene(IReadOnlyList<string> lista, string valor)
         => lista.Contains(valor, StringComparer.OrdinalIgnoreCase);
 

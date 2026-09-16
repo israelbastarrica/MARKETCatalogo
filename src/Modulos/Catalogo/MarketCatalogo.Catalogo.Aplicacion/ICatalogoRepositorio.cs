@@ -55,6 +55,15 @@ public interface ICatalogoRepositorio
     /// del universo (total, en depósito, sólo-depósito, publicados). Taxonomía por valor, igual que arriba.</summary>
     Task<PaginaInternaCruda> BuscarInternoAsync(ConsultaInterna consulta, CancellationToken ct = default);
 
+    /// <summary>MARKET: los vecinos inmediatos de <paramref name="codigo"/> en la grilla INTERNA —
+    /// mismo <c>WHERE</c> y mismo <c>ORDER</c> que <see cref="BuscarInternoAsync"/>, pero numerando el
+    /// listado entero (<c>ROW_NUMBER</c>) en vez de paginarlo, y quedándose con las filas de al lado. Así
+    /// los vecinos cruzan el borde de página y la posición se resuelve por el código, no por un índice que
+    /// viaje en la URL y se desincronice cuando la base se reconstruye. El costo es el de la grilla (ordenar
+    /// el mismo conjunto filtrado); la <c>Pagina</c> de la consulta se ignora. null si el código no cae
+    /// dentro del listado.</summary>
+    Task<VecinosInternosCrudos?> VecinosInternosAsync(ConsultaInterna consulta, string codigo, CancellationToken ct = default);
+
     /// <summary>MARKET: UNA fila de <c>dbo.Catalogo</c> por su código (lookup por PK). Para la ficha, que
     /// no necesita traer todo el universo para mostrar un solo artículo. null si no existe/está eliminado.</summary>
     Task<CatalogoFilaLeida?> LeerFilaAsync(string codigo, CancellationToken ct = default);
@@ -250,6 +259,14 @@ public sealed record PaginaInternaCruda(
     IReadOnlyList<FacetaConteo> Prendas, IReadOnlyList<FacetaConteo> Proveedores,
     IReadOnlyList<FacetaConteo> Marcas, IReadOnlyList<FacetaConteo> Temporadas,
     IReadOnlyList<FacetaConteo> Anios, IReadOnlyList<ComboConteo> Combos);
+
+/// <summary>Los vecinos de un artículo en la grilla INTERNA ya resueltos en SQL: el de antes y el de
+/// después con su código y su nombre (para el rótulo de la flecha), más la posición del artículo y el
+/// total del listado ("3 de 412"). Anterior/Siguiente en null = el artículo es el primero / el último.</summary>
+public sealed record VecinosInternosCrudos(
+    string? CodigoAnterior, string? DescripcionAnterior,
+    string? CodigoSiguiente, string? DescripcionSiguiente,
+    int Posicion, int Total);
 
 /// <summary>Fila leída de <c>dbo.Catalogo</c> (columnas base). La consume <c>LectorCatalogo</c> para
 /// mapearla a <c>ArticuloDto</c> y armar el snapshot. Los derivados (slugs, combo parseado, locales desde

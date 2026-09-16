@@ -123,8 +123,13 @@ public sealed partial class CatalogoRepositorio
         return new PaginaPublicaCruda(items, total, rubros, familias, talles, colores, locales, combos);
     }
 
-    /// <inheritdoc/>
-    public async Task<PaginaInternaCruda> BuscarInternoAsync(ConsultaInterna q, CancellationToken ct = default)
+    /// <summary>Traduce una <see cref="ConsultaInterna"/> a sus parámetros, sus predicados y su ORDER BY.
+    /// Vive aparte porque lo comparten la grilla (<see cref="BuscarInternoAsync"/>) y los vecinos de la
+    /// ficha (<see cref="VecinosInternosAsync"/>): que el "siguiente" sea de verdad el siguiente depende de
+    /// que los dos filtren y ordenen IGUAL, y la única forma de garantizarlo es que sea el mismo código.
+    /// No agrega la paginación (skip/take), que es propia de cada uno.</summary>
+    private static (DynamicParameters Parametros, List<(string Key, string Sql)> Predicados, string Orden)
+        ArmarInterna(ConsultaInterna q)
     {
         var p = new DynamicParameters();
         var preds = new List<(string Key, string Sql)>();
@@ -178,8 +183,9 @@ public sealed partial class CatalogoRepositorio
                 "COLLATE Latin1_General_CI_AI LIKE @q COLLATE Latin1_General_CI_AI"));
         }
 
-        string W(string? excepto) => Combinar("c.Eliminado = 0", preds, excepto);
-
+        // Todos los órdenes DESEMPATAN por c.Codigo (la PK): sin eso el orden no sería total y dos filas
+        // empatadas podrían intercambiarse entre consultas — el "siguiente" de la ficha dejaría de ser
+        // estable y se podría entrar en un ciclo yendo y viniendo con las flechas.
         var orden = q.Orden switch
         {
             "precio-asc" => $"CASE WHEN ({UnitInterno}) IS NULL THEN 1 ELSE 0 END, ({UnitInterno}) ASC, c.Codigo",
@@ -189,6 +195,16 @@ public sealed partial class CatalogoRepositorio
             "nombre" => "c.Descripcion, c.Codigo",
             _ => "c.Codigo",
         };
+
+        return (p, preds, orden);
+    }
+
+    /// <inheritdoc/>
+    public async Task<PaginaInternaCruda> BuscarInternoAsync(ConsultaInterna q, CancellationToken ct = default)
+    {
+        var (p, preds, orden) = ArmarInterna(q);
+
+        string W(string? excepto) => Combinar("c.Eliminado = 0", preds, excepto);
 
         var pagina = Math.Max(1, q.Pagina);
         p.Add("skip", (pagina - 1) * FiltrosInterno.PorPagina);
@@ -255,6 +271,51 @@ public sealed partial class CatalogoRepositorio
         return new PaginaInternaCruda(items, total, univ.TotalUniverso, univ.EnDeposito, univ.SoloDeposito,
             univ.Publicados, generos, rubros, prendas, proveedores, marcas, temporadas, anios2, combos);
     }
+
+    /// <inheritdoc/>
+    public async Task<VecinosInternosCrudos?> VecinosInternosAsync(ConsultaInterna q, string codigo, CancellationToken ct = default)
+    {
+        var (p, preds, orden) = ArmarInterna(q);
+        var where = Combinar("c.Eliminado = 0", preds, null);
+        p.Add("cod", codigo);
+
+        // ROW_NUMBER en vez de OFFSET/FETCH: la posición se DERIVA del código, no se recibe. Un índice que
+        // viajara en la URL se desincronizaría con el primer rebuild (o con un link guardado de ayer) y las
+        // flechas empezarían a saltear artículos. Acá, si el listado cambió, los vecinos que salen son los
+        // del listado de AHORA. El CTE se ordena una sola vez y se leen las 3 filas de la ventana.
+        var sql = $"""
+            WITH ordenado AS (
+                SELECT c.Codigo, c.Descripcion, Fila = ROW_NUMBER() OVER (ORDER BY {orden})
+                FROM dbo.Catalogo c WHERE {where}
+            ),
+            actual AS (SELECT Fila FROM ordenado WHERE Codigo = @cod)
+            SELECT o.Codigo, o.Descripcion, o.Fila
+            FROM ordenado o CROSS JOIN actual a
+            WHERE o.Fila BETWEEN a.Fila - 1 AND a.Fila + 1
+            ORDER BY o.Fila;
+
+            SELECT COUNT(*) FROM dbo.Catalogo c WHERE {where};
+            """;
+
+        using var cn = _db.CrearMarket();
+        using var multi = await cn.QueryMultipleAsync(new CommandDefinition(sql, p, commandTimeout: 60, cancellationToken: ct));
+        var ventana = (await multi.ReadAsync<VecinoRow>()).ToList();
+        var total = await multi.ReadSingleAsync<int>();
+
+        // Sin fila del artículo no hay ventana: el código no cae dentro de estos filtros (o ya no existe).
+        var actual = ventana.FirstOrDefault(v => string.Equals(v.Codigo, codigo, StringComparison.OrdinalIgnoreCase));
+        if (actual is null) return null;
+
+        var anterior = ventana.FirstOrDefault(v => v.Fila == actual.Fila - 1);
+        var siguiente = ventana.FirstOrDefault(v => v.Fila == actual.Fila + 1);
+        return new VecinosInternosCrudos(
+            anterior?.Codigo, anterior?.Descripcion,
+            siguiente?.Codigo, siguiente?.Descripcion,
+            (int)actual.Fila, total);
+    }
+
+    // Una fila de la ventana de vecinos. Fila es long porque ROW_NUMBER() devuelve bigint.
+    private sealed record VecinoRow(string Codigo, string? Descripcion, long Fila);
 
     // Fila de los totales del universo interno (una sola fila).
     private sealed record UniversoRow(int TotalUniverso, int EnDeposito, int SoloDeposito, int Publicados);

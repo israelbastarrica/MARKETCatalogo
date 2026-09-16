@@ -11,7 +11,7 @@
 @if (!Completo)
 {
     @* ===== Card pública (idéntica a CardArticulo) ===== *@
-    <a class="mk-card" href="/interno/producto/@Articulo.Codigo" data-enhance-nav="false">
+    <a class="mk-card" href="@Url" data-enhance-nav="false">
         <div class="mk-card-foto">
             @if (Articulo.TieneFoto)
             {
@@ -66,7 +66,7 @@
 else
 {
     @* ===== Card de gestión (ADMIN) ===== *@
-    <a class="mk-ic @(Articulo.Publicado ? "" : "mk-ic-oculto")" href="/interno/producto/@Articulo.Codigo" data-enhance-nav="false">
+    <a class="mk-ic @(Articulo.Publicado ? "" : "mk-ic-oculto")" href="@Url" data-enhance-nav="false">
         <div class="mk-ic-foto">
             @if (Articulo.TieneFoto)
             {
@@ -143,6 +143,15 @@ else
     /// false, la card se renderiza EXACTAMENTE como la pública. La grilla lo decide una vez y lo baja a todas.</summary>
     [Parameter] public bool Completo { get; set; } = true;
 
+    /// <summary>El listado del que sale esta card, como query string ya armado (<c>UrlInterno.Contexto</c>):
+    /// viaja colgado del link para que la ficha sepa dentro de qué listado está y pueda ofrecer
+    /// Anterior/Siguiente. Vacío = se entró sin filtros (la ficha recorre el catálogo completo). La grilla lo
+    /// calcula UNA vez y se lo baja igual a todas las cards.</summary>
+    [Parameter] public string? Contexto { get; set; }
+
+    // Link a la ficha con el contexto ya pegado. Las dos formas de la card apuntan al mismo lado.
+    private string Url => $"/interno/producto/{Articulo.Codigo}{Contexto}";
+
     // Locales donde está armado, igual que el público (ArticuloDto.Locales): MAYÚSCULAS, sólo tiendas
     // (Luro/Peralta), sin depósito. Para la card reducida.
     private IReadOnlyList<string> Locales()
@@ -158,6 +167,10 @@ else
         if (!string.IsNullOrWhiteSpace(Articulo.Proveedor)) yield return Articulo.Proveedor!;
         if (!string.IsNullOrWhiteSpace(Articulo.Marca)) yield return Articulo.Marca!;
         if (!string.IsNullOrWhiteSpace(Articulo.Temporada)) yield return Articulo.Temporada!;
+        // El año de la prenda (ART.ANO en Dragon, materializado en dbo.Catalogo). Va ÚLTIMO y pegado a
+        // Temporada porque juntos son una sola idea: "Prim-Ver · 2026". Invariant para que salga "2026" y
+        // no "2.026" — es un año, no una cantidad.
+        if (Articulo.Anio is int anio) yield return anio.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     // Moneda argentina sin decimales ni símbolo (misma decisión de marca que el público, = Combo.Plata).

@@ -249,7 +249,7 @@
                     <div class="mk-int-grilla">
                         @foreach (var a in _pagina.Items)
                         {
-                            <CardInterna Articulo="a" Completo="_completo" />
+                            <CardInterna Articulo="a" Completo="_completo" Contexto="_contexto" />
                         }
                     </div>
 
@@ -315,6 +315,9 @@
     private FiltrosInterno _filtros = new();
     private PaginaInternaDto? _pagina;
     private IReadOnlyList<(string Etiqueta, string UrlQuitar)> _chips = [];
+    // El listado actual como query string, que se cuelga del link de cada card: es lo que le deja a la ficha
+    // recorrer este mismo listado con Anterior/Siguiente. Se arma una vez, no una por card.
+    private string _contexto = "";
     // Vista de gestión (perfil ADMIN): las cards muestran costo/margen y se ofrece ordenar por margen. El
     // resto del staff logueado ve la grilla como la pública (con acceso al universo interno y sus filtros).
     private bool _completo;
@@ -328,32 +331,16 @@
     {
         _completo = await SesionInterna.EsGestionAsync(AuthState);
 
-        _filtros = new FiltrosInterno
-        {
-            Ubicaciones = Csv(Ubic),
-            CruceDepoLocal = Vacio(Cruce),
-            Generos = Csv(Gen),
-            Rubros = Csv(Rubro),
-            Prendas = Csv(Prenda),
-            Talles = Csv(Talle),
-            Colores = Csv(Color),
-            Proveedores = Csv(Prov),
-            Marcas = Csv(Marca),
-            Temporadas = Csv(Temp),
-            Anios = Csv(Anio),
-            ComboDetalles = Csv(Combo),
-            Publicado = Pub is null ? null : Pub.Equals("si", StringComparison.OrdinalIgnoreCase) ? true
-                       : Pub.Equals("no", StringComparison.OrdinalIgnoreCase) ? false : null,
-            MargenMax = MargenMax,
-            Texto = Vacio(Q),
-            Orden = string.IsNullOrWhiteSpace(Orden) ? "codigo" : Orden!.Trim(),
-            Pagina = Pag is > 0 ? Pag.Value : 1,
-        };
+        // Mismo armador que usa la ficha para leer estos parámetros de SU url: así el listado que recorre
+        // con las flechas es exactamente el que se está viendo acá.
+        _filtros = FiltrosInternoUrl.Armar(Ubic, Cruce, Gen, Rubro, Prenda, Talle, Color, Prov, Marca,
+                                           Temp, Anio, Combo, Pub, MargenMax, Q, Orden, Pag);
 
         try { _pagina = await Interno.BuscarAsync(_filtros); }
         catch { _pagina = null; }
 
         _chips = ArmarChips().ToList();
+        _contexto = UrlInterno.Contexto(_filtros);
     }
 
     // Chips de filtros activos. Los de género van primero, con su NOMBRE mostrable (la faceta trae el
@@ -410,10 +397,4 @@
         };
     }
 
-    private static string? Vacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-
-    private static IReadOnlyList<string> Csv(string? csv) =>
-        string.IsNullOrWhiteSpace(csv) ? []
-        : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 }

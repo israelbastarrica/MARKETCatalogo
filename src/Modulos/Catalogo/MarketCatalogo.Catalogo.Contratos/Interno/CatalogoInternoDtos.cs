@@ -143,6 +143,16 @@ public sealed record FiltrosInterno
     public const int PorPagina = 60;
 }
 
+/// <summary>Los artículos vecinos dentro del listado interno YA FILTRADO Y ORDENADO: con cuál sigue, con
+/// cuál viene, la posición del actual y el total. Es lo que deja recorrer el catálogo de ficha en ficha sin
+/// volver a la grilla. Se resuelve por el CÓDIGO (no por una posición que viaje en la URL), así que un link
+/// compartido o guardado sigue dando los vecinos correctos aunque la base se haya reconstruido en el medio.
+/// El DTO entero en null = el artículo no entra en ese listado, y la ficha no muestra las flechas.</summary>
+public sealed record VecinosInternoDto(
+    string? CodigoAnterior, string? NombreAnterior,
+    string? CodigoSiguiente, string? NombreSiguiente,
+    int Posicion, int Total);
+
 public sealed record OpcionFacetaInterna(string Valor, string Etiqueta, int Cantidad, bool Activa);
 
 /// <summary>Una posición mapeada del artículo (una fila de Mapeo). <c>Tipo</c> = LOCAL/DEPOSITO;

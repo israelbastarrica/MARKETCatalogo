@@ -21,7 +21,7 @@
             <p class="mk-rotulo">ARTÍCULO NO ENCONTRADO</p>
             <h1>@Codigo</h1>
             <p>No se encontró el artículo en el universo interno.</p>
-            <a class="mk-if-volver" href="/interno">← Volver al catálogo interno</a>
+            <a class="mk-if-volver" href="@_volver">← Volver al catálogo interno</a>
         </div>
     </main>
 }
@@ -33,7 +33,7 @@ else if (_completo)
     <main class="mk-if">
 
         <nav class="mk-if-migas" aria-label="Ubicación">
-            <a href="/interno">Catálogo interno</a>
+            <a href="@_volver">Catálogo interno</a>
             <span aria-hidden="true">/</span>
             <span>@_a.Codigo</span>
         </nav>
@@ -44,6 +44,8 @@ else if (_completo)
                FOTO (izquierda, sticky)
                ============================================================ *@
             <section class="mk-if-media">
+
+                @NavVecinos()
 
                 <div class="mk-if-foto">
                     @if (_a.TieneFoto)
@@ -436,7 +438,7 @@ else
     <main class="mk-if">
 
         <nav class="mk-if-migas" aria-label="Ubicación">
-            <a href="/interno">Catálogo interno</a>
+            <a href="@_volver">Catálogo interno</a>
             <span aria-hidden="true">/</span>
             <span>@_a.Codigo</span>
         </nav>
@@ -444,6 +446,8 @@ else
         <div class="mk-if-layout">
 
             <section class="mk-if-media">
+                @NavVecinos()
+
                 <div class="mk-if-foto">
                     @if (_a.TieneFoto)
                     {
@@ -554,8 +558,38 @@ else
     [Parameter]
     public string? Codigo { get; set; }
 
+    // El listado del que se entró, colgado de la URL por la card de la grilla (UrlInterno.Contexto). Son los
+    // MISMOS parámetros que /interno: la ficha no inventa un formato propio, los relee con el mismo armador.
+    // Es lo que le permite saber cuál es el artículo "de al lado". Sin ellos (link pegado a mano, favorito
+    // viejo) los filtros quedan vacíos y las flechas recorren el catálogo interno completo.
+    [SupplyParameterFromQuery(Name = "ubic")] public string? Ubic { get; set; }
+    [SupplyParameterFromQuery(Name = "cruce")] public string? Cruce { get; set; }
+    [SupplyParameterFromQuery(Name = "gen")] public string? Gen { get; set; }
+    [SupplyParameterFromQuery(Name = "rubro")] public string? Rubro { get; set; }
+    [SupplyParameterFromQuery(Name = "prenda")] public string? Prenda { get; set; }
+    [SupplyParameterFromQuery(Name = "talle")] public string? Talle { get; set; }
+    [SupplyParameterFromQuery(Name = "color")] public string? Color { get; set; }
+    [SupplyParameterFromQuery(Name = "prov")] public string? Prov { get; set; }
+    [SupplyParameterFromQuery(Name = "marca")] public string? Marca { get; set; }
+    [SupplyParameterFromQuery(Name = "temp")] public string? Temp { get; set; }
+    [SupplyParameterFromQuery(Name = "anio")] public string? Anio { get; set; }
+    [SupplyParameterFromQuery(Name = "combo")] public string? Combo { get; set; }
+    [SupplyParameterFromQuery(Name = "pub")] public string? Pub { get; set; }
+    [SupplyParameterFromQuery(Name = "margenMax")] public decimal? MargenMax { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "orden")] public string? Orden { get; set; }
+
     private ArticuloInternoDto? _a;
     private BenchmarkFamiliaDto? _bench;
+
+    // Filtros del listado que se viene recorriendo + su query string, para re-colgarlo de los links a los
+    // vecinos (así el siguiente también sabe dónde está) y del "volver", que vuelve a la grilla filtrada.
+    private FiltrosInterno _filtros = new();
+    private string _contexto = "";
+    private string _volver = "/interno";
+    // Con qué artículo sigue y con cuál viene, dentro de ESE listado. null = el artículo no cae adentro
+    // (filtros que no lo incluyen, o la consulta falló): la ficha simplemente no muestra las flechas.
+    private VecinosInternoDto? _vecinos;
     // Vista de gestión (perfil ADMIN): ficha completa. Si es false, ficha reducida (= la pública) para el
     // resto del staff logueado — no se consulta ni se muestra nada de gestión.
     private bool _completo;
@@ -563,7 +597,14 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _bench = null;
+        _vecinos = null;
         _completo = await SesionInterna.EsGestionAsync(AuthState);
+
+        _filtros = FiltrosInternoUrl.Armar(Ubic, Cruce, Gen, Rubro, Prenda, Talle, Color, Prov, Marca,
+                                           Temp, Anio, Combo, Pub, MargenMax, Q, Orden, pag: null);
+        _contexto = UrlInterno.Contexto(_filtros);
+        _volver = UrlInterno.Volver(_filtros);
+
         try
         {
             _a = await Interno.PorCodigoAsync(Codigo, _completo);
@@ -572,16 +613,90 @@ else
         {
             _a = null;
         }
-        // Segunda fase (streaming): se emite la ficha ya (StateHasChanged) y recién ahí se pide el
-        // benchmark de familia, que entra en un render posterior sin bloquear el primero. Sólo la vista de
-        // gestión tiene ventas/benchmark: la reducida ni lo pide.
-        if (_a is not null && _completo)
+        // Segunda fase (streaming): se emite la ficha ya (StateHasChanged) y recién ahí entran las consultas
+        // que pueden esperar — el benchmark de familia (sólo gestión, es la más pesada) y los vecinos, que
+        // ordenan el listado filtrado entero. Las flechas aparecen un instante después; el artículo, que es
+        // lo que se vino a ver, no paga esa espera. Van juntas: son independientes entre sí.
+        if (_a is not null)
         {
             StateHasChanged();
-            try { _bench = await Interno.BenchmarkFamiliaAsync(_a.Prenda, _a.Facturado); }
-            catch { _bench = null; }
+
+            var art = _a;   // local: adentro de los async locales el campo podría haber cambiado
+            var benchT = TraerBenchmark(art);
+            var vecinosT = TraerVecinos(art);
+
+            await Task.WhenAll(benchT, vecinosT);
+            _bench = benchT.Result;
+            _vecinos = vecinosT.Result;
         }
     }
+
+    // Las dos consultas de la segunda fase, cada una tolerando su propio fallo: ni el benchmark ni las
+    // flechas justifican romper la ficha, que es lo que el usuario vino a ver.
+    private async Task<BenchmarkFamiliaDto?> TraerBenchmark(ArticuloInternoDto art)
+    {
+        if (!_completo) return null;   // la ficha reducida no tiene ventas: el benchmark no aplica
+        try { return await Interno.BenchmarkFamiliaAsync(art.Prenda, art.Facturado); }
+        catch { return null; }
+    }
+
+    private async Task<VecinosInternoDto?> TraerVecinos(ArticuloInternoDto art)
+    {
+        try { return await Interno.VecinosAsync(art.Codigo, _filtros); }
+        catch { return null; }
+    }
+
+    // Recorrer el listado sin volver a la grilla: cada flecha es un link REAL al artículo de al lado, con el
+    // mismo contexto colgado, así el siguiente también sabe dónde está parado. Vive arriba de la foto, en la
+    // columna sticky: queda a mano durante todo el scroll de la ficha. Sin vecinos (el artículo no cae en el
+    // listado, o la consulta falló) no se dibuja nada — la ficha se ve como antes.
+    // Los extremos van como <span> deshabilitado y no como link muerto: se ve dónde termina el listado.
+    // El vecino se abre con el MISMO contexto colgado: si no, el segundo artículo ya no sabría dónde está
+    // parado y las flechas se cortarían al primer salto.
+    private string UrlVecino(string codigo) => $"/interno/producto/{codigo}{_contexto}";
+
+    private RenderFragment NavVecinos() => __builder =>
+    {
+        if (_vecinos is null) return;
+
+        <nav class="mk-if-vecinos" aria-label="Recorrer el listado">
+            @if (_vecinos.CodigoAnterior is string ant)
+            {
+                var urlAnt = UrlVecino(ant);
+                <a class="mk-if-vecino" rel="prev" href="@urlAnt"
+                   title="@(_vecinos.NombreAnterior ?? ant)">
+                    <span class="mk-if-vecino-flecha" aria-hidden="true">‹</span>
+                    <span>Anterior</span>
+                </a>
+            }
+            else
+            {
+                <span class="mk-if-vecino mk-if-vecino-fin">
+                    <span class="mk-if-vecino-flecha" aria-hidden="true">‹</span>
+                    <span>Anterior</span>
+                </span>
+            }
+
+            <span class="mk-if-vecinos-pos mk-rotulo">@_vecinos.Posicion de @_vecinos.Total</span>
+
+            @if (_vecinos.CodigoSiguiente is string sig)
+            {
+                var urlSig = UrlVecino(sig);
+                <a class="mk-if-vecino" rel="next" href="@urlSig"
+                   title="@(_vecinos.NombreSiguiente ?? sig)">
+                    <span>Siguiente</span>
+                    <span class="mk-if-vecino-flecha" aria-hidden="true">›</span>
+                </a>
+            }
+            else
+            {
+                <span class="mk-if-vecino mk-if-vecino-fin">
+                    <span>Siguiente</span>
+                    <span class="mk-if-vecino-flecha" aria-hidden="true">›</span>
+                </span>
+            }
+        </nav>;
+    };
 
     // Hay algo que mostrar en el panel si al menos una característica extendida vino de Dragon.
     private bool TieneCaracteristicas => _a is not null &&

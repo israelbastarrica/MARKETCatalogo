@@ -143,18 +143,9 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
     {
         _store.AsegurarBaseFresca();
 
-        var consulta = new ConsultaInterna(
-            Ubicaciones: f.Ubicaciones, CruceDepoLocal: f.CruceDepoLocal,
-            RubrosValor: f.Rubros,                          // interno: rubro por valor
-            GenerosValor: _store.Taxonomia.Generos(f.Generos),  // género slug→valor
-            PrendasValor: f.Prendas,                        // interno: prenda por valor
-            Proveedores: f.Proveedores, Marcas: f.Marcas, Temporadas: f.Temporadas,
-            Anios: f.Anios, Talles: f.Talles, Colores: f.Colores, ComboDetalles: f.ComboDetalles,
-            Publicado: f.Publicado, MargenMax: f.MargenMax, Texto: f.Texto,
-            Orden: f.Orden, Pagina: f.Pagina);
-
-        var r = await _repo.BuscarInternoAsync(consulta, ct);
+        var r = await _repo.BuscarInternoAsync(ConsultaDe(f), ct);
         var comboTiers = await _repo.TraerComboTiersAsync(ct);
+
 
         return new PaginaInternaDto
         {
@@ -175,6 +166,36 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             Anios = FacetaValor(r.Anios, f.Anios),
             Combos = ArmarCombos(comboTiers, r.Combos, f.ComboDetalles),
         };
+    }
+
+    /// <summary>Los filtros de la URL traducidos a lo que entiende el repo (género slug→valor con el mapa de
+    /// taxonomía; rubro/prenda ya vienen por valor en el interno). Lo comparten la grilla y los vecinos de la
+    /// ficha: el "siguiente" sólo es el siguiente si ambos parten de la MISMA consulta.</summary>
+    private ConsultaInterna ConsultaDe(FiltrosInterno f) => new(
+        Ubicaciones: f.Ubicaciones, CruceDepoLocal: f.CruceDepoLocal,
+        RubrosValor: f.Rubros,                              // interno: rubro por valor
+        GenerosValor: _store.Taxonomia.Generos(f.Generos),  // género slug→valor
+        PrendasValor: f.Prendas,                            // interno: prenda por valor
+        Proveedores: f.Proveedores, Marcas: f.Marcas, Temporadas: f.Temporadas,
+        Anios: f.Anios, Talles: f.Talles, Colores: f.Colores, ComboDetalles: f.ComboDetalles,
+        Publicado: f.Publicado, MargenMax: f.MargenMax, Texto: f.Texto,
+        Orden: f.Orden, Pagina: f.Pagina);
+
+    /// <summary>Vecinos del artículo en el listado filtrado, para las flechas de la ficha. A diferencia de
+    /// la grilla NO dispara la revalidación de la base: la ficha ya la disparó al abrirse con
+    /// <see cref="PorCodigoAsync"/>, y pedirla dos veces en la misma request no agrega nada.</summary>
+    public async Task<VecinosInternoDto?> VecinosAsync(string? codigo, FiltrosInterno f, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return null;
+
+        var r = await _repo.VecinosInternosAsync(ConsultaDe(f), cod, ct);
+        if (r is null) return null;
+
+        return new VecinosInternoDto(
+            r.CodigoAnterior, NuloSiVacio(r.DescripcionAnterior),
+            r.CodigoSiguiente, NuloSiVacio(r.DescripcionSiguiente),
+            r.Posicion, r.Total);
     }
 
     // Faceta cuyo Valor ES el valor (rubro/prenda/proveedor/marca/temporada/año en el interno).

@@ -13,6 +13,13 @@ public interface ICatalogoInternoConsulta
     /// <summary>Una página de la grilla interna con sus facetas y totales del universo.</summary>
     Task<PaginaInternaDto> BuscarAsync(FiltrosInterno filtros, CancellationToken ct = default);
 
+    /// <summary>Con qué artículo sigue y con cuál viene <paramref name="codigo"/> dentro del listado que
+    /// arman <paramref name="filtros"/> — el mismo WHERE y el mismo ORDER que <see cref="BuscarAsync"/>,
+    /// pero sin paginar: los vecinos cruzan el borde de página sin que la ficha sepa nada de páginas.
+    /// Para las flechas Anterior/Siguiente de la ficha, que dejan recorrer el catálogo sin volver a la
+    /// grilla. null si el artículo no entra en ese listado (filtros que no lo incluyen, o ya no existe).</summary>
+    Task<VecinosInternoDto?> VecinosAsync(string? codigo, FiltrosInterno filtros, CancellationToken ct = default);
+
     /// <summary>El menú del universo INTERNO (rubro → géneros con conteos), para el header cuando hay un
     /// staff logueado: a diferencia del público (sólo Indumentaria publicada), acá están TODOS los rubros
     /// (Accesorios, Lencería, Calzado…). El header lo invierte a Género → Tipos con MenuSecciones.</summary>

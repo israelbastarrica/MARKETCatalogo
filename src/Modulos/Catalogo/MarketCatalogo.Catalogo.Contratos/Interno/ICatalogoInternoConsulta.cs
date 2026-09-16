@@ -34,6 +34,14 @@ public interface ICatalogoInternoConsulta
     /// <see cref="BenchmarkFamiliaAsync"/> para no bloquear el primer render (la ficha lo carga por streaming).</summary>
     Task<ArticuloInternoDto?> PorCodigoAsync(string? codigo, bool completo = true, CancellationToken ct = default);
 
+    /// <summary>La ficha SÓLO con lo que ya vive en la tabla materializada (un PK lookup, sin tocar Dragon):
+    /// título, rubro/género, precios, costo y margen teórico, talles/colores, badges de ubicación. Es el
+    /// primer render instantáneo de la ficha completa; los datos en vivo (stock, ventas, características,
+    /// ubicaciones, órdenes, bloqueo) entran después con <see cref="PorCodigoAsync"/> por streaming. Para la
+    /// ficha reducida (<paramref name="completo"/> = false) ya es TODO lo que hay: no hay segunda fase.
+    /// null si el código no está en el universo interno.</summary>
+    Task<ArticuloInternoDto?> PorCodigoBaseAsync(string? codigo, bool completo = true, CancellationToken ct = default);
+
     /// <summary>Benchmark de la familia (Prenda) del artículo: facturado promedio por artículo en la ventana.
     /// Cacheado por familia (es el mismo para todos los artículos de la prenda). <paramref name="facturadoArticulo"/>
     /// es el facturado del artículo abierto, para marcar si supera el promedio. Vacío si no hay prenda/datos.</summary>

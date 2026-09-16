@@ -14,7 +14,19 @@
     <meta name="robots" content="noindex" />
 </HeadContent>
 
-@if (_a is null)
+@if (!_cargado)
+{
+    @* Streaming: primer render mientras el artículo carga. Placeholder neutro — NO "no encontrado", que
+       sólo vale cuando la consulta ya volvió vacía. Sin esto, navegar con las flechas mostraba un flash de
+       "ARTÍCULO NO ENCONTRADO" durante los segundos que tarda la ficha (stock/ventas en vivo de Dragon). *@
+    <main class="mk-if" aria-busy="true">
+        <div class="mk-if-vacio">
+            <p class="mk-rotulo">CARGANDO…</p>
+            <h1>@Codigo</h1>
+        </div>
+    </main>
+}
+else if (_a is null)
 {
     <main class="mk-if">
         <div class="mk-if-vacio">
@@ -87,23 +99,28 @@ else if (_completo)
                         <h1>@_a.Descripcion</h1>
                     </div>
 
-                    <div class="mk-if-header-acciones">
-                        <div class="mk-if-estado @(_a.Bloqueado ? "es-bloqueado" : "")">
-                            <span></span>
-                            @(_a.Bloqueado ? "Bloqueado" : "Sin bloqueo")
+                    @* El estado de bloqueo y los botones de paneles dependen de datos EN VIVO (fase 2): recién
+                       cuando llegan. Antes no se muestran para no afirmar "Sin bloqueo" ni ofrecer paneles vacíos. *@
+                    @if (_extrasCargados)
+                    {
+                        <div class="mk-if-header-acciones">
+                            <div class="mk-if-estado @(_a.Bloqueado ? "es-bloqueado" : "")">
+                                <span></span>
+                                @(_a.Bloqueado ? "Bloqueado" : "Sin bloqueo")
+                            </div>
+                            @if (TieneCaracteristicas)
+                            {
+                                <label for="mk-if-carac-toggle" class="mk-if-carac-boton">Características</label>
+                            }
+                            @if (_a.Ubicaciones.Count > 0)
+                            {
+                                <label for="mk-if-ubic-toggle" class="mk-if-carac-boton">Ubicaciones</label>
+                            }
+                            @* Órdenes SIEMPRE visible (aunque no tenga: el panel avisa), para que no parezca
+                               que falta el dato. *@
+                            <label for="mk-if-orden-toggle" class="mk-if-carac-boton">Órdenes</label>
                         </div>
-                        @if (TieneCaracteristicas)
-                        {
-                            <label for="mk-if-carac-toggle" class="mk-if-carac-boton">Características</label>
-                        }
-                        @if (_a.Ubicaciones.Count > 0)
-                        {
-                            <label for="mk-if-ubic-toggle" class="mk-if-carac-boton">Ubicaciones</label>
-                        }
-                        @* Órdenes SIEMPRE visible (aunque no tenga: el panel avisa), para que no parezca
-                           que falta el dato. *@
-                        <label for="mk-if-orden-toggle" class="mk-if-carac-boton">Órdenes</label>
-                    </div>
+                    }
                 </header>
 
                 @* Un solo panel abierto a la vez: grupo de radios ("ninguno" por defecto). Los botones
@@ -221,7 +238,14 @@ else if (_completo)
                 @* ========================================================
                    VENTAS
                    ======================================================== *@
-                @if (_a.VentasDias is int dias)
+                @if (!_extrasCargados)
+                {
+                    <section class="mk-if-bloque">
+                        <div class="mk-if-bloque-titulo"><span class="mk-rotulo">VENTAS</span></div>
+                        <p class="mk-if-nota">Cargando ventas…</p>
+                    </section>
+                }
+                else if (_a.VentasDias is int dias)
                 {
                     <section class="mk-if-bloque">
 
@@ -275,6 +299,12 @@ else if (_completo)
                         <span class="mk-rotulo">STOCK</span>
                     </div>
 
+                    @if (!_extrasCargados)
+                    {
+                        <p class="mk-if-nota">Cargando stock y estado…</p>
+                    }
+                    else
+                    {
                     <div class="mk-if-stock-fila">
                         <div class="mk-if-stock-donas">
                             @if (_a.StockTotal is not null)
@@ -340,6 +370,7 @@ else if (_completo)
                             </section>
                         </div>
                     </div>
+                    }
 
                 </section>
 
@@ -593,11 +624,21 @@ else
     // Vista de gestión (perfil ADMIN): ficha completa. Si es false, ficha reducida (= la pública) para el
     // resto del staff logueado — no se consulta ni se muestra nada de gestión.
     private bool _completo;
+    // Ya volvió la consulta del artículo (haya caído o no). Mientras es false se muestra "Cargando…", NO
+    // "artículo no encontrado": distingue el estado de carga (streaming) del de error real, así navegar con
+    // las flechas no parpadea el cartel de "no encontrado" durante los segundos que tarda la ficha.
+    private bool _cargado;
+    // Ya volvieron los datos EN VIVO (stock/ventas/características/ubicaciones/órdenes/bloqueo) de la fase 2.
+    // Mientras es false, esos bloques muestran "Cargando…" en vez de su vacío (que se leería como "no hay" o
+    // "no se pudo consultar"). Sólo aplica a la ficha completa (gestión). Ver las tres fases de abajo.
+    private bool _extrasCargados;
 
     protected override async Task OnParametersSetAsync()
     {
         _bench = null;
         _vecinos = null;
+        _cargado = false;
+        _extrasCargados = false;
         _completo = await SesionInterna.EsGestionAsync(AuthState);
 
         _filtros = FiltrosInternoUrl.Armar(Ubic, Cruce, Gen, Rubro, Prenda, Talle, Color, Prov, Marca,
@@ -605,34 +646,50 @@ else
         _contexto = UrlInterno.Contexto(_filtros);
         _volver = UrlInterno.Volver(_filtros);
 
+        // Los vecinos (las flechas) sólo dependen del código y los filtros —salen de UNA tabla materializada,
+        // no de los datos en vivo del artículo— así que se disparan EN PARALELO con la carga base, y llegan
+        // junto con el primer render: no aparecen un rato después.
+        var vecinosT = TraerVecinos(Codigo);
+
+        // FASE 1 — base INSTANTÁNEA: un PK lookup a la tabla materializada, sin tocar Dragon. Trae título,
+        // rubro/género, precios, costo/margen teórico, talles/colores y badges. La ficha aparece ya; lo pesado
+        // (stock/ventas en vivo) NO se espera acá.
         try
         {
-            _a = await Interno.PorCodigoAsync(Codigo, _completo);
+            _a = await Interno.PorCodigoBaseAsync(Codigo, _completo);
         }
         catch
         {
             _a = null;
         }
-        // Segunda fase (streaming): se emite la ficha ya (StateHasChanged) y recién ahí entran las consultas
-        // que pueden esperar — el benchmark de familia (sólo gestión, es la más pesada) y los vecinos, que
-        // ordenan el listado filtrado entero. Las flechas aparecen un instante después; el artículo, que es
-        // lo que se vino a ver, no paga esa espera. Van juntas: son independientes entre sí.
-        if (_a is not null)
+        _cargado = true;
+        _vecinos = await vecinosT;
+
+        // Ficha reducida (no-admin) o artículo inexistente: no hay datos en vivo que traer, se termina acá.
+        if (_a is null || !_completo) return;
+
+        StateHasChanged();   // emite la ficha base ya; lo de abajo entra por streaming
+
+        // FASE 2 — datos EN VIVO (stock, ventas, características, ubicaciones, órdenes, bloqueo) contra
+        // Dragon+MARKET, todos en paralelo dentro de PorCodigoAsync. Es lo que tarda unos segundos; por eso va
+        // acá y no en el primer render. Si falla, se queda la base y los bloques muestran su vacío real.
+        try
         {
-            StateHasChanged();
-
-            var art = _a;   // local: adentro de los async locales el campo podría haber cambiado
-            var benchT = TraerBenchmark(art);
-            var vecinosT = TraerVecinos(art);
-
-            await Task.WhenAll(benchT, vecinosT);
-            _bench = benchT.Result;
-            _vecinos = vecinosT.Result;
+            var completo = await Interno.PorCodigoAsync(Codigo, _completo);
+            if (completo is not null) _a = completo;
         }
+        catch { /* se mantiene la base */ }
+        _extrasCargados = true;
+
+        // FASE 3 — benchmark de familia (la consulta más pesada), ya con el facturado del artículo cargado.
+        var art = _a;   // local: adentro del async el campo podría haber cambiado
+        StateHasChanged();
+        _bench = await TraerBenchmark(art);
     }
 
-    // Las dos consultas de la segunda fase, cada una tolerando su propio fallo: ni el benchmark ni las
-    // flechas justifican romper la ficha, que es lo que el usuario vino a ver.
+    // Ambas consultas toleran su propio fallo: ni el benchmark ni las flechas justifican romper la ficha, que
+    // es lo que el usuario vino a ver. Los vecinos van en la primera fase (en paralelo con el artículo); el
+    // benchmark queda en la segunda por ser la más pesada.
     private async Task<BenchmarkFamiliaDto?> TraerBenchmark(ArticuloInternoDto art)
     {
         if (!_completo) return null;   // la ficha reducida no tiene ventas: el benchmark no aplica
@@ -640,9 +697,9 @@ else
         catch { return null; }
     }
 
-    private async Task<VecinosInternoDto?> TraerVecinos(ArticuloInternoDto art)
+    private async Task<VecinosInternoDto?> TraerVecinos(string? codigo)
     {
-        try { return await Interno.VecinosAsync(art.Codigo, _filtros); }
+        try { return await Interno.VecinosAsync(codigo, _filtros); }
         catch { return null; }
     }
 

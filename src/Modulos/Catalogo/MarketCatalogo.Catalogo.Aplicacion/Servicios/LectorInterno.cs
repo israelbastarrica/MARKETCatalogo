@@ -77,6 +77,16 @@ public sealed class LectorInterno : ICatalogoInternoConsulta
             ordT.Result, bloqT.Result);
     }
 
+    public async Task<ArticuloInternoDto?> PorCodigoBaseAsync(string? codigo, bool completo = true, CancellationToken ct = default)
+    {
+        var cod = (codigo ?? "").Trim();
+        if (cod.Length == 0) return null;
+        // Sólo el PK lookup a la tabla materializada: nada de Dragon. Los extras (stock/ventas/…) quedan en
+        // null y los completa PorCodigoAsync en la segunda fase. Para la ficha reducida ya es todo lo que hay.
+        var fila = await _repo.LeerFilaAsync(cod, ct);
+        return fila is null ? null : Mapear(fila, completo: completo);
+    }
+
     // Cache del facturado de familia por (prenda|días): es el mismo para todos los artículos de la prenda,
     // así la 1ª ficha de la familia paga el scan y el resto sale instantáneo. TTL = el de la base.
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Cuando, decimal Total, int Articulos)>

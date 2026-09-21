@@ -1,0 +1,130 @@
+@page "/privacidad"
+
+@* Política de privacidad. Cubre el tratamiento de datos obtenidos por las APIs de Meta
+   (Instagram/Facebook): publicaciones, métricas y mensajes/comentarios de clientes.
+   Requisito para el App Review de Meta (permiso instagram_manage_messages). *@
+
+<PageTitle>Política de Privacidad - MARKET</PageTitle>
+<HeadContent>
+    <meta name="description" content="Política de privacidad de MARKET: cómo tratamos los datos de nuestras redes sociales y los mensajes de nuestros clientes." />
+</HeadContent>
+
+<article class="mk-institucional">
+
+    <header class="mk-institucional-hero mk-negativo">
+        <h1>Política de Privacidad</h1>
+        <p class="mk-logo-tagline">Última actualización: septiembre de 2026</p>
+    </header>
+
+    <section class="mk-institucional-lead mk-reveal">
+        <p class="mk-destacado">
+            En <strong>MARKET</strong> cuidamos tus datos. Esta política explica qué información
+            tratamos, con qué fin y cómo podés ejercer tus derechos, incluyendo los datos que
+            recibimos cuando interactuás con nuestras cuentas de Instagram y Facebook.
+        </p>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Responsable</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                El responsable del tratamiento de los datos es <strong>@RazonSocial</strong>
+                (CUIT @Cuit), titular de la marca <strong>MARKET</strong>. Para cualquier consulta
+                sobre privacidad podés escribirnos a <a href="mailto:@Email">@Email</a>.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Qué información tratamos</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>Tratamos la información necesaria para atenderte y mejorar nuestra comunicación:</p>
+            <ul>
+                <li>
+                    <strong>Mensajes y comentarios</strong> que nos enviás por Instagram y Facebook:
+                    tu nombre de usuario público y el contenido del mensaje o comentario, para poder
+                    responderte.
+                </li>
+                <li>
+                    <strong>Datos de nuestras publicaciones</strong>: métricas agregadas de alcance,
+                    interacciones y visualizaciones de las cuentas propias de MARKET (no identifican
+                    a personas).
+                </li>
+            </ul>
+            <p>
+                Accedemos a esta información únicamente a través de las <strong>APIs oficiales de Meta</strong>
+                (Instagram Graph API y Messaging API), con los permisos que vos y Meta autorizan.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Con qué finalidad</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <ul>
+                <li>Responder tus consultas y brindarte atención al cliente.</li>
+                <li>Analizar de forma interna el rendimiento de nuestras comunicaciones para mejorarlas.</li>
+            </ul>
+            <p>
+                Las respuestas a los mensajes son gestionadas por <strong>nuestro equipo humano</strong>
+                desde un sistema interno de la empresa.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Cómo protegemos y conservamos tus datos</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                La información se almacena en <strong>sistemas internos de MARKET con acceso restringido</strong>
+                al personal autorizado. <strong>No vendemos, alquilamos ni cedemos tus datos a terceros.</strong>
+                Conservamos los mensajes solo por el tiempo necesario para la atención y el registro de la
+                consulta.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Tus derechos</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Podés solicitar el <strong>acceso, la rectificación o la eliminación</strong> de tus datos
+                escribiéndonos a <a href="mailto:@Email">@Email</a>. Atenderemos tu pedido a la brevedad y
+                eliminaremos la información cuando ya no sea necesaria y no exista obligación legal de
+                conservarla.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Datos obtenidos a través de Meta</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                El uso de la información obtenida mediante las plataformas de Meta se realiza en
+                cumplimiento de las <strong>Políticas de la Plataforma de Meta</strong>. Usamos esos datos
+                exclusivamente para las finalidades descritas en esta política y no para fines
+                incompatibles con ellas.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Cambios en esta política</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Podemos actualizar esta política para reflejar mejoras o cambios legales. Publicaremos la
+                versión vigente en esta misma página, indicando la fecha de última actualización.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-institucional-cierre mk-reveal">
+        <a class="mk-cta" href="/catalogo">Ver el catálogo</a>
+    </section>
+</article>
+
+@code {
+    private const string RazonSocial = "Kailua Kona Sports S.A.";
+    private const string Cuit = "33-71165283-9";
+    private const string Email = "logistica@marketarg.com";
+}

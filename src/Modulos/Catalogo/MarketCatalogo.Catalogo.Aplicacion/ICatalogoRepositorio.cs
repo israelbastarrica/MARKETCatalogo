@@ -175,7 +175,7 @@ public sealed record VarianteRow(string ArtCod, string ColorCod, string Color, s
 // Un talle de la curva definida del artículo (DCTALLE). Orden es el ORDEN de DCTALLE, que ya viene
 // bien de fábrica (2XL antes que 3XL); no se re-ordena con Talles.cs.
 public sealed record CurvaTalleRow(string ArtCod, string Talle, int Orden);
-public sealed record FotoRow(string ArtCod, string Ruta);
+public sealed record FotoRow(string ArtCod, string Ruta, bool EsIa);
 // Total es int porque así está tipada la columna en PruebaCombos: Dapper materializa records por
 // constructor y necesita el tipo exacto de la columna, si no tira InvalidOperationException al mapear.
 public sealed record ComboTierRow(int Cantidad, int Total);

@@ -354,20 +354,46 @@
             yield return c;
     }
 
+    // Tope de opciones visibles por faceta antes de plegar el resto en un <details> "Ver más".
+    private const int TopeFaceta = 12;
+
     private RenderFragment FacetaBloque(string titulo, string clave, IReadOnlyList<OpcionFacetaInterna> ops, string? claseExtra = null) => __builder =>
     {
         if (ops.Count == 0) return;
+        // Las activas siempre visibles (aunque caigan más allá del tope), para no esconder un filtro puesto.
+        var visibles = ops.Where(o => o.Activa)
+            .Concat(ops.Where(o => !o.Activa))
+            .Take(Math.Max(TopeFaceta, ops.Count(o => o.Activa)))
+            .ToList();
+        var ocultas = ops.Except(visibles).ToList();
         <div class="mk-int-grupo @claseExtra">
             <h2 class="mk-rotulo">@titulo</h2>
             <div class="mk-int-faceta">
-                @foreach (var o in ops.Take(12))
+                @foreach (var o in visibles)
                 {
-                    <a class="mk-int-tick @(o.Activa ? "activa" : "")" href="@UrlInterno.Alternar(_filtros, clave, o.Valor)">
-                        <span class="mk-int-box"></span>@o.Etiqueta <span class="mk-int-cant">@o.Cantidad</span>
-                    </a>
+                    @Tick(clave, o)
+                }
+                @if (ocultas.Count > 0)
+                {
+                    <details class="mk-int-vermas">
+                        <summary>Ver más (@ocultas.Count)</summary>
+                        <div class="mk-int-faceta">
+                            @foreach (var o in ocultas)
+                            {
+                                @Tick(clave, o)
+                            }
+                        </div>
+                    </details>
                 }
             </div>
         </div>;
+    };
+
+    private RenderFragment Tick(string clave, OpcionFacetaInterna o) => __builder =>
+    {
+        <a class="mk-int-tick @(o.Activa ? "activa" : "")" href="@UrlInterno.Alternar(_filtros, clave, o.Valor)">
+            <span class="mk-int-box"></span>@o.Etiqueta <span class="mk-int-cant">@o.Cantidad</span>
+        </a>;
     };
 
     // Campos ocultos para el form de búsqueda: preservan los filtros activos menos el que se está editando.

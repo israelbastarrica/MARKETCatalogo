@@ -49,9 +49,16 @@ sin ninguna ruta (`LEN(Ruta) > 0`). La ruta resultante se persiste en la columna
 En el armado de las filas del rebuild (`CatalogoStore.ConstruirFilasAsync`):
 
 ```csharp
-var ruta = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
-var tieneFoto = !string.IsNullOrWhiteSpace(ruta);   // ¿hay link en la DB? — NO chequea el disco
+var foto = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
+var ruta = foto?.Ruta;
+var tieneFoto   = !string.IsNullOrWhiteSpace(ruta);   // ¿hay link (IA o disco)? — NO chequea el disco
+var tieneFotoIa = tieneFoto && foto!.EsIa;            // ¿ese link es IA (LinkIADisco)?
 ```
+
+`tieneFoto` (IA **o** disco) es lo que se usa para **servir/versionar** la imagen. La **publicación**, en
+cambio, exige `tieneFotoIa`: sólo salen los artículos con foto IA (ver
+[CATALOGO-PUBLICACION.md](CATALOGO-PUBLICACION.md) §2). Un artículo con foto de disco pero sin IA se puede
+seguir sirviendo, pero no se publica.
 
 Consecuencia importante: si la DB tiene link pero **el `.jpg` no está en disco**, `TieneFoto` es `true`
 igual. La card entonces **renderiza la `<img>`** y, al no encontrar el archivo, el endpoint responde 404 →

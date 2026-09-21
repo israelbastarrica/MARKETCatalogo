@@ -1304,6 +1304,37 @@
     gap: .3rem;
 }
 
+/* "Ver más": muestra el resto de las opciones de una faceta larga (proveedor, marca) sin JS. */
+.mk-int-vermas {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+}
+
+.mk-int-vermas > summary {
+    font-size: .8rem;
+    color: var(--mk-tinta-70);
+    cursor: pointer;
+    list-style: none;
+    padding: .1rem 0;
+}
+
+.mk-int-vermas > summary::-webkit-details-marker {
+    display: none;
+}
+
+.mk-int-vermas > summary::before {
+    content: "+ ";
+}
+
+.mk-int-vermas[open] > summary::before {
+    content: "\2212 "; /* signo menos */
+}
+
+.mk-int-vermas > summary:hover {
+    color: var(--mk-tinta-100);
+}
+
 
 /* --------------------------------------------------------------------------
    TICKS / RADIOS

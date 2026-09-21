@@ -225,13 +225,15 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
     public async Task<IReadOnlyList<FotoRow>> TraerRutasFotoAsync(CancellationToken ct = default)
     {
         const string sql = """
-            SELECT ArtCod, Ruta FROM (
+            SELECT ArtCod, Ruta, EsIa FROM (
                 SELECT ArtCod = RTRIM(F.Codigo),
                        -- IA primero; si esa fila no tiene IA, la foto normal. Vacío = sin foto.
                        Ruta   = COALESCE(
                                     NULLIF(RTRIM(ISNULL(F.LinkIADisco,   '')), ''),
                                     NULLIF(RTRIM(ISNULL(F.LinkDriveDisco, '')), ''),
                                     ''),
+                       -- ¿la foto de este artículo es una foto IA? (la publicación exige IA).
+                       EsIa   = CASE WHEN LEN(RTRIM(ISNULL(F.LinkIADisco, ''))) > 0 THEN 1 ELSE 0 END,
                        Fila   = ROW_NUMBER() OVER (PARTITION BY F.Codigo ORDER BY F.ID DESC)
                 FROM MARKET.dbo.GoogleDriveFotosArticulos F WITH (NOLOCK)
                 WHERE ISNULL(F.Eliminado, 0) = 0

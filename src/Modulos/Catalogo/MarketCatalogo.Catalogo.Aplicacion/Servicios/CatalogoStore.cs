@@ -145,7 +145,7 @@ public sealed class CatalogoStore
 
         var fotoPorCodigo = fotos
             .GroupBy(f => f.ArtCod, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Ruta, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var variantesPorCodigo = variantes
             .GroupBy(v => v.ArtCod, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -182,8 +182,12 @@ public sealed class CatalogoStore
             // Nombre de vidriera: siempre derivado de ARTDES (una sola tabla; ya no hay override manual).
             var titulo = TituloArticulo.Derivar(artDes, familia);
 
-            var ruta = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
+            var foto = fotoPorCodigo.GetValueOrDefault(a.ArtCod);
+            var ruta = foto?.Ruta;
             var tieneFoto = !string.IsNullOrWhiteSpace(ruta);
+            // Sólo cuenta como "tiene foto" para PUBLICAR si la foto es IA (LinkIADisco). La foto normal de
+            // disco (LinkDriveDisco) sigue sirviéndose si existe, pero por sí sola ya no publica el artículo.
+            var tieneFotoIa = tieneFoto && foto!.EsIa;
             var fotoVersion = tieneFoto ? VersionFoto(ruta!) : null;
 
             // Color/talle: mismo criterio que el público, con la excepción Lencería (datos inconsistentes
@@ -254,16 +258,17 @@ public sealed class CatalogoStore
             var combo = Combo.Parsear(a.Combo);
 
             // PublicadoBase = criterio OBJETIVO del catálogo público (el estado 'auto'):
-            //   en algún lugar (local O depósito) + (tiene variantes o es Lencería) + TIENE FOTO. Se publican
+            //   en algún lugar (local O depósito) + (tiene variantes o es Lencería) + TIENE FOTO IA. Se publican
             //   TODOS los rubros (ya no sólo Indumentaria) y también lo que está sólo en depósito: la curación
-            //   pasa a ser la FOTO — sólo sale lo que tiene foto de IA o de disco (drive), que es justo lo que
-            //   marca `tieneFoto` (IA primero, disco después). El override manual NO entra acá: el MERGE
-            //   combina esto con la columna VisibilidadManual (que preserva) para el Publicado final
-            //   ('ocultar'/'mostrar' mandan; 'auto' usa esto). Así el rebuild no pisa la decisión humana.
+            //   pasa a ser la FOTO — sólo sale lo que tiene foto IA (LinkIADisco), que es justo lo que marca
+            //   `tieneFotoIa`. La foto normal de disco (drive) por sí sola ya no publica. El override manual NO
+            //   entra acá: el MERGE combina esto con la columna VisibilidadManual (que preserva) para el
+            //   Publicado final ('ocultar'/'mostrar' mandan; 'auto' usa esto). Así el rebuild no pisa la
+            //   decisión humana.
             var publicadoBase =
                 enAlgunLugar
                 && (tieneVariantes || esLenceria)
-                && tieneFoto;
+                && tieneFotoIa;
 
             filas.Add(new CatalogoFilaBase(
                 Codigo: a.ArtCod,

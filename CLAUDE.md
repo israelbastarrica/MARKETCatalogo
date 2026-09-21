@@ -103,9 +103,10 @@ demand (stock/sales/margin, características, ubicaciones, órdenes, bloqueo) vi
 with the page rendered by streaming (`[StreamRendering]`) and the family-average benchmark loaded
 afterwards (`BenchmarkFamiliaAsync`, cached per prenda).
 
-All rubros are published, but only articles that **have a photo** (IA or disco/drive) — the photo is
+All rubros are published, but only articles that **have an IA photo** (`LinkIADisco`) — the IA photo is
 the curation gate in the publish criteria (`CatalogoStore.ConstruirFilasAsync`: `enAlgunLugar &&
-(tieneVariantes || esLenceria) && tieneFoto`, where `enAlgunLugar = enAlgunLocal || (enDeposito &&
+(tieneVariantes || esLenceria) && tieneFotoIa`; a disco/drive photo alone is still served but no longer
+publishes), where `enAlgunLugar = enAlgunLocal || (enDeposito &&
 NovedadesPolitica.Es(...))` — deposit-only stock publishes too, but only for the current season/year
 novedad, Prim-Ver 2026/2027, kept in `NovedadesPolitica` and shared with the Novedades read).
 See `docs/CATALOGO-PUBLICACION.md`.

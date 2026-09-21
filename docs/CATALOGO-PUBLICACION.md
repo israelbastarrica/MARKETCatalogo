@@ -33,13 +33,15 @@ Hay que distinguir dos cosas:
    estén distribuidos a los locales). El depósito de otras temporadas queda sin publicar.
 2. **Tiene variantes** — tiene al menos una fila de color/talle en `PRECOMPRA` o `REMCOMPRA`. Mejor no
    mostrarlo que mostrarlo sin talles. (Excepción: Lencería, que no usa esa cascada.)
-3. **Tiene foto** — tiene foto de **IA o de disco** (drive). Es lo que marca el bit `tieneFoto`
-   (`LinkIADisco` primero, `LinkDriveDisco` después — ver [FOTOS.md](FOTOS.md) §2). **La foto es la
-   curación del catálogo**: se publican TODOS los rubros (Indumentaria, Accesorios, Lencería, Calzado…),
-   y lo único que decide qué sale es tener foto.
+3. **Tiene foto IA** — tiene foto de **IA** (`LinkIADisco`). Es lo que marca el bit `tieneFotoIa`
+   (ver [FOTOS.md](FOTOS.md) §2). La foto normal de disco (`LinkDriveDisco`) se sigue **sirviendo** si
+   existe, pero por sí sola **ya no publica** el artículo. **La foto IA es la curación del catálogo**:
+   se publican TODOS los rubros (Indumentaria, Accesorios, Lencería, Calzado…), y lo único que decide
+   qué sale es tener foto IA.
 
 > **Nota histórica:** antes (1) era "Rubro = Indumentaria" y la foto **no** era requisito. Se cambió: se
-> abrió a todos los rubros y la foto pasó a ser el filtro de curación. Ver §2.
+> abrió a todos los rubros y la foto pasó a ser el filtro de curación. Después se endureció: la foto de
+> disco por sí sola dejó de publicar; ahora el requisito es **foto IA**. Ver §2.
 
 ### Override manual de visibilidad (3 estados)
 
@@ -57,8 +59,9 @@ periódica no borra la decisión humana, y lo publicado a mano sobrevive los reb
 
 ## 2. Curación por foto (todos los rubros)
 
-> **El sitio publica TODOS los rubros, pero sólo los artículos que tienen foto (de IA o de disco).**
-> La foto es lo que curó qué sale: si el staff le puso foto, sale; si no, no.
+> **El sitio publica TODOS los rubros, pero sólo los artículos que tienen foto IA (`LinkIADisco`).**
+> La foto IA es lo que curó qué sale: si el artículo tiene foto IA, sale; si no (aunque tenga foto de
+> disco), no.
 
 Está implementado como el cálculo de `PublicadoBase` en `ConstruirFilasAsync`:
 
@@ -69,11 +72,12 @@ var enAlgunLugar = enAlgunLocal
 var publicadoBase =
     enAlgunLugar
     && (tieneVariantes || esLenceria)
-    && tieneFoto;
+    && tieneFotoIa;
 ```
 
-- `tieneFoto` es verdadero cuando el rebuild resolvió una ruta de foto (IA primero, disco después) para
-  el artículo — ver [FOTOS.md](FOTOS.md) §2.
+- `tieneFotoIa` es verdadero cuando el artículo tiene foto IA (`LinkIADisco` no vacío) — ver
+  [FOTOS.md](FOTOS.md) §2. (`tieneFoto`, más laxo, sigue existiendo para servir/versionar la imagen,
+  pero ya no es el criterio de publicación.)
 - `NovedadesPolitica` es el criterio compartido de "novedad de temporada" (Prim-Ver 2026/2027): lo usan
   tanto esta publicación del depósito como la lectura de la sección **Novedades** del home y el toggle
   "Novedades" de la grilla, para que no se desincronicen.

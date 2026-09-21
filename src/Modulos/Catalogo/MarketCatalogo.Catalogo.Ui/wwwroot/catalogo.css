@@ -1228,9 +1228,19 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    /* El panel NO scrollea como bloque (nada de barra externa larga): cada faceta larga scrollea dentro
-       de su propio recuadro (.mk-int-faceta). Lo que no entra a lo alto lo resuelve el scroll de la página. */
+    /* Igual que el catálogo público (.mk-filtros): la columna de filtros es su PROPIA zona de scroll,
+       independiente del catálogo (la rueda sobre el panel mueve el panel, no la grilla; overscroll
+       :contain corta el encadenado al llegar al final). La barra del panel va OCULTA — no una barra
+       externa larga; cada filtro largo tiene la suya (.mk-int-faceta). */
+    max-height: calc(100vh - var(--mk-header-alto) - 2rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+
+.mk-int-filtros::-webkit-scrollbar { display: none; }
 
 .mk-int-buscar {
     display: flex;
@@ -1282,8 +1292,8 @@
     display: flex;
     flex-direction: column;
     gap: .3rem;
-    /* Cada faceta larga (proveedor, marca, prenda) scrollea DENTRO de su propio recuadro. Así el panel
-       no necesita una barra externa larga: cada lista se queda compacta con su scroll interno. */
+    /* Igual que .mk-faceta-lista del público: cada filtro largo (proveedor, marca, prenda) muestra TODAS
+       sus opciones dentro de su propio recuadro con scroll. Esa es la "barra por filtro". */
     max-height: 15rem;
     overflow-y: auto;
     overflow-x: hidden;
@@ -2511,8 +2521,8 @@
         transform: translateX(0);
     }
 
-    /* En el drawer de celular scrollea el panel entero (tiene altura fija): la faceta no lleva su
-       propio scroll ahí, para no anidar dos barras. En desktop sí (arriba). */
+    /* En el drawer de celular scrollea el panel entero (igual que el público): la faceta no lleva su
+       propio scroll ahí, para no anidar dos barras dentro del drawer. */
     .mk-int-faceta {
         max-height: none;
         overflow-y: visible;

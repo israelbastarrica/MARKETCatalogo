@@ -1295,6 +1295,12 @@
     display: flex;
     flex-direction: column;
     gap: .3rem;
+    /* Si hay muchas opciones (proveedor, marca), la lista scrollea en vez de estirar el panel,
+       igual que las facetas del catálogo público. */
+    max-height: 15rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
 }
 
 .mk-int-sub {
@@ -1304,36 +1310,6 @@
     gap: .3rem;
 }
 
-/* "Ver más": muestra el resto de las opciones de una faceta larga (proveedor, marca) sin JS. */
-.mk-int-vermas {
-    display: flex;
-    flex-direction: column;
-    gap: .3rem;
-}
-
-.mk-int-vermas > summary {
-    font-size: .8rem;
-    color: var(--mk-tinta-70);
-    cursor: pointer;
-    list-style: none;
-    padding: .1rem 0;
-}
-
-.mk-int-vermas > summary::-webkit-details-marker {
-    display: none;
-}
-
-.mk-int-vermas > summary::before {
-    content: "+ ";
-}
-
-.mk-int-vermas[open] > summary::before {
-    content: "\2212 "; /* signo menos */
-}
-
-.mk-int-vermas > summary:hover {
-    color: var(--mk-tinta-100);
-}
 
 
 /* --------------------------------------------------------------------------
@@ -2546,6 +2522,13 @@
 
     .mk-filtros-check:checked ~ .mk-int-cuerpo .mk-int-filtros {
         transform: translateX(0);
+    }
+
+    /* En el drawer scrollea el panel entero; la faceta no lleva su propio scroll (evita anidarlos). */
+    .mk-int-faceta {
+        max-height: none;
+        overflow-y: visible;
+        overflow-x: visible;
     }
 
     /* Género y Orden: sólo visibles en el drawer de celular. */

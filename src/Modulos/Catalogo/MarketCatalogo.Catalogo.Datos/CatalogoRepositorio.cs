@@ -233,7 +233,9 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
                                     NULLIF(RTRIM(ISNULL(F.LinkDriveDisco, '')), ''),
                                     ''),
                        -- ¿la foto de este artículo es una foto IA? (la publicación exige IA).
-                       EsIa   = CASE WHEN LEN(RTRIM(ISNULL(F.LinkIADisco, ''))) > 0 THEN 1 ELSE 0 END,
+                       -- CAST a bit: Dapper materializa el record por constructor y exige que el tipo de la
+                       -- columna coincida EXACTO con el del parámetro (bool EsIa); un int tira excepción.
+                       EsIa   = CAST(CASE WHEN LEN(RTRIM(ISNULL(F.LinkIADisco, ''))) > 0 THEN 1 ELSE 0 END AS bit),
                        Fila   = ROW_NUMBER() OVER (PARTITION BY F.Codigo ORDER BY F.ID DESC)
                 FROM MARKET.dbo.GoogleDriveFotosArticulos F WITH (NOLOCK)
                 WHERE ISNULL(F.Eliminado, 0) = 0

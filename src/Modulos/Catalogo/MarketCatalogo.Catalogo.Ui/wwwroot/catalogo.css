@@ -1228,22 +1228,9 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    max-height: calc(100vh - var(--mk-header-alto));
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior-y: contain;
-    /* Scrollbar fino visible: el menú scrollea solo. */
-    scrollbar-width: thin;
-    scrollbar-color: var(--mk-tinta-40) transparent;
-    padding-right: .35rem;
+    /* El panel NO scrollea como bloque (nada de barra externa larga): cada faceta larga scrollea dentro
+       de su propio recuadro (.mk-int-faceta). Lo que no entra a lo alto lo resuelve el scroll de la página. */
 }
-
-.mk-int-filtros::-webkit-scrollbar { width: 6px; }
-.mk-int-filtros::-webkit-scrollbar-thumb {
-    background: var(--mk-tinta-40);
-    border-radius: 3px;
-}
-.mk-int-filtros::-webkit-scrollbar-track { background: transparent; }
 
 .mk-int-buscar {
     display: flex;
@@ -1295,8 +1282,8 @@
     display: flex;
     flex-direction: column;
     gap: .3rem;
-    /* Si hay muchas opciones (proveedor, marca), la lista scrollea en vez de estirar el panel,
-       igual que las facetas del catálogo público. */
+    /* Cada faceta larga (proveedor, marca, prenda) scrollea DENTRO de su propio recuadro. Así el panel
+       no necesita una barra externa larga: cada lista se queda compacta con su scroll interno. */
     max-height: 15rem;
     overflow-y: auto;
     overflow-x: hidden;
@@ -2524,7 +2511,8 @@
         transform: translateX(0);
     }
 
-    /* En el drawer scrollea el panel entero; la faceta no lleva su propio scroll (evita anidarlos). */
+    /* En el drawer de celular scrollea el panel entero (tiene altura fija): la faceta no lleva su
+       propio scroll ahí, para no anidar dos barras. En desktop sí (arriba). */
     .mk-int-faceta {
         max-height: none;
         overflow-y: visible;

@@ -1,0 +1,122 @@
+@page "/terminos"
+
+@* Condiciones del servicio / términos de uso del sitio público de MARKET.
+   Requisito del formulario de Meta (Configuración -> Básica -> URL de condiciones del servicio). *@
+
+<PageTitle>Condiciones del Servicio - MARKET</PageTitle>
+<HeadContent>
+    <meta name="description" content="Condiciones del servicio y términos de uso del sitio de MARKET." />
+</HeadContent>
+
+<article class="mk-institucional">
+
+    <header class="mk-institucional-hero mk-negativo">
+        <h1>Condiciones del Servicio</h1>
+        <p class="mk-logo-tagline">Última actualización: septiembre de 2026</p>
+    </header>
+
+    <section class="mk-institucional-lead mk-reveal">
+        <p class="mk-destacado">
+            Estas condiciones regulan el uso del sitio de <strong>MARKET</strong> y de nuestros
+            canales de comunicación. Al usar el sitio aceptás estos términos.
+        </p>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Quiénes somos</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                El sitio es operado por <strong>@RazonSocial</strong> (CUIT @Cuit), titular de la
+                marca <strong>MARKET</strong>. Ante cualquier consulta podés escribirnos a
+                <a href="mailto:@Email">@Email</a>.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Objeto del sitio</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Este sitio es un <strong>catálogo informativo</strong> de los productos de la marca
+                MARKET. Las imágenes, descripciones, precios y disponibilidad tienen carácter
+                orientativo y pueden variar sin previo aviso. La exhibición de un producto no
+                constituye una oferta de venta vinculante.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Uso del sitio</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Te comprometés a usar el sitio de forma lícita y a no realizar acciones que puedan
+                dañarlo, interrumpir su funcionamiento o vulnerar derechos de terceros. El acceso a
+                secciones internas está reservado a personal y proveedores autorizados.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Propiedad intelectual</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                La marca MARKET, el logotipo, los textos, las imágenes y el diseño del sitio son
+                propiedad de @RazonSocial o se usan con autorización. No está permitido reproducirlos
+                ni utilizarlos sin consentimiento previo.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Comunicación por redes sociales</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Cuando nos escribís por Instagram o Facebook, tu mensaje es atendido por nuestro
+                equipo. El tratamiento de esos datos se rige por nuestra
+                <a href="/privacidad">Política de Privacidad</a>.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Responsabilidad</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Procuramos que la información del sitio sea correcta y esté actualizada, pero no
+                garantizamos que esté libre de errores ni la disponibilidad ininterrumpida del
+                servicio. MARKET no será responsable por daños derivados del uso del sitio en la
+                medida que lo permita la ley aplicable.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Ley aplicable</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Estas condiciones se rigen por las leyes de la <strong>República Argentina</strong>.
+                Cualquier controversia se someterá a los tribunales ordinarios competentes.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-seccion mk-reveal">
+        <div class="mk-seccion-titulo"><h2>Cambios</h2></div>
+        <div class="mk-seccion-cuerpo">
+            <p>
+                Podemos actualizar estas condiciones en cualquier momento. La versión vigente se
+                publica en esta misma página, con su fecha de última actualización.
+            </p>
+        </div>
+    </section>
+
+    <section class="mk-institucional-cierre mk-reveal">
+        <a class="mk-cta" href="/catalogo">Ver el catálogo</a>
+    </section>
+</article>
+
+@code {
+    private const string RazonSocial = "Kailua Kona Sports S.A.";
+    private const string Cuit = "33-71165283-9";
+    private const string Email = "logistica@marketarg.com";
+}

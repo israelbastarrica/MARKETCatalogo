@@ -400,6 +400,62 @@
     gap: .5rem 1.25rem;
 }
 
+/* --- Buscar por código de artículo -------------------------------------------
+   Sólo se ve la LUPA; el campo crece al enfocarla y se queda abierto mientras haya
+   texto. Todo con CSS (:focus-within / :placeholder-shown): el sitio es SSR estático,
+   sin JS. Monocromático, como el resto de la barra. */
+.mk-buscar {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.mk-buscar-lupa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    cursor: pointer;
+    color: var(--mk-tinta-70);
+    transition: color .15s ease;
+}
+
+.mk-buscar-lupa:hover { color: var(--mk-tinta-100); }
+
+.mk-buscar-lupa svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+
+.mk-buscar-input {
+    width: 0;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    background: transparent;
+    color: var(--mk-tinta-100);
+    font-size: .85rem;
+    outline: none;
+    transition: width .18s ease, padding .18s ease, border-color .18s ease;
+}
+
+/* Abierto: al enfocar la lupa/el campo, o si ya hay una búsqueda hecha. */
+.mk-buscar:focus-within .mk-buscar-input,
+.mk-buscar-input:not(:placeholder-shown) {
+    width: 10.5rem;
+    padding: .25rem .15rem;
+    border-bottom-color: var(--mk-tinta-40);
+}
+
+/* La × nativa del type=search desentona con la marca; la quitamos (para limpiar está el chip). */
+.mk-buscar-input::-webkit-search-cancel-button { display: none; }
+
+
 .mk-suc {
     display: inline-flex;
     align-items: center;

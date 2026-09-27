@@ -140,6 +140,25 @@
                             }
 
                             <ComboDropdown Opciones="_pagina.Combos" Filtros="_filtros" />
+
+                            @* Buscar por CÓDIGO de artículo. Se ve sólo la lupa; el campo se despliega al
+                               enfocarla, con CSS puro — el sitio es SSR estático y no hay JS de por medio.
+                               Es un GET a /catalogo con ?q=: arranca una búsqueda limpia en vez de sumarse a
+                               los filtros puestos, porque buscar un código es "encontrame este artículo" y no
+                               refinar la grilla (si no, el código + un filtro viejo da cero resultados y
+                               parece que el artículo no existe). El backend ya buscaba por ?q= y el ARTCOD
+                               está dentro del texto indexado; lo unico que faltaba era esto. *@
+                            <form class="mk-buscar" method="get" action="/catalogo" role="search">
+                                <label class="mk-buscar-lupa" for="mk-buscar-q"
+                                       title="Buscar por código de artículo" aria-label="Buscar por código de artículo">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <circle cx="11" cy="11" r="7" />
+                                        <line x1="16.5" y1="16.5" x2="21" y2="21" />
+                                    </svg>
+                                </label>
+                                <input class="mk-buscar-input" id="mk-buscar-q" type="search" name="q"
+                                       value="@_filtros.Texto" placeholder="Código de artículo" autocomplete="off" />
+                            </form>
                         </div>
                     </div>
 

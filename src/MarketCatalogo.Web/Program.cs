@@ -65,6 +65,34 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
+// El antiforgery marca TODA respuesta con "no-cache, no-store", aunque el HTML público no lleve ningún
+// token (lo hace por la cookie que emite). Y `no-store` le PROHÍBE al navegador guardar la página, lo que
+// apaga el back/forward cache: al tocar "Volver" desde una ficha, el catálogo se volvía a pedir al servidor
+// y había que reponer el scroll infinito a mano, con el salto que se ve.
+//
+// En las páginas PÚBLICAS de solo lectura eso no protege nada, así que se baja a "private, no-cache":
+//  - `no-cache` sigue obligando a revalidar contra el servidor, o sea que nadie ve contenido viejo;
+//  - `private` deja fuera a cachés compartidas (proxies), que es lo que el antiforgery quiere evitar;
+//  - y al no haber `no-store`, el navegador puede restaurar la página al volver: instantáneo y sin saltos.
+// Login, /auth/* e interno quedan como están: ahí sí hay formularios con token y datos de sesión.
+app.Use(async (ctx, siguiente) =>
+{
+    ctx.Response.OnStarting(() =>
+    {
+        var ruta = ctx.Request.Path;
+        var privada = ruta.StartsWithSegments("/login") || ruta.StartsWithSegments("/auth")
+                   || ruta.StartsWithSegments("/interno");
+        if (HttpMethods.IsGet(ctx.Request.Method) && !privada
+            && (ctx.Response.ContentType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
+            ctx.Response.Headers.CacheControl = "private, no-cache";
+            ctx.Response.Headers.Remove("Pragma");
+        }
+        return Task.CompletedTask;
+    });
+    await siguiente();
+});
+
 app.MapStaticAssets();
 
 // AddAdditionalAssemblies es lo que hace que las páginas @page de cada módulo (que viven en sus

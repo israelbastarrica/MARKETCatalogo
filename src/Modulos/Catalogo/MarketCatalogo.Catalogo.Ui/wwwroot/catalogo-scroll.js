@@ -21,6 +21,9 @@
 
         var cargando = false;
         var io = null;
+        // Cuántas páginas EXTRA se agregaron por scroll (la 1 la trae el SSR). Es lo que hay que
+        // reponer al volver de una ficha para dejar la grilla como estaba.
+        var paginasExtra = 0;
 
         function siguienteUrl() {
             var link = paginacion.querySelector('a[rel="next"]');
@@ -34,12 +37,12 @@
 
         function cargarMas() {
             var url = siguienteUrl();
-            if (!url) { terminar(); return; }
-            if (cargando) return;
+            if (!url) { terminar(); return Promise.resolve(false); }
+            if (cargando) return Promise.resolve(false);
             cargando = true;
             paginacion.querySelector('.mk-cargando-mas').textContent = 'Cargando más…';
 
-            fetch(url)
+            return fetch(url)
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
@@ -59,6 +62,7 @@
                     // página inicial, "atrás" vuelve a la grilla completa (página 1). La carga de más
                     // páginas no depende de la URL: usa el link "Siguiente" del DOM (siguienteUrl()).
                     cargando = false;
+                    paginasExtra++;
 
                     if (nuevaPaginacion) {
                         paginacion.replaceWith(nuevaPaginacion);
@@ -67,6 +71,7 @@
                     } else {
                         terminar();
                     }
+                    return true;
                 })
                 .catch(function () {
                     // Si falla (red caída, etc.) se deja el link "Siguiente" real como red de
@@ -74,15 +79,73 @@
                     cargando = false;
                     terminar();
                     document.documentElement.classList.remove('js-infinita');
+                    return false;
                 });
         }
 
-        if (!siguienteUrl()) return;
+        // ===== Volver a la ficha y regresar: dejar la grilla donde estaba =====
+        // La URL NO cambia con el scroll (ver arriba), así que al volver el SSR entrega la página 1 y
+        // se pierde todo lo scrolleado. Se guarda cuántas páginas había y a qué altura estaba, y al
+        // regresar a la MISMA url se reponen y se baja al mismo punto.
+        var CLAVE = 'mk-grilla:' + location.pathname + location.search;
+        var TOPE_PAGINAS = 12;          // techo: reponer 12 páginas es ~1 seg; más que eso no vale la pena
+        var VIGENCIA = 30 * 60 * 1000;  // media hora: más viejo que eso, arrancar de cero
+
+        function guardarEstado() {
+            try {
+                if (paginasExtra === 0 && window.scrollY < 200) { sessionStorage.removeItem(CLAVE); return; }
+                sessionStorage.setItem(CLAVE, JSON.stringify({
+                    paginas: paginasExtra, y: window.scrollY, t: Date.now()
+                }));
+            } catch (e) { /* modo privado o storage lleno: se pierde el lugar, no se rompe nada */ }
+        }
+
+        function leerEstado() {
+            try {
+                var crudo = sessionStorage.getItem(CLAVE);
+                if (!crudo) return null;
+                var e = JSON.parse(crudo);
+                sessionStorage.removeItem(CLAVE);   // de un solo uso: recargar a mano arranca limpio
+                return (Date.now() - e.t) < VIGENCIA ? e : null;
+            } catch (e) { return null; }
+        }
+
+        // pagehide cubre navegar a la ficha, cerrar y el bfcache; en iOS es el único confiable.
+        window.addEventListener('pagehide', guardarEstado);
+
+        function restaurar() {
+            var e = leerEstado();
+            if (!e) return;
+            if (io) io.disconnect();                        // que el observer no cargue en paralelo
+            var faltan = Math.min(e.paginas, TOPE_PAGINAS);
+
+            function paso() {
+                if (faltan <= 0) {
+                    window.scrollTo(0, e.y);
+                    // De nuevo en el frame siguiente: con las fotos recién agregadas el alto todavía se
+                    // está asentando y el primer scroll puede quedarse corto.
+                    requestAnimationFrame(function () { window.scrollTo(0, e.y); });
+                    if (io) io.observe(paginacion);          // a partir de acá sigue el scroll normal
+                    return;
+                }
+                faltan--;
+                // Siga o falle una página, se avanza igual: mejor restaurar de menos que colgarse.
+                cargarMas().then(paso);
+            }
+            paso();
+        }
+
+        // Si el navegador lo trae del bfcache, el DOM y el scroll vuelven intactos: no se repone nada
+        // (si no, se duplicarían las tarjetas).
+        window.addEventListener('pageshow', function (ev) { if (ev.persisted) leerEstado(); });
+
+        if (!siguienteUrl()) { restaurar(); return; }
 
         io = new IntersectionObserver(function (entries) {
             entries.forEach(function (e) { if (e.isIntersecting) cargarMas(); });
         }, { rootMargin: '800px 0px' });
         io.observe(paginacion);
+        restaurar();
     }
 
     if (document.readyState !== 'loading') initInfinita();

@@ -52,6 +52,15 @@ else
         </div>
 
         <div class="mk-producto-datos">
+            @* Volver al listado DONDE ESTABAS. Si se llegó desde el catálogo, es un history.back():
+               la grilla repone las páginas scrolleadas y baja al mismo punto (ver catalogo-scroll.js).
+               Si se entró directo (Google, link compartido) no hay a dónde volver, y el href lleva a la
+               sección del artículo. Sin JS funciona igual por el href: mejora progresiva. *@
+            <a class="mk-volver" href="/catalogo/@_art.RubroSlug/@_art.GeneroSlug"
+               onclick="if (history.length > 1) { if (document.referrer.indexOf(location.host) > -1) { history.back(); return false; } }">
+                <span aria-hidden="true">←</span> Volver
+            </a>
+
             <nav class="mk-migas mk-rotulo" aria-label="Ubicación">
                 <a href="/catalogo/@_art.RubroSlug">@_art.Rubro</a>
                 <span aria-hidden="true">›</span>

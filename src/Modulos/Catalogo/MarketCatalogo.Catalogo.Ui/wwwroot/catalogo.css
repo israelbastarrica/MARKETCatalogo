@@ -2727,3 +2727,19 @@
         width: 100%;
     }
 }
+
+/* Volver de la ficha al listado. Discreto y monocromático; el ← es el que manda. */
+.mk-volver {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin-bottom: .9rem;
+    color: var(--mk-tinta-70);
+    text-decoration: none;
+    font-size: .8rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    transition: color .15s ease;
+}
+
+.mk-volver:hover { color: var(--mk-tinta-100); }

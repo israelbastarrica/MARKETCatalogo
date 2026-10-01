@@ -96,6 +96,22 @@
     stroke-linecap: round;
 }
 
+/* Cruz de borrar: más chica y más tenue que la lupa. Con el input vacío queda oculta pero guarda su
+   lugar (visibility, no display) para que la pill no cambie de ancho al escribir. */
+.mk-nav-buscar .mk-nav-buscar-borrar {
+    color: var(--mk-tinta-40);
+    padding: .35rem .15rem;
+}
+
+.mk-nav-buscar .mk-nav-buscar-borrar svg {
+    width: .85rem;
+    height: .85rem;
+}
+
+.mk-nav-buscar input:placeholder-shown + .mk-nav-buscar-borrar {
+    visibility: hidden;
+}
+
 /* --- Mega-menú de géneros -------------------------------------------------
    Dropdown CSS puro: se abre con :hover (desktop) y con :focus-within (celular:
    al tocar el <button> toma foco y el panel aparece). Sin una línea de JS. */

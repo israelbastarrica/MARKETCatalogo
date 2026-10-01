@@ -44,6 +44,10 @@
     grid-template-columns: 220px 1fr;
     gap: 3rem;
     align-items: start;
+
+    /* Alto compartido de la toolbar y de los títulos de faceta: así la raya de "Prenda" queda a la
+       misma altura que la de la toolbar (la marca el botón Novedades, ~58px; esto le da aire). */
+    --mk-barra-alto: 3.75rem;
 }
 
 
@@ -75,6 +79,9 @@
    -------------------------------------------------------------------------- */
 
 .mk-faceta-titulo {
+    display: flex;
+    align-items: center;
+    min-height: var(--mk-barra-alto);
     margin: 0 0 .75rem;
     line-height: 1.5rem;
     padding: .8rem 0;
@@ -362,7 +369,7 @@
     justify-content: space-between;
     gap: 1rem 2rem;
     margin-bottom: 1.5rem;
-    min-height: 1.5rem;
+    min-height: var(--mk-barra-alto);
     padding-top: .5rem;
     padding-bottom: .5rem;
     border-bottom: 1px solid var(--mk-tinta-20);
@@ -1045,6 +1052,11 @@
         max-height: none;
         overflow-y: visible;
         overflow-x: visible;
+    }
+
+    /* En el drawer no hay toolbar al lado con la que alinear: el título vuelve a su alto natural. */
+    .mk-filtros .mk-faceta-titulo {
+        min-height: 0;
     }
 
     .mk-filtros-cabecera {

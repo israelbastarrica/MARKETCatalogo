@@ -467,3 +467,11 @@
 .mk-portal-art-codprov {
     margin: 0 0 .25rem;
 }
+
+/* "Artículo 3 de 21": sólo aparece en las OP con varias prendas, que son la excepción. */
+.mk-portal-card-deorden {
+    font-size: .72rem;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    color: #616161;
+}

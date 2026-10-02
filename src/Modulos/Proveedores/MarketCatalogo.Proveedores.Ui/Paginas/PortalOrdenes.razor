@@ -70,7 +70,7 @@
     else
     {
         <div class="mk-portal-cards">
-            @foreach (var (orden, art) in Articulos(_lista))
+            @foreach (var (orden, art, nro, total) in Articulos(_lista))
             {
                 <a class="mk-portal-card" href="@($"/proveedor/orden/{orden.NroOrden}")">
 
@@ -105,6 +105,13 @@
                            tres renglones y descuadran la grilla. *@
                         <p class="mk-portal-card-orden">
                             Orden <b>@orden.NroOrden</b>
+                            @* Casi todas las OP traen una sola prenda, así que la card se lee como "la
+                               prenda". Cuando una trae varias, hay que decirlo: si no, el proveedor ve el
+                               mismo número de orden repetido en varias cards y parece un error nuestro. *@
+                            @if (total > 1)
+                            {
+                                <span class="mk-portal-card-deorden">Artículo @nro de @total de esta orden</span>
+                            }
                             <span class="mk-portal-card-estado">@orden.Estado</span>
                         </p>
 
@@ -151,9 +158,10 @@
         return u.FindFirst(PoliticasAuth.ClaimCodProveedor)?.Value;
     }
 
-    // Una card por artículo, arrastrando la orden a la que pertenece.
-    private static IEnumerable<(PortalOrden Orden, PortalRenglon Articulo)> Articulos(PortalListaOrdenes lista)
-        => lista.Ordenes.SelectMany(o => o.Renglones.Select(r => (o, r)));
+    // Una card por artículo, arrastrando la orden a la que pertenece y qué lugar ocupa adentro de ella.
+    private static IEnumerable<(PortalOrden Orden, PortalRenglon Articulo, int Numero, int Total)> Articulos(
+        PortalListaOrdenes lista)
+        => lista.Ordenes.SelectMany(o => o.Renglones.Select((r, i) => (o, r, i + 1, o.Renglones.Count)));
 
     // Lo que se le mandó impreso desde acá. Es informativo: NO descuenta del tope (el portal existe
     // justamente para cuando eso no alcanzó).

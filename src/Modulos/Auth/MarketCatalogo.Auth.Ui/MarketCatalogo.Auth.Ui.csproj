@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <!-- UI del módulo Auth: la pantalla de login (Razor Class Library, descubierta por el host vía
-       AdditionalAssemblies). No referencia el módulo Auth: sólo hace POST/GET a los endpoints /auth/*
-       del host. Monocromática (Manual de Marca). -->
+       AdditionalAssemblies). Hace POST/GET a los endpoints /auth/* del host; del módulo Auth usa sólo
+       PoliticasAuth (los nombres de los claims), para mandar a cada perfil a su pantalla cuando ya hay
+       sesión. Monocromática (Manual de Marca). -->
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -12,7 +13,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MarketCatalogo.Auth\MarketCatalogo.Auth.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.15" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- CAPA DE PRESENTACIÓN del portal de proveedores. El host la descubre por AdditionalAssemblies.
+       A diferencia de Auth.Ui (que solo hace POST a /auth/*), estas páginas MUESTRAN datos, así que
+       referencian el módulo para usar su contrato (IPortalProveedores). De SQL y de MarketWeb no
+       saben nada: eso vive del otro lado de esa interfaz. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>false</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarketCatalogo.Proveedores\MarketCatalogo.Proveedores.csproj" />
+    <ProjectReference Include="..\..\Auth\MarketCatalogo.Auth\MarketCatalogo.Auth.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.15" />
+  </ItemGroup>
+
+</Project>

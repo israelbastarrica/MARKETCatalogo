@@ -97,13 +97,12 @@ public static class ModuloAuth
             // su perfil vive en la misma tabla de usuarios, así que sin este corte un proveedor entraría
             // al catálogo interno (costos, márgenes, stock, ventas) con solo tener estado=ok.
             options.AddPolicy(PoliticasAuth.Interno, p => p.RequireAssertion(ctx =>
-                ctx.User.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk)
-                && !EsProveedor(ctx.User)));
+                PoliticasAuth.EsStaffAprobado(ctx.User)));
 
             // Portal del proveedor: aprobado Y con perfil de proveedor. Lo contrario del anterior.
             options.AddPolicy(PoliticasAuth.Proveedor, p => p.RequireAssertion(ctx =>
                 ctx.User.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk)
-                && EsProveedor(ctx.User)));
+                && PoliticasAuth.EsProveedor(ctx.User)));
             // Nivel 2 (gestión): además, perfil ADMIN. Habilita la ficha completa (costo/márgenes/ventas/
             // stock/órdenes/ubicaciones) y las escrituras (visibilidad, bloqueo). El valor del claim viene
             // literal de la columna PERFIL ('ADMIN'); RequireClaim compara el valor case-sensitive.
@@ -114,14 +113,4 @@ public static class ModuloAuth
 
         return services;
     }
-
-    /// <summary>
-    /// ¿El usuario es un proveedor? Se compara sin distinguir mayúsculas ni espacios: el perfil sale de la
-    /// columna PERFIL de UsuariosPC, que se carga a mano y aparece con variantes ("PROVEEDORES", "Proveedores").
-    /// Es la comparación que decide si alguien ve el interno o el portal, así que conviene que sea tolerante
-    /// en la FORMA y estricta en el VALOR.
-    /// </summary>
-    private static bool EsProveedor(System.Security.Claims.ClaimsPrincipal user)
-        => string.Equals((user.FindFirst(PoliticasAuth.ClaimPerfil)?.Value ?? "").Trim(),
-                         PoliticasAuth.PerfilProveedor, StringComparison.OrdinalIgnoreCase);
 }

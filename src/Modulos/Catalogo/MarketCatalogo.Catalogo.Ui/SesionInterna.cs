@@ -3,9 +3,10 @@ using Microsoft.AspNetCore.Components.Authorization;
 namespace MarketCatalogo.Catalogo.Ui;
 
 /// <summary>
-/// ¿El que está mirando es staff/proveedor logueado y aprobado? Si lo es, las páginas PÚBLICAS del
-/// catálogo lo derivan a su equivalente interna: una vez adentro, nada tiene que devolverlo a la
-/// vista del visitante.
+/// ¿El que está mirando es STAFF logueado y aprobado? Si lo es, las páginas PÚBLICAS del catálogo lo
+/// derivan a su equivalente interna: una vez adentro, nada tiene que devolverlo a la vista del visitante.
+/// Los PROVEEDORES quedan afuera: tienen estado "ok" en la misma tabla, pero son gente de afuera y no
+/// entran al interno — para ellos el catálogo público es el que corresponde.
 /// </summary>
 /// <remarks>
 /// El claim va literal ("estado" = "ok") porque Catalogo.Ui referencia SÓLO Catalogo.Contratos y no
@@ -18,12 +19,18 @@ public static class SesionInterna
     private const string EstadoOk = "ok";
     private const string ClaimPerfil = "perfil";
     private const string PerfilAdmin = "ADMIN";
+    private const string PerfilProveedor = "PROVEEDORES";
 
     public static async Task<bool> EsInternoAsync(Task<AuthenticationState>? estado)
     {
         if (estado is null) return false;
-        return (await estado).User.HasClaim(ClaimEstado, EstadoOk);
+        var user = (await estado).User;
+        return user.HasClaim(ClaimEstado, EstadoOk) && !EsProveedor(user);
     }
+
+    private static bool EsProveedor(System.Security.Claims.ClaimsPrincipal user)
+        => user.Claims.Any(c => c.Type == ClaimPerfil
+                                && string.Equals(c.Value.Trim(), PerfilProveedor, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// ¿Es GESTIÓN (perfil ADMIN)? Sólo la gestión ve la ficha interna COMPLETA (costo, márgenes, ventas,
@@ -40,5 +47,6 @@ public static class SesionInterna
         return user.HasClaim(ClaimEstado, EstadoOk)
             && user.Claims.Any(c => c.Type == ClaimPerfil
                                     && string.Equals(c.Value, PerfilAdmin, StringComparison.OrdinalIgnoreCase));
+        // (el proveedor nunca es ADMIN, así que acá no hace falta el corte)
     }
 }

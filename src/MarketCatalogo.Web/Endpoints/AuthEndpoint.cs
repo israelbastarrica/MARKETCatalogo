@@ -35,11 +35,16 @@ public static class AuthEndpoint
             var form = await ctx.Request.ReadFormAsync();
             var usuario = (form["usuario"].ToString() ?? "").Trim();
             var password = form["password"].ToString() ?? "";
-            var volver = DestinoSeguro(form["volver"].ToString());
+            var pedido = form["volver"].ToString();
 
             var acceso = await auth.ValidarLoginLocalAsync(usuario, password);
             if (acceso is null || acceso.Estado != PoliticasAuth.EstadoOk)
                 return Results.Redirect("/login?error=login");
+
+            // Sin destino pedido, cada perfil va al suyo: el proveedor NO entra al catálogo interno, así
+            // que mandarlo a /interno (el default del staff) lo rebotaría a /login y parecería que el
+            // login falló.
+            var volver = DestinoSeguro(pedido, EsProveedor(acceso.Perfil));
 
             var claims = new List<Claim>
             {
@@ -62,9 +67,26 @@ public static class AuthEndpoint
         // SÓLO DESARROLLO: loguea con cookie sin pasar por Google (para probar en localhost). Los claims
         // reales (perfil/estado) los resuelve ClaimsDeUsuario desde UsuariosPC.
         app.MapGet("/auth/dev-login", async (HttpContext ctx, IWebHostEnvironment env,
-            string? email, string? volver) =>
+            string? email, string? usuario, string? volver) =>
         {
             if (!env.IsDevelopment()) return Results.NotFound();
+
+            // Con ?usuario= entra como el login LOCAL (sin contraseña): es la única forma de probar en
+            // desarrollo un perfil que no tiene cuenta @marketarg.com, como los PROVEEDORES.
+            if (!string.IsNullOrWhiteSpace(usuario))
+            {
+                var u = usuario.Trim();
+                var idLocal = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, "local:" + u),
+                    new Claim(ClaimTypes.Name, u),
+                    new Claim("usuario", u),
+                }, CookieAuthenticationDefaults.AuthenticationScheme);
+                await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(idLocal), new AuthenticationProperties { IsPersistent = true });
+                return Results.Redirect(DestinoSeguro(volver));
+            }
+
             var mail = string.IsNullOrWhiteSpace(email) ? "federicopetersen@marketarg.com" : email.Trim();
             var claims = new[]
             {
@@ -80,7 +102,10 @@ public static class AuthEndpoint
     }
 
     // Sólo se acepta un returnUrl LOCAL (arranca con "/" y no con "//"): evita open-redirect a un sitio externo.
-    private static string DestinoSeguro(string? volver)
+    private static string DestinoSeguro(string? volver, bool esProveedor = false)
         => !string.IsNullOrWhiteSpace(volver) && volver.StartsWith('/') && !volver.StartsWith("//")
-            ? volver : "/interno";
+            ? volver : (esProveedor ? "/proveedor" : "/interno");
+
+    private static bool EsProveedor(string? perfil)
+        => string.Equals((perfil ?? "").Trim(), PoliticasAuth.PerfilProveedor, StringComparison.OrdinalIgnoreCase);
 }

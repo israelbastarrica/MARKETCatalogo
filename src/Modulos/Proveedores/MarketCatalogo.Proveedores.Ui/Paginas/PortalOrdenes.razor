@@ -1,0 +1,120 @@
+@page "/proveedor"
+@attribute [Authorize(Policy = PoliticasAuth.Proveedor)]
+@inject IPortalProveedores Portal
+
+@* Pantalla de entrada del proveedor: sus órdenes vigentes con el estado de etiquetas.
+   El código de proveedor NO se toma de la URL: sale del claim de la identidad. *@
+
+<PageTitle>Mis órdenes - MARKET</PageTitle>
+<HeadContent><meta name="robots" content="noindex" /></HeadContent>
+
+<section class="mk-portal">
+
+    <header class="mk-portal-head">
+        <h1>Mis órdenes</h1>
+        <p class="mk-portal-sub">
+            Acá podés imprimir etiquetas de refuerzo si las que te mandamos no alcanzan.
+        </p>
+    </header>
+
+    @if (!string.IsNullOrEmpty(Mensaje))
+    {
+        <p class="mk-portal-aviso" role="alert">@Mensaje</p>
+    }
+
+    @* La impresora define el lenguaje y la resolución con la que se arma la etiqueta: sin esto no se
+       puede imprimir, porque un ZPL de 203 dpi sale corrido en una de 300. *@
+    <form class="mk-portal-impresora" method="post" action="/proveedor/impresora">
+        <AntiforgeryToken />
+        <label for="imp">Mi impresora</label>
+        <select id="imp" name="impresora">
+            @foreach (var i in IPortalProveedores.Impresoras)
+            {
+                <option value="@i.Clave" selected="@(_impresora?.Clave == i.Clave)">@i.Etiqueta</option>
+            }
+        </select>
+        <button type="submit">Guardar</button>
+        @if (_impresora is null)
+        {
+            <span class="mk-portal-falta">Elegí tu impresora antes de imprimir.</span>
+        }
+    </form>
+
+    @if (_lista is null)
+    {
+        <p class="mk-portal-vacio">Cargando…</p>
+    }
+    else if (!_lista.Disponible)
+    {
+        <p class="mk-portal-aviso" role="alert">
+            No pudimos traer tus órdenes en este momento. Volvé a probar en unos minutos; si sigue igual,
+            avisanos.
+        </p>
+    }
+    else if (_lista.Ordenes.Count == 0)
+    {
+        <p class="mk-portal-vacio">No tenés órdenes en curso.</p>
+    }
+    else
+    {
+        <table class="mk-portal-tabla">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Estado</th>
+                    <th>Artículos</th>
+                    <th>Etiquetas que te mandamos</th>
+                    <th>Impresas por vos</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var o in _lista.Ordenes)
+                {
+                    <tr>
+                        <td><b>@o.NroOrden</b></td>
+                        <td>@o.Estado</td>
+                        <td>@o.Renglones.Count</td>
+                        <td>@Enviadas(o)</td>
+                        <td>@o.Renglones.Sum(r => r.EtiquetasImpresasPortal)</td>
+                        <td><a href="@($"/proveedor/orden/{o.NroOrden}")">Ver e imprimir</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [SupplyParameterFromQuery(Name = "msg")] public string? Mensaje { get; set; }
+
+    private PortalListaOrdenes? _lista;
+    private PortalImpresora? _impresora;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var cod = await CodProveedor();
+        if (string.IsNullOrEmpty(cod)) { _lista = new(true, []); return; }
+        _impresora = await Portal.ImpresoraAsync(cod);
+        _lista = await Portal.OrdenesAsync(cod);
+    }
+
+    private async Task<string?> CodProveedor()
+    {
+        if (AuthState is null) return null;
+        var u = (await AuthState).User;
+        return u.FindFirst(PoliticasAuth.ClaimCodProveedor)?.Value;
+    }
+
+    // Lo que se le mandó impreso desde acá. Es informativo: NO descuenta del tope (el portal existe
+    // justamente para cuando eso no alcanzó).
+    private static string Enviadas(PortalOrden o)
+    {
+        var total = o.Renglones.Sum(r => r.EtiquetasEnviadas ?? 0);
+        var fecha = o.Renglones.Where(r => r.FechaEnvioEtiquetas is not null)
+                               .Select(r => r.FechaEnvioEtiquetas!.Value).DefaultIfEmpty().Max();
+        if (total == 0) return "—";
+        return fecha == default ? total.ToString("N0") : $"{total:N0} el {fecha:dd/MM}";
+    }
+}

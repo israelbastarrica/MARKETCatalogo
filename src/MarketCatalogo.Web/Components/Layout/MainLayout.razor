@@ -35,6 +35,26 @@
                     </a>
                 </Authorized>
             </AuthorizeView>
+
+            @* El proveedor es de AFUERA: no le mostramos el catálogo interno, sólo su portal y salir. *@
+            <AuthorizeView Policy="@PoliticasAuth.Proveedor">
+                <Authorized>
+                    <a class="mk-auth-usuario" href="/proveedor" title="Ir a mis órdenes">
+                        <svg class="mk-auth-usuario-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                        </svg>
+                        <span class="mk-auth-usuario-mail">@(context.User.Identity?.Name ?? "Proveedor")</span>
+                    </a>
+                    <a class="mk-auth-salir" href="/auth/logout" title="Cerrar sesión" aria-label="Salir">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" />
+                            <line x1="4" y1="12" x2="15" y2="12" />
+                            <path d="M11 8l-4 4 4 4" />
+                        </svg>
+                    </a>
+                </Authorized>
+            </AuthorizeView>
         </div>
     </header>
 
@@ -135,7 +155,7 @@
 
             @* Puerta al catálogo interno. Va acá abajo, discreta, porque no es para el visitante:
                entran proveedores y staff. Logueado no se muestra — el header ya tiene usuario y salir. *@
-            @if (!_interno)
+            @if (!_interno && !_proveedor)
             {
                 <a class="mk-footer-acceso mk-rotulo" href="/login">Acceso proveedores</a>
             }
@@ -157,6 +177,9 @@
     // y no muestra la puerta de acceso (ya está adentro).
     private bool _interno;
 
+    // Proveedor logueado: no ve nada del interno, pero sí su portal y el botón de salir.
+    private bool _proveedor;
+
     /// Base de los links de catálogo del pie: la grilla interna si hay sesión, la pública si no.
     private string BaseCatalogo => _interno ? "/interno" : "/catalogo";
 
@@ -165,7 +188,9 @@
         if (AuthState is not null)
         {
             var usuario = (await AuthState).User;
-            _interno = usuario.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk);
+            _interno = PoliticasAuth.EsStaffAprobado(usuario);
+            _proveedor = usuario.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk)
+                         && PoliticasAuth.EsProveedor(usuario);
         }
     }
 

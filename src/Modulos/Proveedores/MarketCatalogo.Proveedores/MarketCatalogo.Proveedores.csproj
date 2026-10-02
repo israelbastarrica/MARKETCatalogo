@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Módulo PORTAL DE PROVEEDORES. El proveedor entra con su usuario (perfil PROVEEDORES en UsuariosPC),
+       ve SUS órdenes de producción y puede imprimir etiquetas de refuerzo cuando las que le mandamos no
+       alcanzan (viajan en avión y tardan; si faltan diez, se pierde una semana).
+
+       Los datos de órdenes y la etiqueta NO se arman acá: se le piden a MarketWeb, que es el dueño de esa
+       lógica (EtiquetasService). Este módulo aporta identidad, pantallas y el TOPE por combinación. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Compartido\MarketCatalogo.Compartido\MarketCatalogo.Compartido.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.13" />
+  </ItemGroup>
+
+</Project>

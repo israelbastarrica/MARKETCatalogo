@@ -1,0 +1,121 @@
+@page "/proveedor/orden/{Nro:int}"
+@attribute [Authorize(Policy = PoliticasAuth.Proveedor)]
+@inject IPortalProveedores Portal
+
+@* Detalle de una OP: por artículo, la curva color/talle con lo pedido, lo que ya imprimió el proveedor y
+   lo que le queda. Carga las cantidades y manda todo en un POST (SSR puro, sin JavaScript).
+   Si la orden no es suya, CurvaAsync devuelve null y mostramos "no existe" — igual que MarketWeb, que
+   responde 404 en vez de 403 para no confirmar que existe. *@
+
+<PageTitle>Orden @Nro - MARKET</PageTitle>
+<HeadContent><meta name="robots" content="noindex" /></HeadContent>
+
+<section class="mk-portal">
+
+    <a class="mk-portal-volver" href="/proveedor">← Mis órdenes</a>
+
+    @if (_curva is null)
+    {
+        <h1>Orden @Nro</h1>
+        <p class="mk-portal-vacio">No encontramos esa orden.</p>
+    }
+    else
+    {
+        <header class="mk-portal-head">
+            <h1>Orden @Nro</h1>
+            <p class="mk-portal-sub">
+                Marcá cuántas etiquetas necesitás de cada color y talle. El máximo es lo que falta para
+                completar lo pedido en esta orden.
+            </p>
+        </header>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <p class="mk-portal-aviso" role="alert">@Error</p>
+        }
+
+        @if (_curva.Articulos.Count == 0)
+        {
+            <p class="mk-portal-vacio">Esta orden todavía no tiene la curva cargada. Cuando esté, vas a poder imprimir.</p>
+        }
+        else
+        {
+            <form method="post" action="@($"/proveedor/orden/{Nro}/imprimir")">
+                <AntiforgeryToken />
+
+                @foreach (var art in _curva.Articulos)
+                {
+                    <article class="mk-portal-art">
+                        <h2>@art.ArtCod <span class="mk-portal-art-des">@art.Descripcion</span></h2>
+                        <p class="mk-portal-art-res">
+                            Pedido @art.Pedido.ToString("N0") · ya imprimiste @art.ImpresoPortal.ToString("N0") ·
+                            te quedan <b>@art.Disponible.ToString("N0")</b>
+                        </p>
+
+                        <table class="mk-portal-tabla">
+                            <thead>
+                                <tr>
+                                    <th>Color</th>
+                                    <th>Talle</th>
+                                    <th>Pedido</th>
+                                    <th>Impresas</th>
+                                    <th>Quedan</th>
+                                    <th>Imprimir</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in art.Combinaciones)
+                                {
+                                    <tr class="@(c.Disponible == 0 ? "mk-portal-sin" : null)">
+                                        <td>@(string.IsNullOrEmpty(c.Color) ? c.CodColor : c.Color)</td>
+                                        <td>@c.Talle</td>
+                                        <td>@c.Pedido.ToString("N0")</td>
+                                        <td>@c.ImpresoPortal.ToString("N0")</td>
+                                        <td><b>@c.Disponible.ToString("N0")</b></td>
+                                        <td>
+                                            @if (c.Disponible > 0)
+                                            {
+                                                @* El nombre del campo lleva la combinación: el servidor no confía en
+                                                   él para los topes, lo vuelve a validar contra la curva. *@
+                                                <input type="number" min="0" max="@c.Disponible" step="1"
+                                                       name="@($"i:{art.ArtCod}|{c.CodColor}|{c.Talle}")"
+                                                       placeholder="0" inputmode="numeric" />
+                                            }
+                                            else
+                                            {
+                                                <span class="mk-portal-nada">—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </article>
+                }
+
+                <div class="mk-portal-acciones">
+                    <button type="submit">Generar etiquetas</button>
+                    <span class="mk-portal-nota">
+                        Se descarga un archivo para mandar a tu impresora de etiquetas.
+                    </span>
+                </div>
+            </form>
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public int Nro { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [SupplyParameterFromQuery(Name = "error")] public string? Error { get; set; }
+
+    private PortalCurva? _curva;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+        var cod = (await AuthState).User.FindFirst(PoliticasAuth.ClaimCodProveedor)?.Value;
+        if (string.IsNullOrEmpty(cod)) return;
+        _curva = await Portal.CurvaAsync(cod, Nro);
+    }
+}

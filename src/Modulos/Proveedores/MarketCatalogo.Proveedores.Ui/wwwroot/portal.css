@@ -1,0 +1,266 @@
+/* =========================================================
+   PORTAL DE PROVEEDORES
+   Monocromático, como el resto del sitio (Manual de Marca). Pensado para que se use desde una PC del
+   taller: tablas anchas, números grandes y un solo botón al final.
+   ========================================================= */
+
+.mk-portal {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+    box-sizing: border-box;
+    font-family: var(--mk-font-texto);
+    color: var(--mk-tinta-100);
+}
+
+.mk-portal-head {
+    margin-bottom: 2rem;
+}
+
+.mk-portal h1 {
+    font-family: var(--mk-font-titulo);
+    font-weight: 600;
+    font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+    margin: 0 0 .35rem;
+}
+
+.mk-portal-sub {
+    margin: 0;
+    max-width: 62ch;
+    color: #616161;          /* gris legible: contraste AA sobre blanco */
+    font-size: .95rem;
+    line-height: 1.5;
+}
+
+.mk-portal-volver {
+    display: inline-block;
+    margin-bottom: 1.25rem;
+    color: #616161;
+    text-decoration: none;
+    font-size: .9rem;
+}
+
+.mk-portal-volver:hover {
+    color: var(--mk-tinta-100);
+    text-decoration: underline;
+}
+
+.mk-portal-vacio {
+    padding: 2rem 0;
+    color: #616161;
+}
+
+/* Avisos (guardado, tope excedido, error de la impresión). */
+.mk-portal-aviso {
+    margin: 0 0 1.5rem;
+    padding: .85rem 1rem;
+    border: 1px solid var(--mk-tinta-20);
+    border-left: 4px solid var(--mk-negro);
+    background: var(--mk-fondo-sutil);
+    font-size: .95rem;
+}
+
+
+/* =========================================================
+   IMPRESORA
+   Sin esto no se puede imprimir: define lenguaje y DPI de la etiqueta.
+   ========================================================= */
+
+.mk-portal-impresora {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+
+    margin-bottom: 2rem;
+    padding: 1rem 1.15rem;
+
+    border: 1px solid var(--mk-tinta-20);
+    background: var(--mk-fondo-sutil);
+}
+
+.mk-portal-impresora label {
+    font-size: .8rem;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    color: #616161;
+}
+
+.mk-portal-impresora select {
+    min-width: 16rem;
+    padding: .5rem .6rem;
+    border: 1px solid var(--mk-tinta-40);
+    background: var(--mk-blanco);
+    font: inherit;
+}
+
+.mk-portal-falta {
+    font-size: .85rem;
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   TABLAS
+   ========================================================= */
+
+.mk-portal-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .95rem;
+}
+
+.mk-portal-tabla th {
+    text-align: left;
+    font-size: .72rem;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    color: #616161;
+    font-weight: 600;
+
+    padding: .5rem .6rem;
+    border-bottom: 1px solid var(--mk-tinta-40);
+    white-space: nowrap;
+}
+
+.mk-portal-tabla td {
+    padding: .55rem .6rem;
+    border-bottom: 1px solid var(--mk-tinta-20);
+    vertical-align: middle;
+}
+
+.mk-portal-tabla tbody tr:hover {
+    background: var(--mk-fondo-sutil);
+}
+
+/* Combinación ya cubierta: se apaga, pero se sigue viendo (es información, no un error). */
+.mk-portal-sin td {
+    color: #8a8a8a;
+}
+
+.mk-portal-nada {
+    color: #8a8a8a;
+}
+
+.mk-portal-tabla input[type="number"] {
+    width: 5.5rem;
+    padding: .4rem .5rem;
+    border: 1px solid var(--mk-tinta-40);
+    font: inherit;
+    text-align: right;
+}
+
+.mk-portal-tabla a {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid var(--mk-tinta-40);
+}
+
+.mk-portal-tabla a:hover {
+    border-bottom-color: var(--mk-negro);
+}
+
+
+/* =========================================================
+   ARTÍCULO
+   ========================================================= */
+
+.mk-portal-art {
+    margin-bottom: 2.25rem;
+    padding-bottom: .5rem;
+}
+
+.mk-portal-art h2 {
+    font-family: var(--mk-font-titulo);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 .15rem;
+}
+
+.mk-portal-art-des {
+    font-weight: 400;
+    color: #616161;
+    margin-left: .5rem;
+}
+
+.mk-portal-art-res {
+    margin: 0 0 .75rem;
+    font-size: .85rem;
+    color: #616161;
+}
+
+
+/* =========================================================
+   ACCIONES
+   La barra queda pegada abajo: la curva puede ser larga y el botón tiene que estar siempre a mano.
+   ========================================================= */
+
+.mk-portal-acciones {
+    position: sticky;
+    bottom: 0;
+
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+
+    margin-top: 2rem;
+    padding: 1rem 0;
+
+    border-top: 1px solid var(--mk-tinta-20);
+    background: var(--mk-blanco);
+}
+
+.mk-portal-acciones button,
+.mk-portal-impresora button {
+    padding: .7rem 1.5rem;
+
+    border: 1px solid var(--mk-negro);
+    background: var(--mk-acento);
+    color: var(--mk-acento-tinta);
+
+    font: inherit;
+    font-weight: 600;
+    letter-spacing: .04em;
+    cursor: pointer;
+}
+
+.mk-portal-impresora button {
+    padding: .5rem 1.1rem;
+    font-size: .9rem;
+}
+
+.mk-portal-acciones button:hover,
+.mk-portal-impresora button:hover {
+    background: var(--mk-blanco);
+    color: var(--mk-negro);
+}
+
+.mk-portal-nota {
+    font-size: .85rem;
+    color: #616161;
+}
+
+
+/* =========================================================
+   CELULAR
+   La tabla no se parte en tarjetas: se deja scrollear a lo ancho, que es lo que espera quien la usa
+   desde el teléfono del taller para chequear un talle puntual.
+   ========================================================= */
+
+@media (max-width: 700px) {
+    .mk-portal {
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    .mk-portal-art {
+        overflow-x: auto;
+    }
+
+    .mk-portal-impresora select {
+        min-width: 0;
+        flex: 1 1 10rem;
+    }
+}

@@ -80,8 +80,7 @@
         // ¿Staff logueado y aprobado? Entonces todo el header apunta al catálogo interno.
         if (AuthState is not null)
         {
-            var estado = (await AuthState).User;
-            _interno = estado.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk);
+            _interno = PoliticasAuth.EsStaffAprobado((await AuthState).User);
         }
 
         try

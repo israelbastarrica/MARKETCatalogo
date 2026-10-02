@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 namespace MarketCatalogo.Auth.Contratos;
 
 /// <summary>Resultado de resolver el acceso de una persona contra <c>UsuariosPC</c>.
@@ -57,6 +59,21 @@ public static class PoliticasAuth
 
     /// <summary>Perfil de UsuariosPC de los proveedores. Lo da de alta Sistemas junto con su código de Dragon.</summary>
     public const string PerfilProveedor = "PROVEEDORES";
+
+    /// <summary>
+    /// ¿Es un proveedor? Se compara sin distinguir mayúsculas ni espacios: el perfil sale de la columna
+    /// PERFIL de UsuariosPC, que se carga a mano y aparece con variantes ("PROVEEDORES", "Proveedores").
+    /// Tolerante en la FORMA y estricta en el VALOR, porque de esto depende qué pantalla ve cada uno.
+    /// </summary>
+    public static bool EsProveedor(ClaimsPrincipal user)
+        => string.Equals((user.FindFirst(ClaimPerfil)?.Value ?? "").Trim(),
+                         PerfilProveedor, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>¿Es gente de la empresa, aprobada? Es la condición de la política <see cref="Interno"/>, y
+    /// la que usa la UI para decidir si muestra el header/pie internos. El proveedor tiene estado "ok"
+    /// igual que el staff, así que mirar SÓLO el estado lo metía adentro del catálogo interno.</summary>
+    public static bool EsStaffAprobado(ClaimsPrincipal user)
+        => user.HasClaim(ClaimEstado, EstadoOk) && !EsProveedor(user);
 }
 
 /// <summary>

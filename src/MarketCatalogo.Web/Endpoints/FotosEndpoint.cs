@@ -31,9 +31,10 @@ public static class FotosEndpoint
             // ?v= es el token de versión de la foto (fecha del original). Forma parte del nombre del
             // thumbnail cacheado, así un cambio de foto (disco→IA) genera un archivo nuevo automáticamente.
             var version = ctx.Request.Query["v"].ToString();
-            // Staff logueado (estado = ok): puede ver también fotos de artículos NO publicados (depósito,
+            // Staff logueado y aprobado: puede ver también fotos de artículos NO publicados (depósito,
             // ocultos). El público sólo las publicadas. Esos thumbnails internos se cachean aparte.
-            var interno = ctx.User?.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk) == true;
+            // Los proveedores NO: tienen estado "ok" pero son de afuera (ver PoliticasAuth.EsStaffAprobado).
+            var interno = ctx.User is not null && PoliticasAuth.EsStaffAprobado(ctx.User);
             var res = await fotos.ObtenerAsync(codigo, ancho, version, interno, ct);
             if (res is null) return Results.NotFound();
 

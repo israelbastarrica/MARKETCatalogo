@@ -1,4 +1,5 @@
 using MarketCatalogo.Auth.Datos;
+using MarketCatalogo.Proveedores.Datos;
 using MarketCatalogo.Catalogo.Datos;
 using MarketCatalogo.Web.Components;
 using MarketCatalogo.Web.Endpoints;
@@ -40,6 +41,10 @@ builder.Services.AgregarModuloCatalogo();
 // Módulo Auth: login (cookie + Google @marketarg.com) + política "Interno". El host sólo agrega el
 // middleware más abajo. El público no necesita cuenta; esto habilita la vista interna del staff.
 builder.Services.AgregarModuloAuth(builder.Configuration);
+
+// Portal de proveedores: sus ordenes de produccion y la impresion de etiquetas de refuerzo. Los datos y
+// la etiqueta se los pide a MarketWeb (server-to-server); aca viven la identidad, las pantallas y el tope.
+builder.Services.AgregarModuloProveedores(builder.Configuration);
 
 // Límite de intentos del login (sitio público expuesto a internet).
 builder.Services.AgregarLimiteDeIntentos();   // MarketCatalogo.Web.Servicios
@@ -104,10 +109,14 @@ app.MapRazorComponents<App>()
    .AddAdditionalAssemblies(
         typeof(MarketCatalogo.Catalogo.Ui.UrlCatalogo).Assembly,
         typeof(MarketCatalogo.Auth.Ui.Paginas.Login).Assembly,
+        typeof(MarketCatalogo.Proveedores.Ui.Paginas.PortalOrdenes).Assembly,
         typeof(MarketCatalogo.Institucional.Ui.Paginas.Nosotros).Assembly);
 
 // Endpoints de login (Google / usuario+clave / logout / dev-login).
 app.MapAuth();
+
+// Portal de proveedores: guardar impresora y generar etiquetas (formularios SSR).
+app.MapProveedor();
 
 // Acciones del catálogo interno (ocultar/mostrar del público). Gateado por la política "Interno".
 app.MapInterno();

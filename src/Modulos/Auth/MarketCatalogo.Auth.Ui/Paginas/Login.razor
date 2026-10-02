@@ -1,4 +1,5 @@
 @page "/login"
+@inject NavigationManager Nav
 
 @* Login del catálogo interno.
    SSR puro: los formularios navegan directamente a los endpoints del host. *@
@@ -85,11 +86,28 @@
 </section>
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
     [SupplyParameterFromQuery]
     public string? Error { get; set; }
 
     [SupplyParameterFromQuery(Name = "volver")]
     public string? Volver { get; set; }
+
+    // A /login también se llega por AccessDeniedPath: cuando alguien logueado pide algo que su perfil no
+    // alcanza (un proveedor pidiendo /interno). Mostrarle el formulario ahí haría pensar que la sesión se
+    // cayó, y reintentar lo devolvería al mismo lugar. Si ya tiene identidad, se lo manda a SU pantalla.
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+        var u = (await AuthState).User;
+        if (u.Identity?.IsAuthenticated != true) return;
+        if (!u.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk)) return;  // pendiente/onboarding: que vea el mensaje
+
+        var proveedor = string.Equals((u.FindFirst(PoliticasAuth.ClaimPerfil)?.Value ?? "").Trim(),
+                                      PoliticasAuth.PerfilProveedor, StringComparison.OrdinalIgnoreCase);
+        Nav.NavigateTo(proveedor ? "/proveedor" : "/interno");
+    }
 
     // Sólo acepta URLs locales.
     // Evita redirecciones hacia sitios externos.
@@ -98,7 +116,7 @@
         && Volver.StartsWith('/')
         && !Volver.StartsWith("//")
             ? Volver
-            : "/interno";
+            : "";   // vacío: el endpoint decide según el perfil (interno o portal del proveedor)
 
     private static string MensajeError(string codigo) => codigo switch
     {

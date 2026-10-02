@@ -54,6 +54,15 @@
             avisanos.
         </p>
     }
+    else if (_lista.Ordenes.Count == 0 && _lista.SinNadaParaImprimir > 0)
+    {
+        @* Tiene órdenes, pero ninguna con curva cargada. Decirle "no tenés órdenes" sería mentirle, y
+           además taparía un problema nuestro: si el cálculo de la curva falla, vuelven todas en cero. *@
+        <p class="mk-portal-vacio">
+            Tenés @_lista.SinNadaParaImprimir @(_lista.SinNadaParaImprimir == 1 ? "orden" : "órdenes") en curso,
+            pero todavía ninguna tiene etiquetas para imprimir. Cuando carguemos la curva las vas a ver acá.
+        </p>
+    }
     else if (_lista.Ordenes.Count == 0)
     {
         <p class="mk-portal-vacio">No tenés órdenes en curso.</p>

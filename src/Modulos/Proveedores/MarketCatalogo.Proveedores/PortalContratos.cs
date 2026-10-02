@@ -21,7 +21,11 @@ public sealed record PortalOrden(
 /// iguales y no lo son: NO TENER órdenes, y no haber podido preguntárselo a MarketWeb (servicio caído o
 /// clave mal cargada). Decirle "no tenés órdenes" a alguien que sí las tiene lo manda a llamar por teléfono
 /// por un problema nuestro.</summary>
-public sealed record PortalListaOrdenes(bool Disponible, IReadOnlyList<PortalOrden> Ordenes);
+/// <param name="SinNadaParaImprimir">Cuántas OP vigentes se escondieron por no tener curva todavía. Es
+/// para no decirle "no tenés órdenes" a alguien que sí las tiene: son dos situaciones distintas, y una de
+/// ellas puede ser un problema nuestro (si del otro lado falla el cálculo, todas vuelven en cero).</param>
+public sealed record PortalListaOrdenes(bool Disponible, IReadOnlyList<PortalOrden> Ordenes,
+    int SinNadaParaImprimir = 0);
 
 /// <summary>Una combinación color/talle de un artículo, con lo pedido y lo que el proveedor ya imprimió.</summary>
 public sealed record PortalCombinacion(string CodColor, string Color, string Talle, int Pedido, int ImpresoPortal)

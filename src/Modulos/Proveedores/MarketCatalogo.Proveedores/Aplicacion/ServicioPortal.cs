@@ -30,12 +30,15 @@ public sealed class ServicioPortal : IPortalProveedores
         if (string.IsNullOrWhiteSpace(codProveedor)) return new(true, []);
         var crudas = await _api.OrdenesAsync(codProveedor.Trim(), ct);
         if (crudas is null) return new(false, []);   // no pudimos preguntar; no es que no tenga órdenes
-        var ordenes = crudas
-            // Fuera las que no tienen NADA para imprimir: en el taller esa lista era casi toda ruido
-            // (órdenes recién abiertas, sin curva todavía). Si MarketWeb no manda el dato (versión vieja),
-            // CantidadCurva viene null y no se filtra nada — mejor mostrar de más que esconder una orden
-            // real por un campo que no llegó.
-            .Where(o => o.CantidadCurva is null || o.CantidadCurva > 0)
+        // Fuera las que no tienen NADA para imprimir: en el taller esa lista era casi toda ruido (órdenes
+        // recién abiertas, sin curva todavía). Si MarketWeb no manda el dato (versión vieja), CantidadCurva
+        // viene null y no se filtra nada — mejor mostrar de más que esconder una orden real por un campo
+        // que no llegó. Se cuenta cuántas se escondieron: si del otro lado falla el cálculo vuelven TODAS
+        // en cero, y sin este número la pantalla diría "no tenés órdenes" a alguien que tiene 109.
+        var conCurva = crudas.Where(o => o.CantidadCurva is null || o.CantidadCurva > 0).ToList();
+        var escondidas = crudas.Count - conCurva.Count;
+
+        var ordenes = conCurva
             .Select(o => new PortalOrden(
             o.NroOrden, o.FechaOrden, o.Estado, o.Tipo,
             (o.Renglones ?? []).Select(r => new PortalRenglon(
@@ -44,7 +47,7 @@ public sealed class ServicioPortal : IPortalProveedores
                 Limpio(r.CodigoProveedor))).ToList(),
             o.CantidadCurva
         )).ToList();
-        return new(true, ordenes);
+        return new(true, ordenes, escondidas);
     }
 
     public async Task<PortalCurva?> CurvaAsync(string codProveedor, int nroOrden, CancellationToken ct = default)

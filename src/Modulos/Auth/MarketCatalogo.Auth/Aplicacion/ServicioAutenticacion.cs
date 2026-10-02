@@ -20,7 +20,7 @@ public sealed class ServicioAutenticacion : IAutenticacion
         var row = await _repo.BuscarPorUsuarioAsync(u, ct);
         // No aprobado, sin contraseña cargada o contraseña incorrecta → mismo resultado (no filtrar el motivo).
         if (row is null || !row.MailAprobado || !PasswordHasher.Verify(password, row.PasswordHash)) return null;
-        return new AccesoResultado("ok", row.Perfil, row.Pc, row.Area);
+        return new AccesoResultado("ok", row.Perfil, row.Pc, row.Area, row.CodProveedor);
     }
 
     public async Task<AccesoResultado> ResolverAccesoAsync(string mail, CancellationToken ct = default)
@@ -28,7 +28,7 @@ public sealed class ServicioAutenticacion : IAutenticacion
         var row = await _repo.BuscarPorMailAsync((mail ?? "").Trim().ToLowerInvariant(), ct);
         if (row is null) return new AccesoResultado("onboarding", null, null);
         return row.MailAprobado
-            ? new AccesoResultado("ok", row.Perfil, row.Pc, row.Area)
+            ? new AccesoResultado("ok", row.Perfil, row.Pc, row.Area, row.CodProveedor)
             : new AccesoResultado("pendiente", null, row.Pc);
     }
 
@@ -39,7 +39,7 @@ public sealed class ServicioAutenticacion : IAutenticacion
         var row = await _repo.BuscarPorUsuarioAsync(u, ct);
         if (row is null) return new AccesoResultado("onboarding", null, null);
         return row.MailAprobado
-            ? new AccesoResultado("ok", row.Perfil, row.Pc, row.Area)
+            ? new AccesoResultado("ok", row.Perfil, row.Pc, row.Area, row.CodProveedor)
             : new AccesoResultado("pendiente", null, row.Pc);
     }
 }

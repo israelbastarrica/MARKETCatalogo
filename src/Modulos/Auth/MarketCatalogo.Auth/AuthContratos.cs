@@ -4,7 +4,9 @@ namespace MarketCatalogo.Auth.Contratos;
 /// <para><b>Estado</b>: <c>"ok"</c> (aprobado, es staff, entra al interno), <c>"pendiente"</c> (existe pero
 /// sin aprobar) u <c>"onboarding"</c> (no hay fila para ese mail/usuario).</para>
 /// Perfil/Pc/Area sólo son confiables cuando Estado = "ok".</summary>
-public sealed record AccesoResultado(string Estado, string? Perfil, string? Pc, int? Area = null);
+public sealed record AccesoResultado(string Estado, string? Perfil, string? Pc, int? Area = null,
+    /// <summary>Código del proveedor en Dragon (PROV.CLCOD). Sólo para el perfil PROVEEDORES.</summary>
+    string? CodProveedor = null);
 
 /// <summary>La superficie pública del módulo Auth (lo único que el host referencia además de
 /// <see cref="PoliticasAuth"/>). Valida credenciales y resuelve el acceso contra <c>UsuariosPC</c>.</summary>
@@ -40,9 +42,21 @@ public static class PoliticasAuth
     public const string ClaimPerfil = "perfil";
     public const string ClaimPc = "pc";
     public const string ClaimArea = "area";
+    /// <summary>Código de proveedor de Dragon del usuario (sólo perfil PROVEEDORES).</summary>
+    public const string ClaimCodProveedor = "codProveedor";
     public const string EstadoOk = "ok";
     /// <summary>Perfil (columna PERFIL de UsuariosPC) que habilita la vista de gestión.</summary>
     public const string PerfilAdmin = "ADMIN";
+
+    /// <summary>
+    /// Portal del PROVEEDOR: ve sus propias órdenes de producción y puede imprimir etiquetas de refuerzo.
+    /// Es gente de AFUERA de la empresa, así que esta política y la de Interno son excluyentes: un proveedor
+    /// NO puede ver el catálogo interno (costos, márgenes, stock por local, ventas).
+    /// </summary>
+    public const string Proveedor = "Proveedor";
+
+    /// <summary>Perfil de UsuariosPC de los proveedores. Lo da de alta Sistemas junto con su código de Dragon.</summary>
+    public const string PerfilProveedor = "PROVEEDORES";
 }
 
 /// <summary>

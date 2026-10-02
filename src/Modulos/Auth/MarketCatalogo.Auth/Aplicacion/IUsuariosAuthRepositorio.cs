@@ -13,4 +13,6 @@ public interface IUsuariosAuthRepositorio
 }
 
 /// <summary>Fila mínima de UsuariosPC para autenticar: perfil, PC, hash y si el mail está aprobado.</summary>
-public sealed record UsuarioAuthRow(string? Perfil, string? Pc, string? PasswordHash, bool MailAprobado, int? Area);
+public sealed record UsuarioAuthRow(string? Perfil, string? Pc, string? PasswordHash, bool MailAprobado, int? Area,
+    // Código del proveedor en Dragon (PROV.CLCOD) para el perfil PROVEEDORES. Null en el resto del staff.
+    string? CodProveedor = null);

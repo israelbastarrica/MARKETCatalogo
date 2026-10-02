@@ -39,6 +39,10 @@ public sealed class ClaimsDeUsuario : IClaimsTransformation
         if (!string.IsNullOrEmpty(acceso.Perfil)) identity.AddClaim(new Claim(PoliticasAuth.ClaimPerfil, acceso.Perfil));
         if (!string.IsNullOrEmpty(acceso.Pc)) identity.AddClaim(new Claim(PoliticasAuth.ClaimPc, acceso.Pc));
         if (acceso.Area is int area) identity.AddClaim(new Claim(PoliticasAuth.ClaimArea, area.ToString()));
+        // El código de proveedor viaja en el claim para que el portal NUNCA lo tome de la URL ni del browser:
+        // de qué proveedor es cada pedido lo decide la identidad, no el cliente.
+        if (!string.IsNullOrWhiteSpace(acceso.CodProveedor))
+            identity.AddClaim(new Claim(PoliticasAuth.ClaimCodProveedor, acceso.CodProveedor.Trim()));
 
         return principal;
     }

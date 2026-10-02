@@ -16,6 +16,39 @@ public sealed class ImpresionesRepositorio
 
     public sealed record ImpresoRow(string ArtCod, string CodColor, string Talle, int Cantidad);
 
+    /// <summary>
+    /// De esos artículos, cuáles tienen foto de producción cargada. Una sola consulta por pantalla: el
+    /// portal es SSR y necesita saberlo ANTES de pintar, para dibujar un recuadro "sin foto" en vez de
+    /// dejar que el navegador muestre el ícono de imagen rota en cada card sin foto.
+    ///
+    /// Es la misma tabla que usa el endpoint de la foto, pero acá sólo se pregunta si existe: la ruta y
+    /// el redimensionado siguen siendo del módulo de catálogo.
+    /// </summary>
+    public async Task<IReadOnlySet<string>> ConFotoAsync(IReadOnlyCollection<string> artCods, CancellationToken ct)
+    {
+        var codigos = artCods.Where(c => !string.IsNullOrWhiteSpace(c))
+                             .Select(c => c.Trim().ToUpperInvariant()).Distinct().ToList();
+        if (codigos.Count == 0) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        const string sql = """
+            SELECT DISTINCT RTRIM(Codigo)
+            FROM dbo.GoogleDriveFotosArticulos WITH (NOLOCK)
+            WHERE ISNULL(Eliminado, 0) = 0 AND RTRIM(Codigo) IN @codigos
+              AND COALESCE(NULLIF(RTRIM(LinkDriveDisco), ''), NULLIF(RTRIM(LinkIADisco), '')) IS NOT NULL;
+            """;
+        try
+        {
+            using var cn = _db.CrearMarket();
+            var filas = await cn.QueryAsync<string>(new CommandDefinition(sql, new { codigos }, cancellationToken: ct));
+            return new HashSet<string>(filas, StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            // Si esto falla, la pantalla igual tiene que salir: se asume que no hay fotos.
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     /// <summary>Lo ya impreso por ese proveedor en esa orden, por combinación.</summary>
     public async Task<IReadOnlyList<ImpresoRow>> ImpresoAsync(string codProveedor, int nroOrden, CancellationToken ct)
     {

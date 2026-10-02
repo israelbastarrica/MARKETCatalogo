@@ -23,4 +23,12 @@ public interface IFotosCatalogo
     /// sirvan al público aunque un usuario interno los haya generado.</summary>
     Task<FotoResultado?> ObtenerAsync(string? artCod, int ancho, string? version,
         bool incluirNoPublicados = false, CancellationToken ct = default);
+
+    /// <summary>La foto de PRODUCCIÓN del artículo (la que sube el equipo mientras se fabrica). Es otra
+    /// fuente que la del catálogo: lo que un proveedor está fabricando todavía no está publicado, así que
+    /// por la vía normal su foto no se puede resolver. Se cachea en un namespace propio, de modo que nunca
+    /// se sirva por el endpoint público. <b>No valida permisos</b>: quien la pide tiene que haber verificado
+    /// antes que ese artículo le corresponde.</summary>
+    Task<FotoResultado?> ObtenerDeProduccionAsync(string? artCod, int ancho, string? version,
+        CancellationToken ct = default);
 }

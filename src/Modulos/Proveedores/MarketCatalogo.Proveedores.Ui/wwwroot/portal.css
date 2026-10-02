@@ -168,25 +168,27 @@
    ========================================================= */
 
 .mk-portal-art {
-    margin-bottom: 2.25rem;
-    padding-bottom: .5rem;
+    margin-bottom: 1.75rem;
+    padding: 1rem 1.15rem 1.25rem;
+    border: 1px solid var(--mk-tinta-20);
+    background: var(--mk-blanco);
 }
 
 .mk-portal-art h2 {
     font-family: var(--mk-font-titulo);
     font-size: 1.05rem;
     font-weight: 600;
-    margin: 0 0 .15rem;
+    margin: 0 0 .2rem;
 }
 
 .mk-portal-art-des {
-    font-weight: 400;
+    margin: 0 0 .4rem;
+    font-size: .9rem;
     color: #616161;
-    margin-left: .5rem;
 }
 
 .mk-portal-art-res {
-    margin: 0 0 .75rem;
+    margin: 0;
     font-size: .85rem;
     color: #616161;
 }
@@ -263,4 +265,205 @@
         min-width: 0;
         flex: 1 1 10rem;
     }
+
+    .mk-portal-cards {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: .75rem;
+    }
+
+    .mk-portal-art-foto {
+        flex-basis: 72px;
+        width: 72px;
+    }
+}
+
+
+/* =========================================================
+   CARDS DE ARTÍCULO
+   El proveedor reconoce la prenda por la foto y el código, no por el N° de orden: por eso la foto manda
+   y la OP es un dato más adentro de la card.
+   ========================================================= */
+
+.mk-portal-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1.25rem;
+}
+
+.mk-portal-card {
+    display: flex;
+    flex-direction: column;
+
+    border: 1px solid var(--mk-tinta-20);
+    background: var(--mk-blanco);
+
+    color: inherit;
+    text-decoration: none;
+
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.mk-portal-card:hover {
+    border-color: var(--mk-negro);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .07);
+}
+
+/* Relación 3:4 como las fotos del catálogo. El recuadro se reserva aunque el artículo no tenga foto,
+   así la grilla no baila mientras cargan. */
+.mk-portal-card-foto {
+    aspect-ratio: 3 / 4;
+    background: var(--mk-fondo-sutil);
+    overflow: hidden;
+}
+
+.mk-portal-card-foto img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.mk-portal-card-cuerpo {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    padding: .9rem 1rem 1rem;
+}
+
+.mk-portal-card-cod {
+    margin: 0;
+    font-family: var(--mk-font-titulo);
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: .02em;
+}
+
+.mk-portal-card-des {
+    margin: 0;
+    font-size: .85rem;
+    line-height: 1.35;
+    color: #616161;
+
+    /* Dos líneas y corta: las descripciones varían mucho de largo y desalinean las cards. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mk-portal-card-orden {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    margin: .15rem 0 0;
+    font-size: .9rem;
+}
+
+.mk-portal-card-estado {
+    font-size: .78rem;
+    line-height: 1.3;
+    color: #616161;
+}
+
+.mk-portal-card-datos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .4rem .75rem;
+
+    /* Empuja el bloque al pie: así "Ver e imprimir" queda a la misma altura en toda la fila, aunque la
+       descripción o el estado ocupen distinto. */
+    margin: auto 0 0;
+    padding-top: .5rem;
+}
+
+.mk-portal-card-datos dt {
+    font-size: .65rem;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    color: #616161;
+    font-weight: 400;
+}
+
+.mk-portal-card-datos dd {
+    margin: 0;
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.mk-portal-card-ir {
+    margin-top: .35rem;
+    padding-top: .65rem;
+    border-top: 1px solid var(--mk-tinta-20);
+
+    font-size: .72rem;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.mk-portal-card:hover .mk-portal-card-ir {
+    text-decoration: underline;
+    text-underline-offset: .25rem;
+}
+
+
+/* =========================================================
+   CARD DEL DETALLE (artículo + su curva)
+   ========================================================= */
+
+.mk-portal-art-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.mk-portal-art-foto {
+    flex: 0 0 96px;
+    width: 96px;
+    aspect-ratio: 3 / 4;
+    background: var(--mk-fondo-sutil);
+    overflow: hidden;
+}
+
+.mk-portal-art-foto img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+
+/* El recuadro cuando el artículo todavía no tiene foto cargada. Ocupa exactamente el mismo lugar que la
+   foto, así la grilla no se mueve según cuáles tengan y cuáles no. */
+.mk-portal-sinfoto {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: .62rem;
+    letter-spacing: var(--mk-tracking-rotulo);
+    text-transform: uppercase;
+    color: #9e9e9e;
+}
+
+/* El código del proveedor. Va pegado al nuestro y en mayor contraste que la descripción: para el del
+   taller es el dato por el que busca la prenda. */
+.mk-portal-card-codprov,
+.mk-portal-art-codprov {
+    margin: -.25rem 0 0;
+    font-size: .8rem;
+    color: #616161;
+}
+
+.mk-portal-card-codprov b,
+.mk-portal-art-codprov b {
+    color: var(--mk-tinta-100);
+    font-weight: 600;
+}
+
+.mk-portal-art-codprov {
+    margin: 0 0 .25rem;
 }

@@ -66,14 +66,56 @@ public sealed class FotosService : IFotosCatalogo
         // thumbnail cambia con él → el viejo no se vuelve a pedir y el nuevo se genera desde la foto
         // actual. No depende de comparar fechas (que falla si la IA es más vieja que el thumbnail de
         // disco) ni de borrar la carpeta. Los thumbnails de versiones viejas quedan huérfanos.
-        var ver = VersionSegura(version);
-        var nombre = ver.Length > 0 ? $"{seguro}_{ancho}_{ver}.webp" : $"{seguro}_{ancho}.webp";
-        var destino = Path.Combine(dir, nombre);
+        var destino = Destino(dir, seguro, ancho, version);
         if (File.Exists(destino)) return new FotoResultado(destino, "image/webp");
 
         // Ruta del original desde la tabla. El público sólo puede resolver fotos de artículos publicados;
         // el staff (incluirNoPublicados) también las de los no publicados. Sólo se dispara en cache-miss.
         var rutaOriginal = await _repo.LeerRutaFotoAsync(cod, soloPublicado: !incluirNoPublicados, ct);
+        return Servir(cod, seguro, ancho, dir, destino, rutaOriginal);
+    }
+
+    /// <summary>
+    /// La foto de PRODUCCIÓN de un artículo. Sale de otra tabla que la del catálogo
+    /// (<c>GoogleDriveFotosArticulos</c>) porque lo que un proveedor está fabricando todavía no está en
+    /// <c>dbo.Catalogo</c>: ahí entra recién cuando se publica. Se cachea en su propio subfolder, así una
+    /// foto de producción nunca puede salir por el endpoint público aunque alguien la haya generado.
+    ///
+    /// <b>No valida permisos</b>: el que llama tiene que haber verificado que el artículo le corresponde a
+    /// quien lo pide (el portal lo hace con el código de proveedor del ARTCOD).
+    /// </summary>
+    public async Task<FotoResultado?> ObtenerDeProduccionAsync(string? artCod, int ancho, string? version,
+        CancellationToken ct = default)
+    {
+        var cod = (artCod ?? "").Trim();
+        if (cod.Length == 0 || !Anchos.Contains(ancho)) return null;
+
+        var seguro = RutasFoto.NombreSeguro(cod);
+        if (seguro.Length == 0) return null;
+
+        var dir = Path.Combine(_dirCache, "produccion");
+        var destino = Destino(dir, seguro, ancho, version);
+        if (File.Exists(destino)) return new FotoResultado(destino, "image/webp");
+
+        var rutaOriginal = await _repo.LeerRutaFotoProduccionAsync(cod, ct);
+        return Servir(cod, seguro, ancho, dir, destino, rutaOriginal);
+    }
+
+    /// <summary>Nombre del archivo cacheado. La versión (token <c>?v=</c>) va DENTRO del nombre: es la clave
+    /// del arreglo de fotos cambiadas — cuando la foto de origen cambia (p. ej. disco→IA), el token cambia y
+    /// el nombre del thumbnail cambia con él, así el viejo no se vuelve a pedir y el nuevo se genera desde la
+    /// foto actual. No depende de comparar fechas (que falla si la IA es más vieja que el thumbnail de disco)
+    /// ni de borrar la carpeta. Los thumbnails de versiones viejas quedan huérfanos.</summary>
+    private static string Destino(string dir, string seguro, int ancho, string? version)
+    {
+        var ver = VersionSegura(version);
+        return Path.Combine(dir, ver.Length > 0 ? $"{seguro}_{ancho}_{ver}.webp" : $"{seguro}_{ancho}.webp");
+    }
+
+    /// <summary>Genera (y cachea) el thumbnail a partir del original. Compartido por las dos fuentes de
+    /// foto: lo único que cambia entre ellas es de qué tabla salió la ruta y en qué carpeta se cachea.</summary>
+    private FotoResultado? Servir(string cod, string seguro, int ancho, string dir, string destino, string? rutaOriginal)
+    {
         if (rutaOriginal is null) return null;
 
         var origen = RutasFoto.Resolver(rutaOriginal, _dirOriginalesOverride);

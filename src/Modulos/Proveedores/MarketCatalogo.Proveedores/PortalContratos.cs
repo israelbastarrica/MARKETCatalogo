@@ -1,14 +1,21 @@
 namespace MarketCatalogo.Proveedores.Contratos;
 
-/// <summary>Un renglón de una OP, con su estado de etiquetas.</summary>
+/// <summary>Un renglón de una OP, con su estado de etiquetas.
+/// <para><b>CodigoProveedor</b> es el código con el que el PROVEEDOR llama a esa prenda (el nuestro es el
+/// ARTCOD). Lo pedimos porque el del taller busca por el suyo: mostrarle sólo el nuestro lo obliga a
+/// traducir. Puede venir vacío si nadie lo cargó.</para></summary>
 public sealed record PortalRenglon(
     int IdRenglon, string ArtCod, string? Descripcion, decimal? CantidadPedida,
     int EtiquetasImpresas, int EtiquetasImpresasPortal,
-    int? EtiquetasEnviadas, DateTime? FechaEnvioEtiquetas);
+    int? EtiquetasEnviadas, DateTime? FechaEnvioEtiquetas, string? CodigoProveedor = null);
 
-/// <summary>Una OP vigente del proveedor.</summary>
+/// <summary>Una OP vigente del proveedor.
+/// <para><b>CantidadCurva</b> es cuánto hay para imprimir en esa OP (la curva color/talle, que sale de los
+/// packs o de la precompra). No se puede deducir del renglón: en las OP nacionales la cantidad del renglón
+/// viene en cero y la real vive sólo en la curva. null = MarketWeb todavía no lo manda.</para></summary>
 public sealed record PortalOrden(
-    int NroOrden, DateTime? FechaOrden, string? Estado, string? Tipo, IReadOnlyList<PortalRenglon> Renglones);
+    int NroOrden, DateTime? FechaOrden, string? Estado, string? Tipo, IReadOnlyList<PortalRenglon> Renglones,
+    int? CantidadCurva = null);
 
 /// <summary>Las órdenes del proveedor. <paramref name="Disponible"/> separa dos casos que a la vista son
 /// iguales y no lo son: NO TENER órdenes, y no haber podido preguntárselo a MarketWeb (servicio caído o
@@ -25,7 +32,8 @@ public sealed record PortalCombinacion(string CodColor, string Color, string Tal
     public int Disponible => Math.Max(0, Pedido - ImpresoPortal);
 }
 
-public sealed record PortalArticulo(string ArtCod, string? Descripcion, IReadOnlyList<PortalCombinacion> Combinaciones)
+public sealed record PortalArticulo(string ArtCod, string? Descripcion, IReadOnlyList<PortalCombinacion> Combinaciones,
+    string? CodigoProveedor = null)
 {
     public int Pedido => Combinaciones.Sum(c => c.Pedido);
     public int ImpresoPortal => Combinaciones.Sum(c => c.ImpresoPortal);
@@ -48,6 +56,11 @@ public sealed record PortalImpresora(string Clave, string Etiqueta, string Lengu
 /// cliente: lo resuelve el servicio desde el claim de la identidad.</summary>
 public interface IPortalProveedores
 {
+    /// <summary>De esos artículos, cuáles tienen foto de producción. Se consulta en lote (una sola ida a
+    /// la base por pantalla) para poder dibujar un recuadro "sin foto" en vez de dejar que el navegador
+    /// muestre una imagen rota: el portal es SSR, así que esto se resuelve antes de pintar.</summary>
+    Task<IReadOnlySet<string>> ConFotoAsync(IReadOnlyCollection<string> artCods, CancellationToken ct = default);
+
     Task<PortalListaOrdenes> OrdenesAsync(string codProveedor, CancellationToken ct = default);
     Task<PortalCurva?> CurvaAsync(string codProveedor, int nroOrden, CancellationToken ct = default);
     Task<PortalImpresionResultado> ImprimirAsync(string codProveedor, string usuario, int nroOrden,

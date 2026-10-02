@@ -468,6 +468,23 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
         return string.IsNullOrWhiteSpace(ruta) ? null : ruta;
     }
 
+    /// <summary>La foto de producción: la tabla que llena el sincronizador de fotos desde Drive. Se prefiere
+    /// la copia en disco (LinkDriveDisco); si esa fila no la tiene, la de la IA. Un artículo puede tener
+    /// varias filas históricas, así que se toma la última viva.</summary>
+    public async Task<string?> LeerRutaFotoProduccionAsync(string codigo, CancellationToken ct = default)
+    {
+        const string sql = """
+            SELECT TOP 1 COALESCE(NULLIF(RTRIM(LinkDriveDisco), ''), NULLIF(RTRIM(LinkIADisco), ''))
+            FROM MARKET.dbo.GoogleDriveFotosArticulos WITH (NOLOCK)
+            WHERE RTRIM(Codigo) = @codigo AND ISNULL(Eliminado, 0) = 0
+              AND COALESCE(NULLIF(RTRIM(LinkDriveDisco), ''), NULLIF(RTRIM(LinkIADisco), '')) IS NOT NULL
+            ORDER BY ID DESC;
+            """;
+        using var cn = _db.CrearMarket();
+        var ruta = await cn.ExecuteScalarAsync<string?>(new CommandDefinition(sql, new { codigo }, commandTimeout: 30, cancellationToken: ct));
+        return string.IsNullOrWhiteSpace(ruta) ? null : ruta;
+    }
+
     // Stock + tránsito de un artículo en UNA réplica: última foto de COMB por (color,talle) —ROW_NUMBER
     // por FALTAFW/HALTAFW, igual que MARKETweb— y suma. La misma query corre contra cada base (Luro/
     // Peralta/Central); lo único que cambia es la conexión.

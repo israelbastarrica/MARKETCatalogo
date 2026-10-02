@@ -78,6 +78,13 @@ public interface ICatalogoRepositorio
     /// corresponde servirla.</summary>
     Task<string?> LeerRutaFotoAsync(string codigo, bool soloPublicado, CancellationToken ct = default);
 
+    /// <summary>MARKET: la ruta en disco de la foto de PRODUCCIÓN de un artículo, leída de
+    /// <c>GoogleDriveFotosArticulos</c>. Es otra fuente que <see cref="LeerRutaFotoAsync"/> a propósito:
+    /// los artículos que un proveedor está fabricando todavía no existen en <c>dbo.Catalogo</c> (entran
+    /// recién cuando se publican), así que por ahí su foto no se puede resolver. Quien la pida tiene que
+    /// haber verificado antes que el artículo le corresponde: acá no hay chequeo de permiso.</summary>
+    Task<string?> LeerRutaFotoProduccionAsync(string codigo, CancellationToken ct = default);
+
     /// <summary>Datos de gestión de la ficha: stock por origen (Luro/Peralta/central-depósito) + ventas
     /// realizadas de los últimos <paramref name="dias"/> días con margen REALIZADO (facturado − costo
     /// histórico). Usa UNA conexión por réplica (pico de 3, no 6): cada tienda resuelve SU stock (COMB) y

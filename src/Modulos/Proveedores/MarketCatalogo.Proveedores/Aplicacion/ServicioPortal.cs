@@ -30,11 +30,19 @@ public sealed class ServicioPortal : IPortalProveedores
         if (string.IsNullOrWhiteSpace(codProveedor)) return new(true, []);
         var crudas = await _api.OrdenesAsync(codProveedor.Trim(), ct);
         if (crudas is null) return new(false, []);   // no pudimos preguntar; no es que no tenga órdenes
-        var ordenes = crudas.Select(o => new PortalOrden(
+        var ordenes = crudas
+            // Fuera las que no tienen NADA para imprimir: en el taller esa lista era casi toda ruido
+            // (órdenes recién abiertas, sin curva todavía). Si MarketWeb no manda el dato (versión vieja),
+            // CantidadCurva viene null y no se filtra nada — mejor mostrar de más que esconder una orden
+            // real por un campo que no llegó.
+            .Where(o => o.CantidadCurva is null || o.CantidadCurva > 0)
+            .Select(o => new PortalOrden(
             o.NroOrden, o.FechaOrden, o.Estado, o.Tipo,
             (o.Renglones ?? []).Select(r => new PortalRenglon(
                 r.IdRenglon, (r.ArtCod ?? "").Trim(), r.Descripcion, r.CantidadPedida,
-                r.EtiquetasImpresas, r.EtiquetasImpresasPortal, r.EtiquetasEnviadas, r.FechaEnvioEtiquetas)).ToList()
+                r.EtiquetasImpresas, r.EtiquetasImpresasPortal, r.EtiquetasEnviadas, r.FechaEnvioEtiquetas,
+                Limpio(r.CodigoProveedor))).ToList(),
+            o.CantidadCurva
         )).ToList();
         return new(true, ordenes);
     }
@@ -59,11 +67,17 @@ public sealed class ServicioPortal : IPortalProveedores
                 yaImpreso.TryGetValue(Clave(art, color, talle), out var hechas);
                 return new PortalCombinacion(color, (d.Color ?? "").Trim(), talle, d.Cantidad, hechas);
             }).ToList();
-            return new PortalArticulo(art, a.Descripcion, combos);
+            return new PortalArticulo(art, a.Descripcion, combos, Limpio(a.CodigoProveedor));
         }).ToList();
 
         return new PortalCurva(curva.NroOrden, curva.PorPack, articulos);
     }
+
+    // Vacío y null son lo mismo acá: el campo se carga a mano y a veces queda en blanco.
+    private static string? Limpio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    public Task<IReadOnlySet<string>> ConFotoAsync(IReadOnlyCollection<string> artCods, CancellationToken ct = default)
+        => _repo.ConFotoAsync(artCods, ct);
 
     // Clave de combinación: sin distinguir mayúsculas y con trim. El talle viaja tal cual la fuente y el
     // color con dos dígitos, pero un espacio de más no puede dejar el tope sin descontar.

@@ -28,11 +28,16 @@ public sealed class ClienteMarketWeb
     }
 
     // ---- Respuestas crudas de MarketWeb (camelCase; los null NO vienen en el JSON) ----
+    // CodigoProveedor: el código del proveedor para esa prenda. Si MarketWeb todavía no lo manda, queda
+    // null y la pantalla simplemente no lo muestra — no hace falta deployar los dos a la vez.
     public sealed record RenglonDto(int IdRenglon, string? ArtCod, string? Descripcion, decimal? CantidadPedida,
-        int EtiquetasImpresas, int EtiquetasImpresasPortal, int? EtiquetasEnviadas, DateTime? FechaEnvioEtiquetas);
-    public sealed record OrdenDto(int NroOrden, DateTime? FechaOrden, string? Estado, string? Tipo, List<RenglonDto>? Renglones);
+        int EtiquetasImpresas, int EtiquetasImpresasPortal, int? EtiquetasEnviadas, DateTime? FechaEnvioEtiquetas,
+        string? CodigoProveedor);
+    public sealed record OrdenDto(int NroOrden, DateTime? FechaOrden, string? Estado, string? Tipo,
+        List<RenglonDto>? Renglones, int? CantidadCurva);
     public sealed record DetalleDto(string? CodColor, string? Color, string? Talle, int Cantidad);
-    public sealed record ArticuloDto(string? ArtCod, string? Descripcion, int Cantidad, List<DetalleDto>? Detalle);
+    public sealed record ArticuloDto(string? ArtCod, string? Descripcion, int Cantidad, List<DetalleDto>? Detalle,
+        string? CodigoProveedor);
     public sealed record CurvaDto(int NroOrden, bool PorPack, List<ArticuloDto>? Articulos);
     public sealed record EtiquetasDto(string? Lenguaje, int Dpi, int Etiquetas, string? Zpl);
 

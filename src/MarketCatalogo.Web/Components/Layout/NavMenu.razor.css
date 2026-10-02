@@ -257,3 +257,15 @@
 
     .mk-mega { display: none; }
 }
+
+
+/* Rótulo del PORTAL DE PROVEEDORES: ocupa el lugar del mega-menú, que ahí no va. Se diferencia con el
+   peso (la paleta no tiene color de acento) y no se subraya al pasar: es dónde estás, no una opción más. */
+.mk-nav .mk-nav-portal {
+    font-weight: 600;
+    color: var(--mk-tinta-100);
+}
+
+.mk-nav .mk-nav-portal:hover {
+    border-bottom-color: transparent;
+}

@@ -12,9 +12,19 @@
    rubros: Accesorios, Lencería, Calzado…) y linkean a la grilla interna /interno.
 
    DESKTOP: mega-menú por GÉNEROS (Mujer, Hombre, Niños…); al pasar el mouse se despliegan los TIPOS.
-   CELULAR: los géneros se ocultan (van al drawer de filtros); queda el link "Catálogo" como entrada. *@
+   CELULAR: los géneros se ocultan (van al drawer de filtros); queda el link "Catálogo" como entrada.
+
+   PROVEEDOR: nada de todo esto. Entró a hacer una cosa (imprimir etiquetas de sus órdenes) y el menú de
+   la tienda no lo ayuda; en su lugar el header dice dónde está. *@
 
 <nav class="mk-nav">
+
+    @if (_proveedor)
+    {
+        <a class="mk-nav-link mk-nav-portal" href="/proveedor">Portal proveedores</a>
+    }
+    else
+    {
 
     <NavLink class="mk-nav-link mk-nav-catalogo" href="@(_interno ? "interno" : "catalogo")" Match="NavLinkMatch.All">Catálogo</NavLink>
 
@@ -67,6 +77,8 @@
         <NavLink class="mk-nav-link" href="noticias">Noticias</NavLink>
     }
 
+    }
+
 </nav>
 
 @code {
@@ -74,14 +86,21 @@
 
     private IReadOnlyList<SeccionNav> _secciones = [];
     private bool _interno;
+    private bool _proveedor;
 
     protected override async Task OnInitializedAsync()
     {
         // ¿Staff logueado y aprobado? Entonces todo el header apunta al catálogo interno.
         if (AuthState is not null)
         {
-            _interno = PoliticasAuth.EsStaffAprobado((await AuthState).User);
+            var usuario = (await AuthState).User;
+            _interno = PoliticasAuth.EsStaffAprobado(usuario);
+            _proveedor = usuario.HasClaim(PoliticasAuth.ClaimEstado, PoliticasAuth.EstadoOk)
+                         && PoliticasAuth.EsProveedor(usuario);
         }
+
+        // El proveedor no ve el mega-menú, así que tampoco hace falta ir a buscar los géneros.
+        if (_proveedor) return;
 
         try
         {

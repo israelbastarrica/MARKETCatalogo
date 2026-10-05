@@ -126,23 +126,66 @@ public sealed class ServicioPortal : IPortalProveedores
         }
         if (problemas.Count > 0) return new(false, string.Join(" ", problemas), 0, null);
 
-        var (datos, error) = await _api.EtiquetasAsync(new
+        // MarketWeb acepta hasta 3000 etiquetas por pedido: es protección del server (cada etiqueta lleva el
+        // gráfico inline y un ZPL gigante lo traba), no un límite para el proveedor. Así que si pide más, se
+        // parte en tandas, se piden de a una y se juntan en UN archivo: él nunca se entera del corte.
+        var zpl = new System.Text.StringBuilder();
+        var etiquetas = 0;
+        foreach (var tanda in Tandas(pedidos, MaxPorPedidoMarketWeb))
         {
-            prov,
-            nroOrden,
-            lenguaje = impresora.Lenguaje,
-            dpi = impresora.Dpi,
-            usuario,
-            items = pedidos.Select(p => new { artCod = p.ArtCod, codColor = p.CodColor, talle = p.Talle, cantidad = p.Cantidad })
-        }, ct);
+            var (datos, error) = await _api.EtiquetasAsync(new
+            {
+                prov,
+                nroOrden,
+                lenguaje = impresora.Lenguaje,
+                dpi = impresora.Dpi,
+                usuario,
+                items = tanda.Select(p => new { artCod = p.ArtCod, codColor = p.CodColor, talle = p.Talle, cantidad = p.Cantidad })
+            }, ct);
 
-        if (datos is null || string.IsNullOrEmpty(datos.Zpl))
-            return new(false, error ?? "No se pudo generar la etiqueta.", 0, null);
+            // Si una tanda falla no se entrega un archivo a medias: le faltarían etiquetas sin que lo sepa.
+            // (Las tandas anteriores ya quedaron asentadas en EtiquetasImpresas del lado de MarketWeb; acá no
+            // se registra nada, así que si reintenta, cuenta una sola vez de este lado.)
+            if (datos is null || string.IsNullOrEmpty(datos.Zpl))
+                return new(false, error ?? "No se pudo generar la etiqueta.", 0, null);
+
+            zpl.Append(datos.Zpl);
+            etiquetas += datos.Etiquetas;
+        }
 
         // Recién cuando hay etiquetas de verdad se registra: es lo que después revisamos internamente.
         await _repo.RegistrarAsync(prov, nroOrden, usuario, pedidos, ct);
-        _log.LogInformation("Portal: proveedor {Prov} imprimió {N} etiquetas de la OP {Orden}", prov, datos.Etiquetas, nroOrden);
-        return new(true, null, datos.Etiquetas, datos.Zpl);
+        _log.LogInformation("Portal: proveedor {Prov} imprimió {N} etiquetas de la OP {Orden}", prov, etiquetas, nroOrden);
+        return new(true, null, etiquetas, zpl.ToString());
+    }
+
+    // El tope técnico por pedido de MarketWeb (MaxEtiquetasPorPedido en ProveedorPortalService).
+    private const int MaxPorPedidoMarketWeb = 3000;
+
+    /// <summary>Parte el pedido en tandas de hasta <paramref name="max"/> etiquetas. Un ítem que solo ya pasa
+    /// el máximo se divide entre tandas: lo que importa es el total por llamada, no cuántos ítems lleva.</summary>
+    private static IEnumerable<List<PortalItemPedido>> Tandas(IEnumerable<PortalItemPedido> items, int max)
+    {
+        var tanda = new List<PortalItemPedido>();
+        var enTanda = 0;
+        foreach (var item in items)
+        {
+            var resto = item.Cantidad;
+            while (resto > 0)
+            {
+                var entra = Math.Min(resto, max - enTanda);
+                tanda.Add(item with { Cantidad = entra });
+                enTanda += entra;
+                resto -= entra;
+                if (enTanda == max)
+                {
+                    yield return tanda;
+                    tanda = new List<PortalItemPedido>();
+                    enTanda = 0;
+                }
+            }
+        }
+        if (tanda.Count > 0) yield return tanda;
     }
 
     public Task<PortalImpresora?> ImpresoraAsync(string codProveedor, CancellationToken ct = default)

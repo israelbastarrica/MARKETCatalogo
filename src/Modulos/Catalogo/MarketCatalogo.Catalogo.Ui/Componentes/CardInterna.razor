@@ -82,6 +82,7 @@ else
             <div class="mk-ic-badges">
                 @if (Articulo.EnLuro) { <span class="mk-ic-badge">Luro</span> }
                 @if (Articulo.EnPeralta) { <span class="mk-ic-badge">Peralta</span> }
+                @if (Articulo.EnConstitucion) { <span class="mk-ic-badge">Constitución</span> }
                 @if (Articulo.EnDeposito) { <span class="mk-ic-badge mk-ic-badge-depo">Depósito</span> }
             </div>
 
@@ -153,12 +154,13 @@ else
     private string Url => $"/interno/producto/{Articulo.Codigo}{Contexto}";
 
     // Locales donde está armado, igual que el público (ArticuloDto.Locales): MAYÚSCULAS, sólo tiendas
-    // (Luro/Peralta), sin depósito. Para la card reducida.
+    // (Luro/Peralta/Constitución), sin depósito. Para la card reducida.
     private IReadOnlyList<string> Locales()
     {
-        var l = new List<string>(2);
+        var l = new List<string>(3);
         if (Articulo.EnLuro) l.Add("LURO");
         if (Articulo.EnPeralta) l.Add("PERALTA");
+        if (Articulo.EnConstitucion) l.Add("CONSTITUCIÓN");
         return l;
     }
 

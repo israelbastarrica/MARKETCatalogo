@@ -175,9 +175,10 @@ public sealed class LectorCatalogo
         decimal? precioUnidadCombo = (f.ComboCantidad is int cc && cc > 0 && f.ComboTotal is int ct)
             ? (decimal)ct / cc : null;
 
-        var locales = new List<string>(2);
+        var locales = new List<string>(3);
         if (f.EnLuro) locales.Add("LURO");
         if (f.EnPeralta) locales.Add("PERALTA");
+        if (f.EnConstitucion) locales.Add("CONSTITUCIÓN");
 
         return new ArticuloDto
         {

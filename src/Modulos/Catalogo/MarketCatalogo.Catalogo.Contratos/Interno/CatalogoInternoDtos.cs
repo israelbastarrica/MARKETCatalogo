@@ -27,7 +27,8 @@ public sealed class ArticuloInternoDto
     public bool EnLuro { get; init; }
     public bool EnPeralta { get; init; }
     public bool EnDeposito { get; init; }
-    public bool EnAlgunLocal => EnLuro || EnPeralta;
+    public bool EnConstitucion { get; init; }
+    public bool EnAlgunLocal => EnLuro || EnPeralta || EnConstitucion;
 
     /// <summary>Se está mostrando en el catálogo PÚBLICO. El staff lo ve para saber qué ve el cliente.</summary>
     public bool Publicado { get; init; }
@@ -176,6 +177,11 @@ public sealed class PaginaInternaDto
     public required int EnDeposito { get; init; }
     public required int SoloDeposito { get; init; }
     public required int Publicados { get; init; }
+
+    /// <summary>Cuántos artículos están mapeados en Constitución. Mientras sea 0 (el local abre el 13/10/2026
+    /// y todavía no se mapeó el salón) la opción no se ofrece en el filtro: aparece sola cuando empiezan a
+    /// mapear, sin otro deploy.</summary>
+    public int EnConstitucion { get; init; }
 
     /// <summary>Cuándo se reconstruyó la base por última vez (reloj en memoria del store). null = todavía
     /// no se armó en esta instancia. Para el "datos de hace X min".</summary>

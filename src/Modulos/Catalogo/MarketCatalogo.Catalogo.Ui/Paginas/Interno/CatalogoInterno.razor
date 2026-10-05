@@ -127,9 +127,10 @@
                         @* Combo: dropdown de dos niveles, igual que el público. *@
                         <ComboDropdownInterno Opciones="_pagina.Combos" Filtros="_filtros" />
 
-                        @* Ubicación: multi-selección simple — Luro, Peralta, Depósito (OR en el backend:
-                           marcar varios trae lo que esté en cualquiera de ellos). Cada uno alterna su valor
-                           en "ubic"; sin ninguno = todas las ubicaciones. *@
+                        @* Ubicación: multi-selección simple — Luro, Peralta, Constitución, Depósito (OR en el
+                           backend: marcar varios trae lo que esté en cualquiera de ellos). Cada uno alterna su
+                           valor en "ubic"; sin ninguno = todas las ubicaciones. Constitución aparece recién
+                           cuando tiene algo mapeado (abre el 13/10/2026): ofrecerla antes da un filtro vacío. *@
                         <div class="mk-combo-dropdown">
                             <input type="checkbox" id="mk-depo-toggle" class="mk-combo-toggle-check" />
                             <label for="mk-depo-toggle" class="mk-combo-dropdown-boton">
@@ -139,7 +140,7 @@
                             <label for="mk-depo-toggle" class="mk-combo-dropdown-backdrop" aria-hidden="true"></label>
                             <div class="mk-combo-dropdown-panel">
                                 <ul class="mk-faceta-combo-detalles">
-                                    @foreach (var (val, et) in new[] { ("luro", "Luro"), ("peralta", "Peralta"), ("deposito", "Depósito") })
+                                    @foreach (var (val, et) in OpcionesUbicacion())
                                     {
                                         var activa = UrlInterno.CsvContiene(_filtros.Ubicaciones, val);
                                         <li>
@@ -294,6 +295,17 @@
 @code {
     [SupplyParameterFromQuery(Name = "ubic")] public string? Ubic { get; set; }
     [SupplyParameterFromQuery(Name = "cruce")] public string? Cruce { get; set; }
+
+    // Las opciones del filtro de ubicación. Constitución se ofrece cuando tiene algo mapeado, o si ya
+    // vino elegida en la URL (para poder destildarla).
+    private IEnumerable<(string Valor, string Etiqueta)> OpcionesUbicacion()
+    {
+        yield return ("luro", "Luro");
+        yield return ("peralta", "Peralta");
+        if ((_pagina?.EnConstitucion ?? 0) > 0 || UrlInterno.CsvContiene(_filtros.Ubicaciones, "constitucion"))
+            yield return ("constitucion", "Constitución");
+        yield return ("deposito", "Depósito");
+    }
     [SupplyParameterFromQuery(Name = "gen")] public string? Gen { get; set; }
     [SupplyParameterFromQuery(Name = "rubro")] public string? Rubro { get; set; }
     [SupplyParameterFromQuery(Name = "prenda")] public string? Prenda { get; set; }

@@ -72,6 +72,7 @@ else if (_completo)
                     <div class="mk-if-badges">
                         @if (_a.EnLuro) { <span class="mk-if-badge">Luro</span> }
                         @if (_a.EnPeralta) { <span class="mk-if-badge">Peralta</span> }
+                        @if (_a.EnConstitucion) { <span class="mk-if-badge">Constitución</span> }
                         @if (_a.EnDeposito) { <span class="mk-if-badge mk-if-badge-inverso">Depósito</span> }
                     </div>
                 </div>
@@ -492,6 +493,7 @@ else
                     <div class="mk-if-badges">
                         @if (_a.EnLuro) { <span class="mk-if-badge">Luro</span> }
                         @if (_a.EnPeralta) { <span class="mk-if-badge">Peralta</span> }
+                        @if (_a.EnConstitucion) { <span class="mk-if-badge">Constitución</span> }
                         @if (_a.EnDeposito) { <span class="mk-if-badge mk-if-badge-inverso">Depósito</span> }
                     </div>
                 </div>
@@ -567,8 +569,9 @@ else
                     <div class="mk-if-chips">
                         @if (_a.EnLuro) { <span class="mk-if-chip">Luro</span> }
                         @if (_a.EnPeralta) { <span class="mk-if-chip">Peralta</span> }
+                        @if (_a.EnConstitucion) { <span class="mk-if-chip">Constitución</span> }
                         @if (_a.EnDeposito) { <span class="mk-if-chip">Depósito</span> }
-                        @if (!_a.EnLuro && !_a.EnPeralta && !_a.EnDeposito)
+                        @if (!_a.EnAlgunLocal && !_a.EnDeposito)
                         {
                             <span class="mk-if-chip">Sin stock mapeado</span>
                         }

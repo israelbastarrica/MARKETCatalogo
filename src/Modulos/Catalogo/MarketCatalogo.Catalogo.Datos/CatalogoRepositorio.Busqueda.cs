@@ -103,6 +103,9 @@ public sealed partial class CatalogoRepositorio
             FROM dbo.Catalogo c WHERE {W("local")}
             UNION ALL
             SELECT Valor = 'peralta', Etiqueta = 'PERALTA', Cantidad = SUM(CASE WHEN c.EnPeralta = 1 THEN 1 ELSE 0 END)
+            FROM dbo.Catalogo c WHERE {W("local")}
+            UNION ALL
+            SELECT Valor = 'constitucion', Etiqueta = N'CONSTITUCIÓN', Cantidad = SUM(CASE WHEN c.EnConstitucion = 1 THEN 1 ELSE 0 END)
             FROM dbo.Catalogo c WHERE {W("local")};
 
             SELECT Cantidad = c.ComboCantidad, Total = c.ComboTotal, Conteo = COUNT(*)
@@ -140,18 +143,23 @@ public sealed partial class CatalogoRepositorio
             var ors = new List<string>();
             if (q.Ubicaciones.Contains("luro", StringComparer.OrdinalIgnoreCase)) ors.Add("c.EnLuro = 1");
             if (q.Ubicaciones.Contains("peralta", StringComparer.OrdinalIgnoreCase)) ors.Add("c.EnPeralta = 1");
+            if (q.Ubicaciones.Contains("constitucion", StringComparer.OrdinalIgnoreCase)) ors.Add("c.EnConstitucion = 1");
             if (q.Ubicaciones.Contains("deposito", StringComparer.OrdinalIgnoreCase)) ors.Add("c.EnDeposito = 1");
             if (ors.Count > 0) preds.Add(("ubic", "(" + string.Join(" OR ", ors) + ")"));
         }
         var cruce = q.CruceDepoLocal switch
         {
             "deposito" => "c.EnDeposito = 1",
-            "solo-deposito" => "c.EnDeposito = 1 AND c.EnLuro = 0 AND c.EnPeralta = 0",
+            "solo-deposito" => "c.EnDeposito = 1 AND c.EnLuro = 0 AND c.EnPeralta = 0 AND c.EnConstitucion = 0",
             "deposito-luro" => "c.EnDeposito = 1 AND c.EnLuro = 1",
             "deposito-peralta" => "c.EnDeposito = 1 AND c.EnPeralta = 1",
-            // "todos-locales" es AND (está en los dos), a diferencia de "en-local", que es OR (en alguno).
-            "todos-locales" => "c.EnLuro = 1 AND c.EnPeralta = 1",
-            "en-local" => "(c.EnLuro = 1 OR c.EnPeralta = 1)",
+            "deposito-constitucion" => "c.EnDeposito = 1 AND c.EnConstitucion = 1",
+            // "todos-locales" es AND (está en todos), a diferencia de "en-local", que es OR (en alguno). Cuenta
+            // sólo los locales que YA tienen algo mapeado: mientras Constitución no tenga mapeo, exigirla
+            // dejaría este filtro siempre vacío.
+            "todos-locales" => "c.EnLuro = 1 AND c.EnPeralta = 1 AND (c.EnConstitucion = 1 OR NOT EXISTS "
+                             + "(SELECT 1 FROM dbo.Catalogo x WHERE x.EnConstitucion = 1 AND x.Eliminado = 0))",
+            "en-local" => "(c.EnLuro = 1 OR c.EnPeralta = 1 OR c.EnConstitucion = 1)",
             _ => null,
         };
         if (cruce is not null) preds.Add(("cruce", cruce));
@@ -218,8 +226,9 @@ public sealed partial class CatalogoRepositorio
 
             SELECT TotalUniverso = COUNT(*),
                    EnDeposito   = SUM(CASE WHEN c.EnDeposito = 1 THEN 1 ELSE 0 END),
-                   SoloDeposito = SUM(CASE WHEN c.EnDeposito = 1 AND c.EnLuro = 0 AND c.EnPeralta = 0 THEN 1 ELSE 0 END),
-                   Publicados   = SUM(CASE WHEN c.Publicado = 1 THEN 1 ELSE 0 END)
+                   SoloDeposito = SUM(CASE WHEN c.EnDeposito = 1 AND c.EnLuro = 0 AND c.EnPeralta = 0 AND c.EnConstitucion = 0 THEN 1 ELSE 0 END),
+                   Publicados   = SUM(CASE WHEN c.Publicado = 1 THEN 1 ELSE 0 END),
+                   EnConstitucion = SUM(CASE WHEN c.EnConstitucion = 1 THEN 1 ELSE 0 END)
             FROM dbo.Catalogo c WHERE c.Eliminado = 0;
 
             SELECT Valor = c.Genero, Etiqueta = c.Genero, Cantidad = COUNT(*)
@@ -269,7 +278,7 @@ public sealed partial class CatalogoRepositorio
         var anios2 = (await multi.ReadAsync<FacetaConteo>()).ToList();
         var combos = (await multi.ReadAsync<ComboConteo>()).ToList();
         return new PaginaInternaCruda(items, total, univ.TotalUniverso, univ.EnDeposito, univ.SoloDeposito,
-            univ.Publicados, generos, rubros, prendas, proveedores, marcas, temporadas, anios2, combos);
+            univ.Publicados, univ.EnConstitucion, generos, rubros, prendas, proveedores, marcas, temporadas, anios2, combos);
     }
 
     /// <inheritdoc/>
@@ -318,15 +327,16 @@ public sealed partial class CatalogoRepositorio
     private sealed record VecinoRow(string Codigo, string? Descripcion, long Fila);
 
     // Fila de los totales del universo interno (una sola fila).
-    private sealed record UniversoRow(int TotalUniverso, int EnDeposito, int SoloDeposito, int Publicados);
+    private sealed record UniversoRow(int TotalUniverso, int EnDeposito, int SoloDeposito, int Publicados, int EnConstitucion);
 
-    // Filtro de locales del público: OR de los bits según los slugs elegidos (luro/peralta).
+    // Filtro de locales del público: OR de los bits según los slugs elegidos (luro/peralta/constitucion).
     private static void AgregarLocales(IReadOnlyList<string> locales, List<(string, string)> preds)
     {
         if (locales.Count == 0) return;
         var ors = new List<string>();
         if (locales.Contains("luro", StringComparer.OrdinalIgnoreCase)) ors.Add("c.EnLuro = 1");
         if (locales.Contains("peralta", StringComparer.OrdinalIgnoreCase)) ors.Add("c.EnPeralta = 1");
+        if (locales.Contains("constitucion", StringComparer.OrdinalIgnoreCase)) ors.Add("c.EnConstitucion = 1");
         if (ors.Count > 0) preds.Add(("local", "(" + string.Join(" OR ", ors) + ")"));
     }
 

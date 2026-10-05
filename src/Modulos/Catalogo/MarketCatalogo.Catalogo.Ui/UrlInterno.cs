@@ -127,6 +127,7 @@ public static class UrlInterno
         if (f.CruceDepoLocal == "solo-deposito") yield return ("En depósito y ningún local", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "deposito-luro") yield return ("En depósito y Luro", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "deposito-peralta") yield return ("En depósito y Peralta", Set(f, "cruce", null));
+        if (f.CruceDepoLocal == "deposito-constitucion") yield return ("En depósito y Constitución", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "todos-locales") yield return ("En todos los locales", Set(f, "cruce", null));
         if (f.CruceDepoLocal == "en-local") yield return ("En algún local", Set(f, "cruce", null));
         if (f.Publicado == true) yield return ("Se ve en el público", Set(f, "pub", null));
@@ -146,6 +147,7 @@ public static class UrlInterno
     {
         "luro" => "Luro",
         "peralta" => "Peralta",
+        "constitucion" => "Constitución",
         "deposito" => "Depósito",
         _ => v,
     };

@@ -105,10 +105,26 @@ public sealed class CatalogoStore
 
         // Cuenta la base publicable (antes de aplicar el ocultar-manual, que el MERGE combina en la tabla).
         var publicables = filas.Count(f => f.PublicadoBase);
-        var soloDepo = filas.Count(f => f.EnDeposito && !f.EnLuro && !f.EnPeralta);
+        var soloDepo = filas.Count(f => f.EnDeposito && !f.EnLuro && !f.EnPeralta && !f.EnConstitucion);
         _log.LogInformation(
             "Base del catálogo reconstruida en {Ms} ms: {Total} artículos ({Publicables} publicables, " +
             "{SoloDepo} sólo-depósito).", reloj.ElapsedMilliseconds, filas.Count, publicables, soloDepo);
+    }
+
+    /// <summary>¿La ubicación es ese local? El nombre sale de MARKET.dbo.Ubicaciones, donde Constitución está
+    /// CON acento ("CONSTITUCIÓN"): en SQL da igual (la instancia es CI_AI), pero acá compara C#, así que se
+    /// sacan los acentos antes. Así también resiste que alguien la renombre sin tilde.</summary>
+    private static bool EsLocal(UbicacionRow u, string canon)
+        => !u.EsDeposito && string.Equals(SinAcentos(u.Local), canon, StringComparison.OrdinalIgnoreCase);
+
+    private static string SinAcentos(string s)
+    {
+        var d = (s ?? "").Trim().Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder(d.Length);
+        foreach (var c in d)
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+                sb.Append(c);
+        return sb.ToString();
     }
 
     /// <summary>Arma las filas BASE cruzando las fuentes en C#. Espeja el cruce de
@@ -163,9 +179,10 @@ public sealed class CatalogoStore
 
             var ubis = porCodigo.GetValueOrDefault(a.ArtCod) ?? new();
             var enDeposito = ubis.Any(u => u.EsDeposito);
-            var enLuro = ubis.Any(u => !u.EsDeposito && u.Local.Equals("LURO", StringComparison.OrdinalIgnoreCase));
-            var enPeralta = ubis.Any(u => !u.EsDeposito && u.Local.Equals("PERALTA", StringComparison.OrdinalIgnoreCase));
-            var enAlgunLocal = enLuro || enPeralta;
+            var enLuro = ubis.Any(u => EsLocal(u, "LURO"));
+            var enPeralta = ubis.Any(u => EsLocal(u, "PERALTA"));
+            var enConstitucion = ubis.Any(u => EsLocal(u, "CONSTITUCION"));
+            var enAlgunLocal = enLuro || enPeralta || enConstitucion;
             // enAlgunLugar: en un local, O en depósito PERO sólo si es novedad de temporada (Prim-Ver
             // 2026/2027, ver NovedadesPolitica). Antes se publicaba únicamente lo que estaba en algún local;
             // ahora una prenda fotografiada que todavía está en depósito (recién llegada, aún sin distribuir)
@@ -285,6 +302,7 @@ public sealed class CatalogoStore
                 EnLuro: enLuro,
                 EnPeralta: enPeralta,
                 EnDeposito: enDeposito,
+                EnConstitucion: enConstitucion,
                 Talles: talles,
                 Colores: colores,
                 TieneFoto: tieneFoto,

@@ -196,7 +196,7 @@ public sealed record CatalogoFilaBase(
     string Codigo, bool PublicadoBase, string Slug, string Descripcion,
     string Rubro, string Genero, string Prenda,
     decimal? PrecioVenta, decimal? PrecioCompra, int? ComboCantidad, int? ComboTotal,
-    bool EnLuro, bool EnPeralta, bool EnDeposito,
+    bool EnLuro, bool EnPeralta, bool EnDeposito, bool EnConstitucion,
     IReadOnlyList<TalleBase> Talles, IReadOnlyList<string> Colores,
     bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
     string? Proveedor, string? Temporada, string? Marca, int? Anio,
@@ -261,7 +261,7 @@ public sealed record PaginaPublicaCruda(
 /// no tienen faceta en el interno (son sólo filtros).</summary>
 public sealed record PaginaInternaCruda(
     IReadOnlyList<CatalogoFilaLeida> Items, int Total,
-    int TotalUniverso, int EnDeposito, int SoloDeposito, int Publicados,
+    int TotalUniverso, int EnDeposito, int SoloDeposito, int Publicados, int EnConstitucion,
     IReadOnlyList<FacetaConteo> Generos, IReadOnlyList<FacetaConteo> Rubros,
     IReadOnlyList<FacetaConteo> Prendas, IReadOnlyList<FacetaConteo> Proveedores,
     IReadOnlyList<FacetaConteo> Marcas, IReadOnlyList<FacetaConteo> Temporadas,
@@ -334,7 +334,7 @@ public sealed record CatalogoFilaLeida(
     string Codigo, bool Publicado, string? Slug, string? Descripcion,
     string? Rubro, string? Genero, string? Prenda,
     decimal? PrecioVenta, decimal? PrecioCompra, int? ComboCantidad, int? ComboTotal,
-    bool EnLuro, bool EnPeralta, bool EnDeposito,
+    bool EnLuro, bool EnPeralta, bool EnDeposito, bool EnConstitucion,
     string? TallesCsv, string? ColoresCsv,
     bool TieneFoto, string? FotoPrincipalVersion, string? FotosJson,
     string? Proveedor, string? Temporada, string? Marca, int? Anio, string? TextoBusqueda);

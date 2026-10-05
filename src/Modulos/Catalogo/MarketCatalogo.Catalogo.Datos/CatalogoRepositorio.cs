@@ -291,6 +291,7 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
                 EnLuro               bit           NOT NULL,
                 EnPeralta            bit           NOT NULL,
                 EnDeposito           bit           NOT NULL,
+                EnConstitucion       bit           NOT NULL,
                 TieneFoto            bit           NOT NULL,
                 FotoPrincipalVersion varchar(40)       NULL,
                 FotosJson            nvarchar(max)     NULL,
@@ -331,16 +332,17 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
                 PrecioVenta = S.PrecioVenta, PrecioCompra = S.PrecioCompra,
                 ComboCantidad = S.ComboCantidad, ComboTotal = S.ComboTotal,
                 EnLuro = S.EnLuro, EnPeralta = S.EnPeralta, EnDeposito = S.EnDeposito,
+                EnConstitucion = S.EnConstitucion,
                 TieneFoto = S.TieneFoto, FotoPrincipalVersion = S.FotoPrincipalVersion, FotosJson = S.FotosJson,
                 Proveedor = S.Proveedor, Temporada = S.Temporada, Marca = S.Marca, Anio = S.Anio,
                 TextoBusqueda = S.TextoBusqueda
             WHEN NOT MATCHED BY TARGET THEN INSERT
                 (Codigo, Publicado, Eliminado, Slug, Descripcion, Rubro, Genero, Prenda,
-                 PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito,
+                 PrecioVenta, PrecioCompra, ComboCantidad, ComboTotal, EnLuro, EnPeralta, EnDeposito, EnConstitucion,
                  TieneFoto, FotoPrincipalVersion, FotosJson, Proveedor, Temporada, Marca, Anio, TextoBusqueda)
                 VALUES
                 (S.Codigo, S.PublicadoBase, 0, S.Slug, S.Descripcion, S.Rubro, S.Genero, S.Prenda,
-                 S.PrecioVenta, S.PrecioCompra, S.ComboCantidad, S.ComboTotal, S.EnLuro, S.EnPeralta, S.EnDeposito,
+                 S.PrecioVenta, S.PrecioCompra, S.ComboCantidad, S.ComboTotal, S.EnLuro, S.EnPeralta, S.EnDeposito, S.EnConstitucion,
                  S.TieneFoto, S.FotoPrincipalVersion, S.FotosJson, S.Proveedor, S.Temporada, S.Marca, S.Anio, S.TextoBusqueda)
             WHEN NOT MATCHED BY SOURCE AND T.Eliminado = 0 THEN UPDATE SET Eliminado = 1;
             """;
@@ -424,7 +426,7 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
     // color alfabético) — barato porque sólo corre para las filas seleccionadas.
     private const string ColumnasFila = """
         c.Codigo, c.Publicado, c.Slug, c.Descripcion, c.Rubro, c.Genero, c.Prenda,
-        c.PrecioVenta, c.PrecioCompra, c.ComboCantidad, c.ComboTotal, c.EnLuro, c.EnPeralta, c.EnDeposito,
+        c.PrecioVenta, c.PrecioCompra, c.ComboCantidad, c.ComboTotal, c.EnLuro, c.EnPeralta, c.EnDeposito, c.EnConstitucion,
         TallesCsv = (SELECT STRING_AGG(t.Talle, ',') WITHIN GROUP (ORDER BY t.Orden) FROM dbo.CatalogoTalle t WHERE t.Codigo = c.Codigo),
         ColoresCsv = (SELECT STRING_AGG(cc.Color, ',') WITHIN GROUP (ORDER BY cc.Color) FROM dbo.CatalogoColor cc WHERE cc.Codigo = c.Codigo),
         c.TieneFoto, c.FotoPrincipalVersion, c.FotosJson,
@@ -845,6 +847,7 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
         t.Columns.Add("EnLuro", typeof(bool));
         t.Columns.Add("EnPeralta", typeof(bool));
         t.Columns.Add("EnDeposito", typeof(bool));
+        t.Columns.Add("EnConstitucion", typeof(bool));
         t.Columns.Add("TieneFoto", typeof(bool));
         t.Columns.Add("FotoPrincipalVersion", typeof(string));
         t.Columns.Add("FotosJson", typeof(string));
@@ -860,7 +863,7 @@ public sealed partial class CatalogoRepositorio : ICatalogoRepositorio
                 f.Codigo, f.PublicadoBase, N(f.Slug), N(f.Descripcion),
                 N(f.Rubro), N(f.Genero), N(f.Prenda),
                 N(f.PrecioVenta), N(f.PrecioCompra), N(f.ComboCantidad), N(f.ComboTotal),
-                f.EnLuro, f.EnPeralta, f.EnDeposito,
+                f.EnLuro, f.EnPeralta, f.EnDeposito, f.EnConstitucion,
                 f.TieneFoto, N(f.FotoPrincipalVersion), N(f.FotosJson),
                 N(f.Proveedor), N(f.Temporada), N(f.Marca), N(f.Anio),
                 N(f.TextoBusqueda));

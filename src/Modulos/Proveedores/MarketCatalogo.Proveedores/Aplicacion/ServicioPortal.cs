@@ -6,11 +6,12 @@ namespace MarketCatalogo.Proveedores.Aplicacion;
 
 /// <summary>
 /// La lógica del portal: cruza lo que trae MarketWeb (órdenes y curva) con lo que ese proveedor ya
-/// imprimió, y aplica el TOPE por combinación antes de pedir las etiquetas.
+/// imprimió, y pide las etiquetas.
 ///
-/// El tope se valida DOS veces a propósito: acá, para poder explicarle al proveedor qué se pasó en vez de
-/// mandarlo a un error genérico; y en MarketWeb, que además chequea que la combinación exista en esa OP.
-/// Si alguna vez discrepan, manda el de allá: es el que tiene la curva de verdad.
+/// SIN TOPE (decisión de Israel, 05/10/2026): el proveedor imprime las que le falten, sin límite ni control
+/// a la vista. Lo que imprime se REGISTRA, y eso lo revisamos nosotros internamente. Lo único que se valida
+/// es que la combinación exista en la OP: una etiqueta de un color o talle que la orden no tiene no es un
+/// límite, es una etiqueta que no sirve.
 /// </summary>
 public sealed class ServicioPortal : IPortalProveedores
 {
@@ -107,7 +108,7 @@ public sealed class ServicioPortal : IPortalProveedores
         var impresora = await ImpresoraAsync(prov, ct);
         if (impresora is null) return new(false, "Antes elegí tu impresora.", 0, null);
 
-        // El tope se evalúa contra la curva FRESCA, no contra lo que vino en el formulario.
+        // Las combinaciones se validan contra la curva FRESCA, no contra lo que vino en el formulario.
         var curva = await CurvaAsync(prov, nroOrden, ct);
         if (curva is null) return new(false, "Esa orden ya no está disponible.", 0, null);
 
@@ -121,12 +122,7 @@ public sealed class ServicioPortal : IPortalProveedores
                     string.Equals(c.Talle, p.Talle, StringComparison.OrdinalIgnoreCase));
 
             if (combo is null)
-            {
                 problemas.Add($"{p.ArtCod} {p.CodColor}/{p.Talle}: no está en esta orden.");
-                continue;
-            }
-            if (p.Cantidad > combo.Disponible)
-                problemas.Add($"{p.ArtCod} {combo.Color} talle {p.Talle}: pediste {p.Cantidad} y quedan {combo.Disponible}.");
         }
         if (problemas.Count > 0) return new(false, string.Join(" ", problemas), 0, null);
 
@@ -143,7 +139,7 @@ public sealed class ServicioPortal : IPortalProveedores
         if (datos is null || string.IsNullOrEmpty(datos.Zpl))
             return new(false, error ?? "No se pudo generar la etiqueta.", 0, null);
 
-        // Recién cuando hay etiquetas de verdad se descuenta del tope.
+        // Recién cuando hay etiquetas de verdad se registra: es lo que después revisamos internamente.
         await _repo.RegistrarAsync(prov, nroOrden, usuario, pedidos, ct);
         _log.LogInformation("Portal: proveedor {Prov} imprimió {N} etiquetas de la OP {Orden}", prov, datos.Etiquetas, nroOrden);
         return new(true, null, datos.Etiquetas, datos.Zpl);

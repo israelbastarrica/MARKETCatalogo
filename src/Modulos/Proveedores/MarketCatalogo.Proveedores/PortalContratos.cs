@@ -30,9 +30,9 @@ public sealed record PortalListaOrdenes(bool Disponible, IReadOnlyList<PortalOrd
 /// <summary>Una combinación color/talle de un artículo, con lo pedido y lo que el proveedor ya imprimió.</summary>
 public sealed record PortalCombinacion(string CodColor, string Color, string Talle, int Pedido, int ImpresoPortal)
 {
-    /// <summary>Lo que todavía puede imprimir. El tope es por COMBINACIÓN (decisión de Israel) y descuenta
-    /// SOLO lo impreso por el portal: las etiquetas que se mandaron en papel no restan, porque justamente
-    /// el portal existe para cuando ésas no alcanzaron.</summary>
+    /// <summary>Lo pedido menos lo impreso por el portal. YA NO ES UN TOPE (Israel, 05/10/2026: el proveedor
+    /// imprime sin límite y lo revisamos nosotros); se conserva para el resumen que quedó comentado en la
+    /// pantalla de la orden, por si se vuelve a pedir.</summary>
     public int Disponible => Math.Max(0, Pedido - ImpresoPortal);
 }
 

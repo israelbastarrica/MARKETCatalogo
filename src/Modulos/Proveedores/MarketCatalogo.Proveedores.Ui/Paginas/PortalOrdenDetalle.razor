@@ -26,8 +26,7 @@
         <header class="mk-portal-head">
             <h1>Orden @Nro</h1>
             <p class="mk-portal-sub">
-                Marcá cuántas etiquetas necesitás de cada color y talle. El máximo es lo que falta para
-                completar lo pedido en esta orden.
+                Marcá cuántas etiquetas necesitás de cada color y talle.
             </p>
         </header>
 
@@ -92,33 +91,25 @@
                                             <th>Color</th>
                                             <th>Talle</th>
                                             <th>Pedido</th>
-                                            <th>Impresas</th>
-                                            <th>Quedan</th>
                                             <th>Imprimir</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach (var c in art.Combinaciones)
                                         {
-                                            <tr class="@(c.Disponible == 0 ? "mk-portal-sin" : null)">
+                                            <tr>
                                                 <td>@(string.IsNullOrEmpty(c.Color) ? c.CodColor : c.Color)</td>
                                                 <td>@c.Talle</td>
                                                 <td>@c.Pedido.ToString("N0")</td>
-                                                <td>@c.ImpresoPortal.ToString("N0")</td>
-                                                <td><b>@c.Disponible.ToString("N0")</b></td>
+                                                @* Sin "Impresas" ni "Quedan" y sin máximo (Israel, 05/10/2026):
+                                                   el proveedor imprime las que le falten, sin límite. Lo que
+                                                   imprime se registra y lo revisamos nosotros. *@
                                                 <td>
-                                                    @if (c.Disponible > 0)
-                                                    {
-                                                        @* El nombre del campo lleva la combinación: el servidor no confía en
-                                                           él para los topes, lo vuelve a validar contra la curva. *@
-                                                        <input type="number" min="0" max="@c.Disponible" step="1"
-                                                               name="@($"i:{art.ArtCod}|{c.CodColor}|{c.Talle}")"
-                                                               placeholder="0" inputmode="numeric" />
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="mk-portal-nada">—</span>
-                                                    }
+                                                    @* El nombre del campo lleva la combinación: el servidor no
+                                                       confía en él, la vuelve a buscar en la curva de la OP. *@
+                                                    <input type="number" min="0" step="1"
+                                                           name="@($"i:{art.ArtCod}|{c.CodColor}|{c.Talle}")"
+                                                           placeholder="0" inputmode="numeric" />
                                                 </td>
                                             </tr>
                                         }

@@ -134,15 +134,6 @@
     background: var(--mk-fondo-sutil);
 }
 
-/* Combinación ya cubierta: se apaga, pero se sigue viendo (es información, no un error). */
-.mk-portal-sin td {
-    color: #8a8a8a;
-}
-
-.mk-portal-nada {
-    color: #8a8a8a;
-}
-
 .mk-portal-tabla input[type="number"] {
     width: 5.5rem;
     padding: .4rem .5rem;

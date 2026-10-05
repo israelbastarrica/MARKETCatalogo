@@ -120,14 +120,14 @@
                         }
                     </div>
 
+                    @* Sólo lo que le mandamos. Lo que el proveedor imprime por el portal se REGISTRA pero no
+                       se le muestra (decisión de Israel, 05/10/2026): es un control interno nuestro, y la idea
+                       no es que compare —si le mandamos todo, no debería imprimir nada; esto es para cubrir
+                       una diferencia chica. *@
                     <dl class="mk-portal-fila-datos">
                         <div>
                             <dt>Te mandamos</dt>
                             <dd>@Enviadas(o)</dd>
-                        </div>
-                        <div>
-                            <dt>Imprimiste</dt>
-                            <dd>@o.Renglones.Sum(r => r.EtiquetasImpresasPortal).ToString("N0")</dd>
                         </div>
                     </dl>
 

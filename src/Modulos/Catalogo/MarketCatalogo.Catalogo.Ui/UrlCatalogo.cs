@@ -129,7 +129,7 @@ public static class UrlCatalogo
         foreach (var v in f.Familias) yield return (Lindo(v), Toggle(f, "familia", v));
         foreach (var v in f.Talles)   yield return ($"Talle {v}", Toggle(f, "talle", v));
         foreach (var v in f.Colores)  yield return (Lindo(v), Toggle(f, "color", v));
-        foreach (var v in f.Locales)  yield return (Lindo(v), Toggle(f, "local", v));
+        foreach (var v in f.Locales)  yield return (LindoLocal(v), Toggle(f, "local", v));
         foreach (var v in f.ComboDetalles) yield return (EtiquetaCombo(v), Toggle(f, "combo", v));
         if (f.PrecioMin is not null || f.PrecioMax is not null)
         {
@@ -159,6 +159,10 @@ public static class UrlCatalogo
             return $"{cantidad} x ${total:N0}";
         return $"Combo {valor}";
     }
+
+    // El slug del local va sin tilde (es URL): para mostrarlo, Constitución la recupera.
+    private static string LindoLocal(string slug)
+        => slug.Equals("constitucion", StringComparison.OrdinalIgnoreCase) ? "Constitución" : Lindo(slug);
 
     private static string Lindo(string slug)
     {

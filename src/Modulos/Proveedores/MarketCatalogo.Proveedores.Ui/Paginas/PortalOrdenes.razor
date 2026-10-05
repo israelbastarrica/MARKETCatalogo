@@ -2,10 +2,9 @@
 @attribute [Authorize(Policy = PoliticasAuth.Proveedor)]
 @inject IPortalProveedores Portal
 
-@* Pantalla de entrada del proveedor: sus órdenes vigentes, una CARD POR ARTÍCULO.
-   El proveedor piensa en prendas, no en números de orden: por eso mandan la foto y el código de artículo,
-   y el N° de OP va adentro de la card como un dato más. Una OP con dos artículos da dos cards, las dos
-   apuntando a la misma orden.
+@* Pantalla de entrada del proveedor: sus órdenes vigentes, UNA FILA POR ORDEN a lo ancho, con las fotos
+   chiquitas de sus artículos. La foto grande vive adentro de la orden (una card por artículo): acá se
+   busca la orden, allá se elige qué imprimir.
    El código de proveedor NO se toma de la URL: sale del claim de la identidad. *@
 
 <PageTitle>Mis órdenes - MARKET</PageTitle>
@@ -69,65 +68,70 @@
     }
     else
     {
-        <div class="mk-portal-cards">
-            @foreach (var (orden, art, nro, total) in Articulos(_lista))
+        <div class="mk-portal-filas">
+            @foreach (var o in _lista.Ordenes)
             {
-                <a class="mk-portal-card" href="@($"/proveedor/orden/{orden.NroOrden}")">
+                var arts = o.Renglones;
+                <a class="mk-portal-fila" href="@($"/proveedor/orden/{o.NroOrden}")">
 
-                    <div class="mk-portal-card-foto">
-                        @* Si hay foto se pide al endpoint del portal (sin token de versión: son fotos de
-                           producción y se reemplazan poco); si no, recuadro "sin foto". Saber de antemano
-                           cuáles hay evita que el navegador muestre el ícono de imagen rota en cada card.
-                           loading="lazy" porque una pantalla puede traer decenas. *@
-                        @if (_conFoto.Contains(art.ArtCod))
+                    @* Las fotos que entran, y un "+N" con el resto. Casi todas las OP traen una sola prenda;
+                       la excepción (hay una con 21) no puede estirar la fila. *@
+                    <div class="mk-portal-fila-fotos">
+                        @foreach (var r in arts.Take(MaxMiniaturas))
                         {
-                            <img src="@($"/proveedor/foto/{art.ArtCod}_400.webp")" alt="@art.ArtCod"
-                                 loading="lazy" decoding="async" />
+                            <span class="mk-portal-mini" title="@r.ArtCod">
+                                @if (_conFoto.Contains(r.ArtCod))
+                                {
+                                    <img src="@($"/proveedor/foto/{r.ArtCod}_160.webp")" alt="@r.ArtCod"
+                                         loading="lazy" decoding="async" />
+                                }
+                                else
+                                {
+                                    <span class="mk-portal-sinfoto">Sin foto</span>
+                                }
+                            </span>
+                        }
+                        @if (arts.Count > MaxMiniaturas)
+                        {
+                            <span class="mk-portal-mini mk-portal-mini-mas">+@(arts.Count - MaxMiniaturas)</span>
+                        }
+                    </div>
+
+                    <div class="mk-portal-fila-info">
+                        <p class="mk-portal-fila-orden">
+                            Orden <b>@o.NroOrden</b>
+                            <span class="mk-portal-fila-estado">@o.Estado</span>
+                        </p>
+
+                        @if (arts.Count == 1)
+                        {
+                            var a = arts[0];
+                            <p class="mk-portal-fila-cod">@a.ArtCod</p>
+                            @* El código con el que el proveedor llama a esa prenda: es por el que busca él,
+                               así que va en su propio renglón y siempre, aunque nadie lo haya cargado. *@
+                            <p class="mk-portal-fila-codprov">Tu código: <b>@CodProv(a.CodigoProveedor)</b></p>
+                            <p class="mk-portal-fila-des">@a.Descripcion</p>
                         }
                         else
                         {
-                            <span class="mk-portal-sinfoto">Sin foto</span>
+                            <p class="mk-portal-fila-cod">@arts.Count artículos</p>
+                            <p class="mk-portal-fila-codprov">Tus códigos: <b>@Codigos(arts, r => CodProv(r.CodigoProveedor))</b></p>
+                            <p class="mk-portal-fila-des">@Codigos(arts, r => r.ArtCod)</p>
                         }
                     </div>
 
-                    <div class="mk-portal-card-cuerpo">
-                        <p class="mk-portal-card-cod">@art.ArtCod</p>
-                        @* El código con el que el proveedor llama a esa prenda. Va debajo del nuestro
-                           porque es por el que busca él; si nadie lo cargó, no se muestra la línea. *@
-                        @if (!string.IsNullOrWhiteSpace(art.CodigoProveedor))
-                        {
-                            <p class="mk-portal-card-codprov">Tu código: <b>@art.CodigoProveedor</b></p>
-                        }
-                        <p class="mk-portal-card-des">@art.Descripcion</p>
+                    <dl class="mk-portal-fila-datos">
+                        <div>
+                            <dt>Te mandamos</dt>
+                            <dd>@Enviadas(o)</dd>
+                        </div>
+                        <div>
+                            <dt>Imprimiste</dt>
+                            <dd>@o.Renglones.Sum(r => r.EtiquetasImpresasPortal).ToString("N0")</dd>
+                        </div>
+                    </dl>
 
-                        @* La orden y su estado van a lo ancho: los nombres de estado son largos
-                           ("Esperando pedido etiquetas nacional") y metidos en media card se parten en
-                           tres renglones y descuadran la grilla. *@
-                        <p class="mk-portal-card-orden">
-                            Orden <b>@orden.NroOrden</b>
-                            @* Casi todas las OP traen una sola prenda, así que la card se lee como "la
-                               prenda". Cuando una trae varias, hay que decirlo: si no, el proveedor ve el
-                               mismo número de orden repetido en varias cards y parece un error nuestro. *@
-                            @if (total > 1)
-                            {
-                                <span class="mk-portal-card-deorden">Artículo @nro de @total de esta orden</span>
-                            }
-                            <span class="mk-portal-card-estado">@orden.Estado</span>
-                        </p>
-
-                        <dl class="mk-portal-card-datos">
-                            <div>
-                                <dt>Te mandamos</dt>
-                                <dd>@Enviadas(art)</dd>
-                            </div>
-                            <div>
-                                <dt>Imprimiste</dt>
-                                <dd>@art.EtiquetasImpresasPortal.ToString("N0")</dd>
-                            </div>
-                        </dl>
-
-                        <span class="mk-portal-card-ir">Ver e imprimir</span>
-                    </div>
+                    <span class="mk-portal-fila-ir">Ver e imprimir</span>
                 </a>
             }
         </div>
@@ -137,6 +141,9 @@
 @code {
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
     [SupplyParameterFromQuery(Name = "msg")] public string? Mensaje { get; set; }
+
+    // Cuántas miniaturas por fila antes del "+N". Con 4 entra también en un celular.
+    private const int MaxMiniaturas = 4;
 
     private PortalListaOrdenes? _lista;
     private PortalImpresora? _impresora;
@@ -148,7 +155,9 @@
         if (string.IsNullOrEmpty(cod)) { _lista = new(true, []); return; }
         _impresora = await Portal.ImpresoraAsync(cod);
         _lista = await Portal.OrdenesAsync(cod);
-        _conFoto = await Portal.ConFotoAsync(Articulos(_lista).Select(x => x.Articulo.ArtCod).ToList());
+        // Sólo se pregunta por las miniaturas que se van a dibujar.
+        _conFoto = await Portal.ConFotoAsync(
+            _lista.Ordenes.SelectMany(o => o.Renglones.Take(MaxMiniaturas)).Select(r => r.ArtCod).ToList());
     }
 
     private async Task<string?> CodProveedor()
@@ -158,17 +167,27 @@
         return u.FindFirst(PoliticasAuth.ClaimCodProveedor)?.Value;
     }
 
-    // Una card por artículo, arrastrando la orden a la que pertenece y qué lugar ocupa adentro de ella.
-    private static IEnumerable<(PortalOrden Orden, PortalRenglon Articulo, int Numero, int Total)> Articulos(
-        PortalListaOrdenes lista)
-        => lista.Ordenes.SelectMany(o => o.Renglones.Select((r, i) => (o, r, i + 1, o.Renglones.Count)));
+    // En una OP con varias prendas, los primeros códigos y "y N más": la fila tiene que seguir siendo una fila.
+    // Sirve para los nuestros y para los del proveedor (mismo orden, así se corresponden).
+    private static string Codigos(IReadOnlyList<PortalRenglon> arts, Func<PortalRenglon, string> codigo)
+    {
+        const int muestra = 3;
+        var primeros = string.Join(" · ", arts.Take(muestra).Select(codigo));
+        return arts.Count > muestra ? $"{primeros} y {arts.Count - muestra} más" : primeros;
+    }
+
+    // El código del proveedor se muestra siempre: si no está cargado, un guión — mejor que esconder la línea
+    // y que no sepa que el dato existe.
+    private static string CodProv(string? c) => string.IsNullOrWhiteSpace(c) ? "—" : c.Trim();
 
     // Lo que se le mandó impreso desde acá. Es informativo: NO descuenta del tope (el portal existe
     // justamente para cuando eso no alcanzó).
-    private static string Enviadas(PortalRenglon r)
+    private static string Enviadas(PortalOrden o)
     {
-        if ((r.EtiquetasEnviadas ?? 0) == 0) return "—";
-        var total = r.EtiquetasEnviadas!.Value.ToString("N0");
-        return r.FechaEnvioEtiquetas is { } f ? $"{total} el {f:dd/MM}" : total;
+        var total = o.Renglones.Sum(r => r.EtiquetasEnviadas ?? 0);
+        if (total == 0) return "—";
+        var fecha = o.Renglones.Where(r => r.FechaEnvioEtiquetas is not null)
+                               .Select(r => r.FechaEnvioEtiquetas!.Value).DefaultIfEmpty().Max();
+        return fecha == default ? total.ToString("N0") : $"{total:N0} el {fecha:dd/MM}";
     }
 }

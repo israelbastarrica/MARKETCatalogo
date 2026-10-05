@@ -23,7 +23,9 @@ public sealed class FotosService : IFotosCatalogo
 {
     // Lista cerrada a propósito: si el ancho viniera libre del query string, cualquiera podría
     // hacernos generar miles de tamaños distintos y llenar el disco.
-    private static readonly int[] Anchos = [400, 1200];
+    // 160 = miniaturas de la lista de órdenes del portal de proveedores (4 por fila): servirles la de 400
+    // es bajar 4 veces más de lo que se ve.
+    private static readonly int[] Anchos = [160, 400, 1200];
     public IReadOnlyList<int> AnchosPermitidos => Anchos;
 
     private const int CalidadWebp = 100;

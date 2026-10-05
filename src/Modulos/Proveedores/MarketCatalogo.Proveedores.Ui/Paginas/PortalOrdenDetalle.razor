@@ -2,9 +2,10 @@
 @attribute [Authorize(Policy = PoliticasAuth.Proveedor)]
 @inject IPortalProveedores Portal
 
-@* Detalle de una OP: una CARD POR ARTÍCULO con su foto y su código, y adentro la curva color/talle con
-   lo pedido, lo que ya imprimió el proveedor y lo que le queda. Carga las cantidades y manda todo en un
-   POST (SSR puro, sin JavaScript).
+@* Detalle de una OP: una CARD GRANDE POR ARTÍCULO —la foto bien visible, nuestro código y el del
+   proveedor— y al lado la curva color/talle con lo pedido, lo ya impreso y lo que queda. Es la única
+   pantalla con foto grande: acá es donde el del taller confirma que es la prenda que tiene en la mano.
+   Carga las cantidades y manda todo en un POST (SSR puro, sin JavaScript).
    Si la orden no es suya, CurvaAsync devuelve null y mostramos "no existe" — igual que MarketWeb, que
    responde 404 en vez de 403 para no confirmar que existe. *@
 
@@ -48,77 +49,83 @@
                 {
                     <article class="mk-portal-art">
 
-                        <header class="mk-portal-art-head">
-                            <div class="mk-portal-art-foto">
-                                @if (_conFoto.Contains(art.ArtCod))
-                                {
-                                    <img src="@($"/proveedor/foto/{art.ArtCod}_400.webp")" alt="@art.ArtCod"
-                                         loading="lazy" decoding="async" />
-                                }
-                                else
-                                {
-                                    <span class="mk-portal-sinfoto">Sin foto</span>
-                                }
-                            </div>
-                            <div>
-                                <h2>@art.ArtCod</h2>
-                                @if (!string.IsNullOrWhiteSpace(art.CodigoProveedor))
-                                {
-                                    <p class="mk-portal-art-codprov">Tu código: <b>@art.CodigoProveedor</b></p>
-                                }
-                                <p class="mk-portal-art-des">@art.Descripcion</p>
-                                @* OCULTO A PEDIDO DE ISRAEL (02/10/2026): el resumen del artículo decía
-                                   "Pedido N · ya imprimiste N · te quedan N". Por ahora el proveedor no
-                                   imprime toda la curva —esto es refuerzo, no la tirada completa—, así que
-                                   "te quedan 160" se lee como una cuota que tiene que gastar. El tope por
-                                   combinación sigue vivo y se ve en la tabla de abajo; esto es sólo el
-                                   resumen. Se deja escrito para poder devolverlo sin rehacerlo.
-                                <p class="mk-portal-art-res">
-                                    Pedido @art.Pedido.ToString("N0") · ya imprimiste @art.ImpresoPortal.ToString("N0") ·
-                                    te quedan <b>@art.Disponible.ToString("N0")</b>
-                                </p>
-                                *@
-                            </div>
-                        </header>
+                        <div class="mk-portal-art-foto">
+                            @if (_conFoto.Contains(art.ArtCod))
+                            {
+                                @* 400 para pantallas comunes, 1200 para las de alta densidad: la foto es
+                                   grande y es la que confirma que es la prenda correcta. *@
+                                <img src="@($"/proveedor/foto/{art.ArtCod}_400.webp")"
+                                     srcset="@($"/proveedor/foto/{art.ArtCod}_400.webp 400w, /proveedor/foto/{art.ArtCod}_1200.webp 1200w")"
+                                     sizes="(max-width: 700px) 70vw, 260px"
+                                     alt="@art.ArtCod" loading="lazy" decoding="async" />
+                            }
+                            else
+                            {
+                                <span class="mk-portal-sinfoto">Sin foto</span>
+                            }
+                        </div>
 
-                        <table class="mk-portal-tabla">
-                            <thead>
-                                <tr>
-                                    <th>Color</th>
-                                    <th>Talle</th>
-                                    <th>Pedido</th>
-                                    <th>Impresas</th>
-                                    <th>Quedan</th>
-                                    <th>Imprimir</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var c in art.Combinaciones)
-                                {
-                                    <tr class="@(c.Disponible == 0 ? "mk-portal-sin" : null)">
-                                        <td>@(string.IsNullOrEmpty(c.Color) ? c.CodColor : c.Color)</td>
-                                        <td>@c.Talle</td>
-                                        <td>@c.Pedido.ToString("N0")</td>
-                                        <td>@c.ImpresoPortal.ToString("N0")</td>
-                                        <td><b>@c.Disponible.ToString("N0")</b></td>
-                                        <td>
-                                            @if (c.Disponible > 0)
-                                            {
-                                                @* El nombre del campo lleva la combinación: el servidor no confía en
-                                                   él para los topes, lo vuelve a validar contra la curva. *@
-                                                <input type="number" min="0" max="@c.Disponible" step="1"
-                                                       name="@($"i:{art.ArtCod}|{c.CodColor}|{c.Talle}")"
-                                                       placeholder="0" inputmode="numeric" />
-                                            }
-                                            else
-                                            {
-                                                <span class="mk-portal-nada">—</span>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        <div class="mk-portal-art-cuerpo">
+                            <h2>@art.ArtCod</h2>
+                            @* Siempre, aunque no esté cargado: es el código por el que busca el proveedor. *@
+                            <p class="mk-portal-art-codprov">
+                                Tu código: <b>@(string.IsNullOrWhiteSpace(art.CodigoProveedor) ? "—" : art.CodigoProveedor)</b>
+                            </p>
+                            <p class="mk-portal-art-des">@art.Descripcion</p>
+
+                            @* OCULTO A PEDIDO DE ISRAEL (02/10/2026): el resumen del artículo decía
+                               "Pedido N · ya imprimiste N · te quedan N". Por ahora el proveedor no
+                               imprime toda la curva —esto es refuerzo, no la tirada completa—, así que
+                               "te quedan 160" se lee como una cuota que tiene que gastar. El tope por
+                               combinación sigue vivo y se ve en la tabla de abajo; esto es sólo el
+                               resumen. Se deja escrito para poder devolverlo sin rehacerlo.
+                            <p class="mk-portal-art-res">
+                                Pedido @art.Pedido.ToString("N0") · ya imprimiste @art.ImpresoPortal.ToString("N0") ·
+                                te quedan <b>@art.Disponible.ToString("N0")</b>
+                            </p>
+                            *@
+
+                            <div class="mk-portal-art-curva">
+                                <table class="mk-portal-tabla">
+                                    <thead>
+                                        <tr>
+                                            <th>Color</th>
+                                            <th>Talle</th>
+                                            <th>Pedido</th>
+                                            <th>Impresas</th>
+                                            <th>Quedan</th>
+                                            <th>Imprimir</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var c in art.Combinaciones)
+                                        {
+                                            <tr class="@(c.Disponible == 0 ? "mk-portal-sin" : null)">
+                                                <td>@(string.IsNullOrEmpty(c.Color) ? c.CodColor : c.Color)</td>
+                                                <td>@c.Talle</td>
+                                                <td>@c.Pedido.ToString("N0")</td>
+                                                <td>@c.ImpresoPortal.ToString("N0")</td>
+                                                <td><b>@c.Disponible.ToString("N0")</b></td>
+                                                <td>
+                                                    @if (c.Disponible > 0)
+                                                    {
+                                                        @* El nombre del campo lleva la combinación: el servidor no confía en
+                                                           él para los topes, lo vuelve a validar contra la curva. *@
+                                                        <input type="number" min="0" max="@c.Disponible" step="1"
+                                                               name="@($"i:{art.ArtCod}|{c.CodColor}|{c.Talle}")"
+                                                               placeholder="0" inputmode="numeric" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="mk-portal-nada">—</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </article>
                 }
 

@@ -35,7 +35,14 @@ public sealed class ServicioPortal : IPortalProveedores
         // viene null y no se filtra nada — mejor mostrar de más que esconder una orden real por un campo
         // que no llegó. Se cuenta cuántas se escondieron: si del otro lado falla el cálculo vuelven TODAS
         // en cero, y sin este número la pantalla diría "no tenés órdenes" a alguien que tiene 109.
-        var conCurva = crudas.Where(o => o.CantidadCurva is null || o.CantidadCurva > 0).ToList();
+        //
+        // Y fuera también los renglones sin ARTCOD: sin nuestro código no hay etiqueta posible (el código de
+        // barras ES el ARTCOD), así que una OP que sólo tenga renglones así tampoco se lista.
+        var conCurva = crudas
+            .Where(o => o.CantidadCurva is null || o.CantidadCurva > 0)
+            .Select(o => o with { Renglones = (o.Renglones ?? []).Where(r => !string.IsNullOrWhiteSpace(r.ArtCod)).ToList() })
+            .Where(o => o.Renglones!.Count > 0)
+            .ToList();
         var escondidas = crudas.Count - conCurva.Count;
 
         var ordenes = conCurva
